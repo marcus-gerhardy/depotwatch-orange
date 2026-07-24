@@ -1,0 +1,190 @@
+"use client";
+
+import { useState } from "react";
+import { useI18n, intlLocale } from "@/lib/i18n";
+import { useAppStore } from "@/lib/store";
+import Dashboard from "./Dashboard";
+import TransactionsView from "./TransactionsView";
+import WalletsView from "./WalletsView";
+import TaxView from "./TaxView";
+import WatchlistView from "./WatchlistView";
+import SettingsView from "./SettingsView";
+import { Button } from "./ui";
+
+type Tab = "dashboard" | "transactions" | "wallets" | "tax" | "watchlist" | "settings";
+
+function FileIndicator() {
+  const { t, locale } = useI18n();
+  const loc = intlLocale(locale);
+  const fileName = useAppStore((s) => s.fileName);
+  const dirty = useAppStore((s) => s.dirty);
+  const saving = useAppStore((s) => s.saving);
+  const lastSavedAt = useAppStore((s) => s.lastSavedAt);
+  const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
+
+  const statusText = dirty || saving ? t("nav.unsavedChanges") : t("nav.saved");
+  const savedText = lastSavedAt
+    ? t("nav.lastSavedAt", { time: new Date(lastSavedAt).toLocaleString(loc) })
+    : t("nav.notYetSaved");
+  // Browsers never expose the real path — the tooltip shows name, encryption
+  // status, save state, and last save time.
+  const tooltip = [
+    fileName ?? "",
+    encryptionEnabled ? t("nav.encrypted") : t("nav.unencrypted"),
+    statusText,
+    savedText,
+  ].join("\n");
+
+  return (
+    <div
+      title={tooltip}
+      className="flex items-center gap-2 rounded-lg border border-border-c bg-surface px-2.5 py-1.5 text-xs"
+    >
+      <span aria-hidden>{encryptionEnabled ? "🔒" : "🔓"}</span>
+      <span className="max-w-32 truncate font-mono sm:max-w-48">{fileName}</span>
+      <span
+        className={`h-2 w-2 shrink-0 rounded-full ${
+          dirty || saving ? "animate-pulse bg-accent" : "bg-gain"
+        }`}
+        aria-label={statusText}
+      />
+      <span className="hidden text-muted lg:inline">{statusText}</span>
+    </div>
+  );
+}
+
+export default function AppShell() {
+  const { t } = useI18n();
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const [menuOpen, setMenuOpen] = useState(false);
+  /** Pre-set wallet/account filter when jumping from the dashboard breakdown. */
+  const [txFilter, setTxFilter] = useState<{
+    walletId: string;
+    accountId: string;
+  } | null>(null);
+  const fileMode = useAppStore((s) => s.fileMode);
+  const dirty = useAppStore((s) => s.dirty);
+  const privacyMode = useAppStore((s) => s.privacyMode);
+  const togglePrivacyMode = useAppStore((s) => s.togglePrivacyMode);
+  const saveNow = useAppStore((s) => s.saveNow);
+  const closePortfolio = useAppStore((s) => s.closePortfolio);
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "dashboard", label: t("nav.dashboard") },
+    { id: "transactions", label: t("nav.transactions") },
+    { id: "wallets", label: t("wallets.title") },
+    { id: "tax", label: t("nav.tax") },
+    { id: "watchlist", label: t("nav.watchlist") },
+    { id: "settings", label: t("nav.settings") },
+  ];
+
+  return (
+    <div className="flex flex-1 flex-col">
+      <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
+        <div className="mx-auto max-w-6xl px-4">
+          {/* Row 1: logo left, file indicator + actions right */}
+          <div className="flex items-center gap-2 py-2.5">
+            <button
+              className="rounded-lg px-2 py-1.5 text-muted hover:text-foreground md:hidden"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label={t("nav.menu")}
+              aria-expanded={menuOpen}
+            >
+              ☰
+            </button>
+            <div className="flex items-center gap-2 font-bold">
+              <span className="text-accent">₿</span>
+              <span className="hidden sm:inline">
+                DepotWatch <span className="text-accent">Orange</span>
+              </span>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={togglePrivacyMode}
+                title={t("nav.privacyMode")}
+                className={`rounded-lg px-2 py-1.5 text-sm ${
+                  privacyMode
+                    ? "bg-accent/15 text-accent"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {privacyMode ? "🙈" : "👁"}
+              </button>
+              {fileMode === "fallback" && (
+                <Button
+                  variant={dirty ? "primary" : "default"}
+                  onClick={() => saveNow()}
+                >
+                  {t("nav.saveFile")}
+                </Button>
+              )}
+              <FileIndicator />
+              <button
+                title={t("nav.closeFile")}
+                onClick={() => {
+                  if (!dirty || fileMode === "fsa" || confirm(t("nav.closeFileConfirm")))
+                    closePortfolio();
+                }}
+                className="flex items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm text-muted transition-colors hover:border-loss/40 hover:bg-loss/10 hover:text-loss"
+              >
+                <svg
+                  aria-hidden
+                  viewBox="0 0 16 16"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                >
+                  <path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v7A1.5 1.5 0 0 0 3.5 13H6M10.5 5.5 13 8l-2.5 2.5M13 8H6" />
+                </svg>
+                <span className="hidden lg:inline">{t("nav.closeFile")}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Row 2: main navigation (collapsible on mobile) */}
+          <nav
+            className={`${
+              menuOpen ? "flex" : "hidden"
+            } w-full flex-col gap-1 border-t border-border-c/60 py-2 md:flex md:flex-row md:items-center md:overflow-x-auto`}
+          >
+            {tabs.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setTxFilter(null);
+                  setTab(item.id);
+                  setMenuOpen(false);
+                }}
+                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-left text-sm transition-colors md:text-center ${
+                  tab === item.id
+                    ? "bg-accent/15 text-accent"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+        {tab === "dashboard" && (
+          <Dashboard
+            onSelectAccount={(walletId, accountId) => {
+              setTxFilter({ walletId, accountId });
+              setTab("transactions");
+            }}
+          />
+        )}
+        {tab === "transactions" && <TransactionsView initialFilter={txFilter} />}
+        {tab === "wallets" && <WalletsView />}
+        {tab === "tax" && <TaxView />}
+        {tab === "watchlist" && <WatchlistView />}
+        {tab === "settings" && <SettingsView />}
+      </main>
+    </div>
+  );
+}

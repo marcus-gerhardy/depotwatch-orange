@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Dark-first Bitcoin theme: orange accent on near-black (spec §5). */
+:root {
+  --background: #0b0b0d;
+  --surface: #151518;
+  --surface-2: #1d1d21;
+  --border: #2a2a30;
+  --foreground: #ececec;
+  --muted: #98989f;
+  --accent: #f7931a;
+  --accent-dim: #b96f14;
+  --gain: #26a269;
+  --loss: #e01b24;
+  --warning: #e5a50a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border-c: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Privacy mode: blur amounts, e.g. for screenshots/screen sharing. */
+.privacy-blur {
+  filter: blur(7px);
+  user-select: none;
+}
+
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+
+/* Tailwind v4 preflight leaves buttons with the browser-default cursor;
+   every enabled clickable control should read as clickable. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+}
