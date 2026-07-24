@@ -29,6 +29,8 @@ export interface OpenLot {
   costPerBtcEur: Decimal | null;
   /** First day the lot is tax-free (acquisition + holding period, exclusive). */
   taxFreeDate: Date;
+  /** Note of the lot-creating transaction. */
+  note: string;
 }
 
 export interface DisposalPart {
@@ -55,6 +57,8 @@ export interface Disposal {
   parts: DisposalPart[];
   /** BTC disposed of beyond what open lots covered (data entry gap). */
   uncoveredBtc: Decimal;
+  /** Note of the disposing transaction. */
+  note: string;
 }
 
 export interface FifoResult {
@@ -172,6 +176,7 @@ export function computeFifo(
           taxFreeDate: new Date(
             new Date(e.date).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY,
           ),
+          note: e.note,
         });
         break;
       }
@@ -191,6 +196,7 @@ export function computeFifo(
           taxFreeDate: new Date(
             new Date(e.date).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY,
           ),
+          note: e.note,
         });
         break;
       }
@@ -242,6 +248,7 @@ export function computeFifo(
           taxFreeGainEur: taxFreeGain,
           parts,
           uncoveredBtc: uncovered,
+          note: e.note,
         });
         break;
       }

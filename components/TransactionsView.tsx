@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useI18n, intlLocale } from "@/lib/i18n";
+import { useI18n, intlLocale, formatDate, formatTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger, type LedgerEntry, type TransactionType } from "@/lib/types";
 import { dec, formatBtc, formatFiat } from "@/lib/decimal";
@@ -285,6 +285,7 @@ export default function TransactionsView({
                 <th className="py-2 pr-4 text-left font-normal">
                   {t("tx.wallet")} / {t("tx.account")}
                 </th>
+                <th className="py-2 pr-4 text-left font-normal">{t("tx.note")}</th>
                 {header("amount", t("tx.amountBtc"), true)}
                 <th className="py-2 pr-4 text-right font-normal">{t("tx.priceEur")}</th>
                 <th className="py-2 pr-4 text-right font-normal">{t("tx.valueEur")}</th>
@@ -294,7 +295,7 @@ export default function TransactionsView({
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-6 text-center text-muted">
+                  <td colSpan={8} className="py-6 text-center text-muted">
                     {t("tx.empty")}
                   </td>
                 </tr>
@@ -317,13 +318,8 @@ export default function TransactionsView({
                     onClick={() => openEdit(r)}
                   >
                     <td className="py-2 pr-4 whitespace-nowrap">
-                      {d.toLocaleDateString(loc)}{" "}
-                      <span className="text-muted">
-                        {d.toLocaleTimeString(loc, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      {formatDate(d, loc)}{" "}
+                      <span className="text-muted">{formatTime(d, loc)}</span>
                     </td>
                     <td className={`py-2 pr-4 whitespace-nowrap ${TYPE_COLORS[r.type]}`}>
                       {t(`tx.types.${r.type}`)}
@@ -340,9 +336,12 @@ export default function TransactionsView({
                     </td>
                     <td className="py-2 pr-4 text-muted">
                       {r.walletName} / {r.accountName}
-                      {r.note && (
-                        <span className="ml-2 text-xs italic opacity-70">{r.note}</span>
-                      )}
+                    </td>
+                    <td
+                      className="max-w-40 truncate py-2 pr-4 text-xs text-muted"
+                      title={r.note || undefined}
+                    >
+                      {r.note || "—"}
                     </td>
                     <td className="py-2 pr-4 text-right font-mono">
                       <Amount>{formatBtc(r.amountBtc, loc, 8)}</Amount>
@@ -506,11 +505,7 @@ export default function TransactionsView({
               <div className="flex justify-between gap-4">
                 <dt className="text-muted">{t("tx.date")}</dt>
                 <dd>
-                  {new Date(deleting.date).toLocaleDateString(loc)}{" "}
-                  {new Date(deleting.date).toLocaleTimeString(loc, {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDate(deleting.date, loc)} {formatTime(deleting.date, loc)}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">

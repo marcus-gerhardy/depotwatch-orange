@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useI18n, intlLocale } from "@/lib/i18n";
+import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
 import { computeFifo, daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
@@ -57,7 +57,7 @@ export default function TaxView() {
         <Card className="border-warning/50">
           {uncovered.map((d) => (
             <p key={d.txId} className="text-sm text-warning">
-              ⚠ {t("tax.uncoveredWarning", { amount: d.uncoveredBtc.toString() })}
+              ⚠ {t("tax.uncoveredWarning", { amount: formatBtc(d.uncoveredBtc, loc, 8) })}
             </p>
           ))}
         </Card>
@@ -79,7 +79,8 @@ export default function TaxView() {
                   <th className="py-2 pr-4 text-right font-normal">{t("tax.remaining")}</th>
                   <th className="py-2 pr-4 text-right font-normal">{t("tax.costPerBtc")}</th>
                   <th className="py-2 pr-4 font-normal">{t("tax.taxFreeFrom")}</th>
-                  <th className="py-2 font-normal">Status</th>
+                  <th className="py-2 pr-4 font-normal">Status</th>
+                  <th className="py-2 font-normal">{t("tx.note")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,13 +90,13 @@ export default function TaxView() {
                   return (
                     <tr key={`${lot.txId}-${i}`} className="border-b border-border-c/50">
                       <td className="py-2 pr-4 whitespace-nowrap">
-                        {new Date(lot.acquiredDate).toLocaleDateString(loc)}
+                        {formatDate(lot.acquiredDate, loc)}
                       </td>
                       <td className="py-2 pr-4 text-muted">
                         {lot.walletName} / {lot.accountName}
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
-                        <Amount>{formatBtc(lot.remainingBtc, loc)}</Amount>
+                        <Amount>{formatBtc(lot.remainingBtc, loc, 8)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         {lot.costPerBtcEur ? (
@@ -110,9 +111,9 @@ export default function TaxView() {
                         )}
                       </td>
                       <td className="py-2 pr-4 whitespace-nowrap">
-                        {lot.taxFreeDate.toLocaleDateString(loc)}
+                        {formatDate(lot.taxFreeDate, loc)}
                       </td>
-                      <td className="py-2 whitespace-nowrap">
+                      <td className="py-2 pr-4 whitespace-nowrap">
                         {free ? (
                           <span className="rounded bg-gain/15 px-2 py-0.5 text-xs text-gain">
                             {t("tax.taxFreeNow")}
@@ -122,6 +123,12 @@ export default function TaxView() {
                             {t("tax.daysLeft", { days })}
                           </span>
                         )}
+                      </td>
+                      <td
+                        className="max-w-40 truncate py-2 text-xs text-muted"
+                        title={lot.note || undefined}
+                      >
+                        {lot.note || "—"}
                       </td>
                     </tr>
                   );
@@ -182,18 +189,19 @@ export default function TaxView() {
                     <th className="py-2 pr-4 text-right font-normal">{t("tax.proceeds")}</th>
                     <th className="py-2 pr-4 text-right font-normal">{t("tax.cost")}</th>
                     <th className="py-2 pr-4 text-right font-normal">{t("tax.gain")}</th>
-                    <th className="py-2 text-right font-normal">{t("tax.taxableGain")}</th>
+                    <th className="py-2 pr-4 text-right font-normal">{t("tax.taxableGain")}</th>
+                    <th className="py-2 font-normal">{t("tx.note")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {disposals.map((d) => (
                     <tr key={d.txId} className="border-b border-border-c/50">
                       <td className="py-2 pr-4 whitespace-nowrap">
-                        {new Date(d.date).toLocaleDateString(loc)}
+                        {formatDate(d.date, loc)}
                       </td>
                       <td className="py-2 pr-4">{t(`tx.types.${d.type}`)}</td>
                       <td className="py-2 pr-4 text-right font-mono">
-                        <Amount>{formatBtc(d.amountBtc, loc)}</Amount>
+                        <Amount>{formatBtc(d.amountBtc, loc, 8)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatFiat(d.proceedsEur, "EUR", loc)}</Amount>
@@ -206,8 +214,14 @@ export default function TaxView() {
                           {formatFiat(d.gainEur, "EUR", loc)}
                         </PnlValue>
                       </td>
-                      <td className="py-2 text-right font-mono">
+                      <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatFiat(d.taxableGainEur, "EUR", loc)}</Amount>
+                      </td>
+                      <td
+                        className="max-w-40 truncate py-2 text-xs text-muted"
+                        title={d.note || undefined}
+                      >
+                        {d.note || "—"}
                       </td>
                     </tr>
                   ))}

@@ -61,3 +61,19 @@ export function useI18n() {
 export function intlLocale(locale: Locale): string {
   return locale === "de" ? "de-DE" : "en-US";
 }
+
+/** Locale date with 2-digit day/month (de: "24.07.2026", en: "07/24/2026"). */
+export function formatDate(date: Date | string, loc: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString(loc, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/** Locale time as HH:MM. */
+export function formatTime(date: Date | string, loc: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+}
