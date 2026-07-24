@@ -7,8 +7,7 @@ import Link from "next/link";
 import { makeTranslator } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 
-// TODO: replace with the real repository URL once published.
-const GITHUB_URL = "https://github.com/depotwatch-orange/depotwatch-orange";
+const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
 
 export default function Footer() {
   const locale = useAppStore((s) => s.portfolio?.settings.locale ?? "de");

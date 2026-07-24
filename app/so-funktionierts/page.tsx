@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     "Wie DepotWatch Orange funktioniert: Local-First, eine verschlüsselte Datei, kein Server. Die Sicherheitsarchitektur im Detail.",
 };
 
-const GITHUB_URL = "https://github.com/depotwatch-orange/depotwatch-orange";
+const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
 
 export default function SoFunktioniertsPage() {
   return (
