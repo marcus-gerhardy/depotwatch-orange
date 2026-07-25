@@ -189,6 +189,23 @@ const de = {
       "Die offenen Lots im Quellkonto decken die Menge nicht (verfügbar: {available} BTC).",
     rowsPerPage: "Zeilen pro Seite",
     allRows: "Alle",
+    taxStatus: "Steuerstatus",
+    columns: "Spalten",
+    timeAt: "{time} Uhr",
+    selectAll: "Alle auswählen",
+    selectRow: "Zeile auswählen",
+    selectedCount: "{count} ausgewählt",
+    clearSelection: "Auswahl aufheben",
+    changeWalletAccount: "Wallet/Konto ändern",
+    moveConfirm:
+      "{count} Transaktion(en) werden nach „{target}“ verschoben.",
+    moveTransferNote:
+      "Die Auswahl enthält interne Transfers: Die jeweilige Gegenseite bleibt in ihrem Konto und wird automatisch auf das neue Konto verknüpft.",
+    moveTransferConflict:
+      "Nicht möglich: Bei {count} Transfer(s) lägen danach Ausgangs- und Eingangsseite im selben Konto. Bitte Ziel-Konto oder Auswahl anpassen.",
+    moveLegacyTransferWarning:
+      "{count} ältere Transfer-Transaktion(en) ohne Gruppen-Verknüpfung: Die Gegenseite kann nicht automatisch aktualisiert werden — bitte anschließend manuell prüfen.",
+    moveAction: "Verschieben",
     pageOf: "Seite {current} von {total}",
     prevPage: "Vorherige Seite",
     nextPage: "Nächste Seite",
@@ -313,6 +330,7 @@ const de = {
     daysLeft: "Noch {days} Tage",
     taxFreeNow: "Steuerfrei",
     taxable: "Steuerpflichtig",
+    taxableDaysLeft: "Steuerpflichtig – noch {days} Tage",
     disposals: "Veräußerungen (realisiert)",
     proceeds: "Erlös",
     cost: "Einstand",

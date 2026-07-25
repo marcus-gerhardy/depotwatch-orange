@@ -91,7 +91,7 @@ export default function StartScreen() {
     <main className="flex flex-1 items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <div className="mb-2 text-4xl">₿</div>
+          <div className="mb-2 text-4xl text-accent">₿</div>
           <h1 className="text-2xl font-bold">
             DepotWatch <span className="text-accent">Orange</span>
           </h1>

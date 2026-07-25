@@ -62,6 +62,12 @@ interface AppState {
   addTransaction: (accountId: string, tx: Transaction) => void;
   updateTransaction: (txId: string, tx: Transaction, accountId: string) => void;
   deleteTransaction: (txId: string) => void;
+  /**
+   * Move several transactions into another account. Counterpart transfer
+   * legs (linked via transferGroupId) that stay behind get their
+   * counterpartyAccountId retargeted so the pair remains consistent.
+   */
+  moveTransactions: (txIds: string[], targetAccountId: string) => void;
   addWatchedAddress: (a: WatchedAddress) => void;
   deleteWatchedAddress: (id: string) => void;
   setUtxoLabel: (label: UtxoLabel) => void;
@@ -266,6 +272,50 @@ export const useAppStore = create<AppState>((set, get) => {
           }),
         })),
       ),
+
+    moveTransactions: (txIds, targetAccountId) =>
+      mutate((p) => {
+        const idSet = new Set(txIds);
+        const moved: Transaction[] = [];
+        const movedGroupIds = new Set<string>();
+        let targetExists = false;
+        // Pass 1: pull the selected transactions out of their accounts.
+        const stripped = mapWallets(p, (w) => ({
+          ...w,
+          accounts: w.accounts.map((a) => {
+            if (a.id === targetAccountId) targetExists = true;
+            const kept = a.transactions.filter((t) => {
+              if (!idSet.has(t.id) || a.id === targetAccountId) return true;
+              moved.push(t);
+              if (t.transferGroupId) movedGroupIds.add(t.transferGroupId);
+              return false;
+            });
+            return kept.length === a.transactions.length
+              ? a
+              : { ...a, transactions: kept };
+          }),
+        }));
+        if (!targetExists || moved.length === 0) return p;
+        // Pass 2: insert into the target and retarget counterpart legs.
+        return mapWallets(stripped, (w) => ({
+          ...w,
+          accounts: w.accounts.map((a) => {
+            let txs = a.transactions;
+            if (movedGroupIds.size > 0) {
+              txs = txs.map((t) =>
+                t.transferGroupId &&
+                movedGroupIds.has(t.transferGroupId) &&
+                t.counterpartyAccountId &&
+                !idSet.has(t.id)
+                  ? { ...t, counterpartyAccountId: targetAccountId }
+                  : t,
+              );
+            }
+            if (a.id === targetAccountId) txs = [...txs, ...moved];
+            return txs === a.transactions ? a : { ...a, transactions: txs };
+          }),
+        }));
+      }),
 
     deleteTransaction: (txId) =>
       mutate((p) =>
