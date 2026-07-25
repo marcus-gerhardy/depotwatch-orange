@@ -12,9 +12,13 @@ export function balanceDelta(e: LedgerEntry): Decimal {
       return amount.minus(fee);
     case "transfer_in":
       return amount;
+    case "transfer_out":
+      // For transfers the BTC network fee is part of the sent amount (the
+      // in-leg records amountBtc − feeBtc), so it must not be subtracted
+      // again here.
+      return amount.neg();
     case "sell":
     case "spend":
-    case "transfer_out":
       return amount.plus(fee).neg();
   }
 }

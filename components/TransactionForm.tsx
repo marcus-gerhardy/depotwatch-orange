@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import { dec } from "@/lib/decimal";
+import { Decimal, dec, ZERO } from "@/lib/decimal";
 import { allocateFifo, computeFifo } from "@/lib/fifo";
 import { fetchSpotPrice } from "@/lib/binance";
 import {
@@ -131,7 +131,36 @@ export default function TransactionForm({
         ? (existing.counterpartyAccountId ?? EXTERNAL)
         : EXTERNAL,
   );
+  // Transfer only: which source lot to move — "" = automatic FIFO (oldest
+  // first, may span several lots), otherwise the targeted lot's tx id.
+  const initialTransferLotId =
+    existing?.type === "transfer_out" && existing.lotAllocations?.length === 1
+      ? existing.lotAllocations[0].lotTransactionId
+      : "";
+  const [transferLotId, setTransferLotId] = useState(initialTransferLotId);
   const [error, setError] = useState<string | null>(null);
+
+  // Open lots of the source account, aggregated per lot transaction (a
+  // transfer_in may have re-created several lots under one id).
+  const transferLotOptions = useMemo(() => {
+    if (fromAccount === EXTERNAL) return [];
+    const byId = new Map<
+      string,
+      { txId: string; acquiredDate: string; remaining: Decimal }
+    >();
+    for (const l of openLots) {
+      if (l.accountId !== fromAccount || l.remainingBtc.lte(0)) continue;
+      const prev = byId.get(l.txId);
+      if (prev) prev.remaining = prev.remaining.plus(l.remainingBtc);
+      else
+        byId.set(l.txId, {
+          txId: l.txId,
+          acquiredDate: l.acquiredDate,
+          remaining: l.remainingBtc,
+        });
+    }
+    return [...byId.values()];
+  }, [openLots, fromAccount]);
 
   const needsPrice = formType === "buy" || formType === "sell" || formType === "spend";
 
@@ -227,6 +256,42 @@ export default function TransactionForm({
       setError(t("tx.sameAccount"));
       return;
     }
+    const transferAmount = dec(amount);
+    // Lot assignment for the out-leg, fixed at creation time like for sells.
+    // Rule: an internal transfer_out's allocations must cover amountBtc
+    // exactly (no unassigned remainder). Returns null when validation failed.
+    const resolveOutAllocations = (): LotAllocation[] | undefined | null => {
+      if (
+        existing?.type === "transfer_out" &&
+        existing.lotAllocations?.length &&
+        dec(existing.amountBtc).eq(transferAmount) &&
+        existing.accountId === fromAccount &&
+        transferLotId === initialTransferLotId
+      ) {
+        // Unchanged edit: keep the stored allocation.
+        return existing.lotAllocations;
+      }
+      const sourceLots = openLots.filter((l) => l.accountId === fromAccount);
+      if (transferLotId) {
+        const available = sourceLots
+          .filter((l) => l.txId === transferLotId)
+          .reduce((s, l) => s.plus(l.remainingBtc), ZERO);
+        if (transferAmount.gt(available)) {
+          setError(t("tx.lotExceeds", { max: available.toString() }));
+          return null;
+        }
+        return [
+          { lotTransactionId: transferLotId, amountBtc: transferAmount.toString() },
+        ];
+      }
+      const alloc = allocateFifo(sourceLots, transferAmount);
+      const covered = alloc.reduce((s, x) => s.plus(dec(x.amountBtc)), ZERO);
+      if (covered.eq(transferAmount)) return alloc;
+      if (toAccount === EXTERNAL) return undefined; // legacy dynamic FIFO
+      setError(t("tx.insufficientLots", { available: covered.toString() }));
+      return null;
+    };
+
     if (existing && isTransferLeg) {
       // Edit only this leg; counterparty reference stays as chosen.
       const isOut = existing.type === "transfer_out";
@@ -236,6 +301,12 @@ export default function TransactionForm({
         setError(t("tx.sameAccount"));
         return;
       }
+      let lotAllocations: LotAllocation[] | undefined;
+      if (isOut) {
+        const resolved = resolveOutAllocations();
+        if (resolved === null) return;
+        lotAllocations = resolved;
+      }
       const tx: Transaction = {
         ...base,
         id: existing.id,
@@ -243,6 +314,8 @@ export default function TransactionForm({
         pricePerBtcEur: null,
         totalFiatEur: null,
         counterpartyAccountId: other === EXTERNAL ? undefined : other,
+        transferGroupId: existing.transferGroupId,
+        ...(lotAllocations?.length ? { lotAllocations } : {}),
       };
       updateTransaction(existing.id, tx, own);
       onClose();
@@ -253,6 +326,18 @@ export default function TransactionForm({
       setError(t("tx.sameAccount"));
       return;
     }
+    let outAllocations: LotAllocation[] | undefined;
+    if (fromAccount !== EXTERNAL) {
+      const resolved = resolveOutAllocations();
+      if (resolved === null) return;
+      outAllocations = resolved;
+    }
+    // Both legs internal → link them so the FIFO engine can move the lots
+    // (original acquisition date + cost basis) into the target account.
+    const transferGroupId =
+      fromAccount !== EXTERNAL && toAccount !== EXTERNAL
+        ? crypto.randomUUID()
+        : undefined;
     if (fromAccount !== EXTERNAL) {
       addTransaction(fromAccount, {
         ...base,
@@ -261,6 +346,8 @@ export default function TransactionForm({
         pricePerBtcEur: null,
         totalFiatEur: null,
         counterpartyAccountId: toAccount === EXTERNAL ? undefined : toAccount,
+        ...(transferGroupId ? { transferGroupId } : {}),
+        ...(outAllocations?.length ? { lotAllocations: outAllocations } : {}),
       });
     }
     if (toAccount !== EXTERNAL) {
@@ -274,6 +361,7 @@ export default function TransactionForm({
         pricePerBtcEur: null,
         totalFiatEur: null,
         counterpartyAccountId: fromAccount === EXTERNAL ? undefined : fromAccount,
+        ...(transferGroupId ? { transferGroupId } : {}),
       });
     }
     onClose();
@@ -343,14 +431,41 @@ export default function TransactionForm({
             {accountSelect(accountId, setAccountId, false)}
           </Field>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("tx.fromAccount")}>
-              {accountSelect(fromAccount, setFromAccount, true)}
-            </Field>
-            <Field label={t("tx.toAccount")}>
-              {accountSelect(toAccount, setToAccount, true)}
-            </Field>
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("tx.fromAccount")}>
+                {accountSelect(
+                  fromAccount,
+                  (v) => {
+                    setFromAccount(v);
+                    setTransferLotId("");
+                  },
+                  true,
+                )}
+              </Field>
+              <Field label={t("tx.toAccount")}>
+                {accountSelect(toAccount, setToAccount, true)}
+              </Field>
+            </div>
+            {fromAccount !== EXTERNAL &&
+              (!existing || existing.type === "transfer_out") && (
+                <Field label={t("tx.lotSelection")}>
+                  <select
+                    className={inputCls}
+                    value={transferLotId}
+                    onChange={(e) => setTransferLotId(e.target.value)}
+                  >
+                    <option value="">{t("tx.lotAuto")}</option>
+                    {transferLotOptions.map((o) => (
+                      <option key={o.txId} value={o.txId}>
+                        {o.acquiredDate.slice(0, 10)} · {o.remaining.toString()}{" "}
+                        BTC
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+          </>
         )}
 
         <div className="grid grid-cols-2 gap-3">

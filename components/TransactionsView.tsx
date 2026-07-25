@@ -5,7 +5,7 @@ import { useI18n, intlLocale, formatDate, formatTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger, type LedgerEntry, type TransactionType } from "@/lib/types";
 import { dec, formatBtc, formatFiat } from "@/lib/decimal";
-import { computeFifo, daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
+import { computeFifo, daysUntilTaxFree, isLotTaxFree, type OpenLot } from "@/lib/fifo";
 import { Amount, Button, Card, Modal, SectionTitle, inputCls } from "./ui";
 import TransactionForm, { type SellLotTarget } from "./TransactionForm";
 import CsvImportWizard from "./CsvImportWizard";
@@ -69,9 +69,25 @@ export default function TransactionsView({
   const all = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
 
   // Open lot per buy/transfer_in transaction (only lots with remaining > 0).
+  // A transfer_in can carry several moved lots under one transaction id —
+  // aggregate them: remaining is summed, and the tax-free badge only turns
+  // green once every part is past the holding period (latest taxFreeDate).
   const lotByTxId = useMemo(() => {
     const fifo = computeFifo(all, portfolio.settings.holdingPeriodDays);
-    return new Map(fifo.openLots.map((l) => [l.txId, l]));
+    const map = new Map<string, OpenLot>();
+    for (const l of fifo.openLots) {
+      const prev = map.get(l.txId);
+      if (!prev) {
+        map.set(l.txId, { ...l });
+        continue;
+      }
+      prev.remainingBtc = prev.remainingBtc.plus(l.remainingBtc);
+      if (l.taxFreeDate.getTime() > prev.taxFreeDate.getTime()) {
+        prev.taxFreeDate = l.taxFreeDate;
+        prev.acquiredDate = l.acquiredDate;
+      }
+    }
+    return map;
   }, [all, portfolio.settings.holdingPeriodDays]);
 
   const filtered = useMemo(() => {

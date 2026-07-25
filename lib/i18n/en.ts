@@ -186,6 +186,10 @@ const en: typeof de = {
     sellLotTitle: "Sell lot",
     lotMax: "Remaining in this lot: {max} BTC",
     lotExceeds: "Amount exceeds the lot's remaining balance ({max} BTC).",
+    lotSelection: "Lot selection",
+    lotAuto: "Automatic (FIFO, oldest first)",
+    insufficientLots:
+      "The open lots in the source account don't cover the amount (available: {available} BTC).",
     rowsPerPage: "Rows per page",
     allRows: "All",
     pageOf: "Page {current} of {total}",

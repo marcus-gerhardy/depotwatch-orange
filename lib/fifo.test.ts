@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { allocateFifo, computeFifo, daysUntilTaxFree, isLotTaxFree } from "./fifo";
 import { dec } from "./decimal";
-import type { LedgerEntry, TransactionType } from "./types";
+import { flattenLedger } from "./types";
+import type { LedgerEntry, TransactionType, Wallet } from "./types";
 
 let seq = 0;
 function entry(
@@ -281,6 +282,220 @@ describe("computeFifo", () => {
     expect(a1LotIds).toContain(allocs[1].lotTransactionId);
   });
 
+  it("lot-moving transfer keeps acquisition date and cost basis in the target account", () => {
+    const buy = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+    const r = computeFifo(
+      [
+        buy,
+        entry("transfer_out", "2024-01-15T00:00:00Z", "1", null, {
+          counterpartyAccountId: "a2",
+          transferGroupId: "g1",
+          lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "1" }],
+        }),
+        entry("transfer_in", "2024-01-15T00:00:00Z", "1", null, {
+          counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+      ],
+      365,
+    );
+    expect(r.openLots).toHaveLength(1);
+    const lot = r.openLots[0];
+    // The lot now lives in the target account but keeps its origin data.
+    expect(lot.accountId).toBe("a2");
+    expect(lot.acquiredDate).toBe("2023-01-01T00:00:00Z");
+    expect(lot.costPerBtcEur!.toString()).toBe("20000");
+    expect(r.totalBtc.toString()).toBe("1");
+  });
+
+  it("batched transfer moves several lots at once, each keeping its identity", () => {
+    const buy1 = entry("buy", "2023-01-01T00:00:00Z", "0.4", "20000");
+    const buy2 = entry("buy", "2024-06-01T00:00:00Z", "0.6", "60000");
+    const r = computeFifo(
+      [
+        buy1,
+        buy2,
+        entry("transfer_out", "2024-07-01T00:00:00Z", "1", null, {
+          counterpartyAccountId: "a2",
+          transferGroupId: "g1",
+          lotAllocations: [
+            { lotTransactionId: buy1.id, amountBtc: "0.4" },
+            { lotTransactionId: buy2.id, amountBtc: "0.6" },
+          ],
+        }),
+        entry("transfer_in", "2024-07-01T00:00:00Z", "1", null, {
+          counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+        // Sell everything: the old 0.4 must be tax-free, the young 0.6 not.
+        entry("sell", "2024-08-01T00:00:00Z", "1", "70000", {
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+      ],
+      365,
+    );
+    const d = r.disposals[0];
+    // tax-free: 0.4 × (70000 − 20000) = 20000; taxable: 0.6 × (70000 − 60000)
+    expect(d.taxFreeGainEur.toString()).toBe("20000");
+    expect(d.taxableGainEur.toString()).toBe("6000");
+    expect(d.uncoveredBtc.toString()).toBe("0");
+  });
+
+  it("lot identity survives multiple transfer hops", () => {
+    const buy = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+    const hop1out = entry("transfer_out", "2023-06-01T00:00:00Z", "1", null, {
+      counterpartyAccountId: "a2",
+      transferGroupId: "g1",
+      lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "1" }],
+    });
+    const hop1in = entry("transfer_in", "2023-06-01T00:00:00Z", "1", null, {
+      counterpartyAccountId: "a1",
+      transferGroupId: "g1",
+      accountId: "a2",
+      accountName: "Cold",
+    });
+    const hop2out = entry("transfer_out", "2023-12-01T00:00:00Z", "1", null, {
+      counterpartyAccountId: "a3",
+      transferGroupId: "g2",
+      accountId: "a2",
+      accountName: "Cold",
+      lotAllocations: [{ lotTransactionId: hop1in.id, amountBtc: "1" }],
+    });
+    const hop2in = entry("transfer_in", "2023-12-01T00:00:00Z", "1", null, {
+      counterpartyAccountId: "a2",
+      transferGroupId: "g2",
+      accountId: "a3",
+      accountName: "Vault",
+    });
+    const r = computeFifo(
+      [
+        buy,
+        hop1out,
+        hop1in,
+        hop2out,
+        hop2in,
+        // > 1 year after the ORIGINAL buy, < 1 year after both transfers.
+        entry("sell", "2024-02-01T00:00:00Z", "1", "60000", {
+          accountId: "a3",
+          accountName: "Vault",
+        }),
+      ],
+      365,
+    );
+    const d = r.disposals[0];
+    expect(d.taxFreeGainEur.toString()).toBe("40000");
+    expect(d.taxableGainEur.toString()).toBe("0");
+    expect(d.parts[0].acquiredDate).toBe("2023-01-01T00:00:00Z");
+  });
+
+  it("BTC fee of a lot-moving transfer never re-materializes", () => {
+    const buy = entry("buy", "2024-01-01T00:00:00Z", "1", "40000");
+    const r = computeFifo(
+      [
+        buy,
+        entry("transfer_out", "2024-02-01T00:00:00Z", "1", null, {
+          counterpartyAccountId: "a2",
+          transferGroupId: "g1",
+          feeBtc: "0.0001",
+          lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "1" }],
+        }),
+        entry("transfer_in", "2024-02-01T00:00:00Z", "0.9999", null, {
+          counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+      ],
+      365,
+    );
+    expect(r.totalBtc.toString()).toBe("0.9999");
+    expect(r.openLots[0].acquiredDate).toBe("2024-01-01T00:00:00Z");
+    expect(r.openLots[0].costPerBtcEur!.toString()).toBe("40000");
+  });
+
+  it("partial transfer splits the lot between source and target account", () => {
+    const buy = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+    const out = entry("transfer_out", "2024-01-15T00:00:00Z", "0.3", null, {
+      counterpartyAccountId: "a2",
+      transferGroupId: "g1",
+      lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.3" }],
+    });
+    const r = computeFifo(
+      [
+        buy,
+        out,
+        entry("transfer_in", "2024-01-15T00:00:00Z", "0.3", null, {
+          counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+      ],
+      365,
+    );
+    expect(r.openLots).toHaveLength(2);
+    const src = r.openLots.find((l) => l.accountId === "a1")!;
+    const dst = r.openLots.find((l) => l.accountId === "a2")!;
+    expect(src.remainingBtc.toString()).toBe("0.7");
+    expect(dst.remainingBtc.toString()).toBe("0.3");
+    // Both halves keep the original acquisition date.
+    expect(src.acquiredDate).toBe("2023-01-01T00:00:00Z");
+    expect(dst.acquiredDate).toBe("2023-01-01T00:00:00Z");
+  });
+
+  it("transfer_in beyond what the out-leg moved becomes an unknown-basis lot", () => {
+    const buy = entry("buy", "2024-01-01T00:00:00Z", "0.5", "40000");
+    const r = computeFifo(
+      [
+        buy,
+        entry("transfer_out", "2024-02-01T00:00:00Z", "0.5", null, {
+          counterpartyAccountId: "a2",
+          transferGroupId: "g1",
+          lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.5" }],
+        }),
+        // Data gap: 0.8 recorded as arriving although only 0.5 left.
+        entry("transfer_in", "2024-02-01T00:00:00Z", "0.8", null, {
+          counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+      ],
+      365,
+    );
+    expect(r.totalBtc.toString()).toBe("0.8");
+    const known = r.openLots.find((l) => l.costPerBtcEur !== null)!;
+    const unknown = r.openLots.find((l) => l.costPerBtcEur === null)!;
+    expect(known.acquiredDate).toBe("2024-01-01T00:00:00Z");
+    expect(known.remainingBtc.toString()).toBe("0.5");
+    // The surplus starts fresh at the arrival date with unknown basis.
+    expect(unknown.acquiredDate).toBe("2024-02-01T00:00:00Z");
+    expect(unknown.remainingBtc.toString()).toBe("0.3");
+  });
+
+  it("external transfer_out honors persisted lot allocations", () => {
+    const buyOld = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+    const buyNew = entry("buy", "2024-06-01T00:00:00Z", "1", "60000");
+    const r = computeFifo(
+      [
+        buyOld,
+        buyNew,
+        // Send the NEWER lot out of the portfolio (no counterparty).
+        entry("transfer_out", "2024-07-01T00:00:00Z", "1", null, {
+          lotAllocations: [{ lotTransactionId: buyNew.id, amountBtc: "1" }],
+        }),
+      ],
+      365,
+    );
+    expect(r.openLots).toHaveLength(1);
+    expect(r.openLots[0].txId).toBe(buyOld.id);
+  });
+
   it("lot helpers report tax-free status and countdown", () => {
     const r = computeFifo(
       [entry("buy", "2024-01-01T00:00:00Z", "1", "40000")],
@@ -292,5 +507,78 @@ describe("computeFifo", () => {
     // 2024 is a leap year: tax-free from 2025-01-01 (366 days > 365).
     expect(daysUntilTaxFree(lot, new Date("2024-12-31T00:00:00Z"))).toBe(1);
     expect(daysUntilTaxFree(lot, new Date("2025-02-01T00:00:00Z"))).toBe(0);
+  });
+});
+
+describe("flattenLedger", () => {
+  it("orders same-timestamp transfer chains causally (out before in, hop by hop)", () => {
+    // Two hops recorded with the SAME timestamp; the ids are chosen so a
+    // plain id tie-break would process the legs in the wrong order.
+    const date = "2024-01-15T10:00:00Z";
+    const tx = (t: Partial<LedgerEntry> & { id: string; type: TransactionType }) => ({
+      date,
+      amountBtc: "1",
+      pricePerBtcEur: null as string | null,
+      note: "",
+      ...t,
+    });
+    const wallets: Wallet[] = [
+      {
+        id: "w1",
+        name: "Kraken",
+        type: "exchange",
+        accounts: [
+          {
+            id: "a1",
+            name: "Spot",
+            transactions: [
+              tx({ id: "z-buy", type: "buy", date: "2023-01-01T00:00:00Z", pricePerBtcEur: "20000" }),
+              tx({
+                id: "z-out1",
+                type: "transfer_out",
+                counterpartyAccountId: "a2",
+                transferGroupId: "g1",
+                lotAllocations: [{ lotTransactionId: "z-buy", amountBtc: "1" }],
+              }),
+            ],
+          },
+          {
+            id: "a2",
+            name: "Hot",
+            transactions: [
+              tx({ id: "a-in1", type: "transfer_in", counterpartyAccountId: "a1", transferGroupId: "g1" }),
+              tx({
+                id: "b-out2",
+                type: "transfer_out",
+                counterpartyAccountId: "a3",
+                transferGroupId: "g2",
+                lotAllocations: [{ lotTransactionId: "a-in1", amountBtc: "1" }],
+              }),
+            ],
+          },
+          {
+            id: "a3",
+            name: "Cold",
+            transactions: [
+              tx({ id: "a-in2", type: "transfer_in", counterpartyAccountId: "a2", transferGroupId: "g2" }),
+            ],
+          },
+        ],
+      },
+    ];
+    const entries = flattenLedger(wallets);
+    expect(entries.map((e) => e.id)).toEqual([
+      "z-buy",
+      "z-out1",
+      "a-in1",
+      "b-out2",
+      "a-in2",
+    ]);
+    // And the engine resolves the original lot through both hops.
+    const r = computeFifo(entries, 365);
+    expect(r.openLots).toHaveLength(1);
+    expect(r.openLots[0].accountId).toBe("a3");
+    expect(r.openLots[0].acquiredDate).toBe("2023-01-01T00:00:00Z");
+    expect(r.openLots[0].costPerBtcEur!.toString()).toBe("20000");
   });
 });

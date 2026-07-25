@@ -183,6 +183,10 @@ const de = {
     sellLotTitle: "Lot verkaufen",
     lotMax: "Restbestand dieses Lots: {max} BTC",
     lotExceeds: "Menge übersteigt den Restbestand des Lots ({max} BTC).",
+    lotSelection: "Lot-Auswahl",
+    lotAuto: "Automatisch (FIFO, älteste zuerst)",
+    insufficientLots:
+      "Die offenen Lots im Quellkonto decken die Menge nicht (verfügbar: {available} BTC).",
     rowsPerPage: "Zeilen pro Seite",
     allRows: "Alle",
     pageOf: "Seite {current} von {total}",

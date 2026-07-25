@@ -1,14 +1,25 @@
 // FIFO cost-basis engine for the German tax module.
 //
-// Pure function over the flattened ledger. Lots are kept in one global FIFO
-// queue across all wallets/accounts: internal transfers (legs that carry a
-// counterpartyAccountId) move coins between accounts but are NOT disposals and
-// never reset the acquisition date. Sell/spend consume the oldest lots first;
-// a disposal part is tax-free when the lot was held longer than the configured
-// holding period (§23 EStG: > 1 year).
-
-// Disposals that carry persisted `lotAllocations` consume exactly those lots;
-// disposals without (legacy data) fall back to dynamic FIFO consumption.
+// Pure function over the flattened ledger. Lots are kept in one FIFO queue;
+// internal transfers are NOT disposals and never reset the acquisition date.
+//
+// Lot-moving transfers: an internal transfer_out that carries a
+// transferGroupId closes its allocated source-account lots, and the in-leg(s)
+// of the same group re-create them in the receiving account with the original
+// acquisition date and cost basis (the in-leg's own date is only the arrival
+// time). This resolves transitively across multiple hops, because a moved lot
+// keeps its origin data and can itself be referenced by the next transfer's
+// allocations. The in-leg receives amountBtc net of the BTC network fee, so
+// the fee simply never re-materializes.
+//
+// Legacy internal transfer legs (no transferGroupId) keep the old behavior:
+// the lots never leave the source account's queue; only the fee is consumed.
+//
+// Sell/spend consume the oldest lots first; a disposal part is tax-free when
+// the lot was held longer than the configured holding period (§23 EStG:
+// > 1 year). Disposals and transfer_outs that carry persisted
+// `lotAllocations` consume exactly those lots; ones without (legacy data)
+// fall back to dynamic FIFO consumption.
 
 import { Decimal, dec, ZERO } from "./decimal";
 import type { LedgerEntry, LotAllocation } from "./types";
@@ -80,6 +91,13 @@ function holdingDaysBetween(acquired: string, disposed: string): number {
   );
 }
 
+/** A lot slice consumed by a transfer_out, waiting for its in-leg(s). */
+interface MovedPart {
+  acquiredDate: string;
+  amountBtc: Decimal;
+  costPerBtcEur: Decimal | null;
+}
+
 export function computeFifo(
   entries: LedgerEntry[],
   holdingPeriodDays: number,
@@ -89,6 +107,10 @@ export function computeFifo(
   // shifting from the front.
   const lots: OpenLot[] = [];
   const disposals: Disposal[] = [];
+  const movedByGroup = new Map<string, MovedPart[]>();
+
+  const taxFreeDateFor = (acquired: string) =>
+    new Date(new Date(acquired).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY);
 
   function takePart(lot: OpenLot, take: Decimal, disposedDate: string): DisposalPart {
     const days = holdingDaysBetween(lot.acquiredDate, disposedDate);
@@ -104,8 +126,16 @@ export function computeFifo(
     };
   }
 
-  /** Consume `amount` BTC oldest-lot-first; returns consumed parts. */
-  function consumeFifo(amount: Decimal, disposedDate: string): {
+  /**
+   * Consume `amount` BTC oldest-lot-first; returns consumed parts. With
+   * `accountId` only that account's lots are touched (lot-moving transfers
+   * must not drain other accounts).
+   */
+  function consumeFifo(
+    amount: Decimal,
+    disposedDate: string,
+    accountId?: string,
+  ): {
     parts: DisposalPart[];
     uncovered: Decimal;
   } {
@@ -114,6 +144,7 @@ export function computeFifo(
     for (const lot of lots) {
       if (remaining.lte(0)) break;
       if (lot.remainingBtc.lte(0)) continue;
+      if (accountId && lot.accountId !== accountId) continue;
       const take = Decimal.min(remaining, lot.remainingBtc);
       parts.push(takePart(lot, take, disposedDate));
       remaining = remaining.minus(take);
@@ -135,13 +166,19 @@ export function computeFifo(
     let budget = amount;
     let uncovered = ZERO;
     for (const a of allocations) {
-      const want = Decimal.min(dec(a.amountBtc), budget);
+      let want = Decimal.min(dec(a.amountBtc), budget);
       if (want.lte(0)) continue;
       budget = budget.minus(want);
-      const lot = lots.find((l) => l.txId === a.lotTransactionId);
-      const take = lot ? Decimal.min(want, lot.remainingBtc) : ZERO;
-      if (lot && take.gt(0)) parts.push(takePart(lot, take, disposedDate));
-      uncovered = uncovered.plus(want.minus(take));
+      // A transfer_in can have re-created several lots under one transaction
+      // id, so one allocation may span multiple queue entries (in order).
+      for (const lot of lots) {
+        if (want.lte(0)) break;
+        if (lot.txId !== a.lotTransactionId || lot.remainingBtc.lte(0)) continue;
+        const take = Decimal.min(want, lot.remainingBtc);
+        parts.push(takePart(lot, take, disposedDate));
+        want = want.minus(take);
+      }
+      uncovered = uncovered.plus(want);
     }
     return { parts, uncovered: uncovered.plus(budget) };
   }
@@ -173,16 +210,60 @@ export function computeFifo(
           originalAmountBtc: net,
           remainingBtc: net,
           costPerBtcEur: totalCost === null ? null : totalCost.div(net),
-          taxFreeDate: new Date(
-            new Date(e.date).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY,
-          ),
+          taxFreeDate: taxFreeDateFor(e.date),
           note: e.note,
         });
         break;
       }
       case "transfer_in": {
-        // Internal leg: coins already live in the lot queue — nothing to do.
-        if (e.counterpartyAccountId) break;
+        if (e.counterpartyAccountId) {
+          const moved = e.transferGroupId
+            ? movedByGroup.get(e.transferGroupId)
+            : undefined;
+          // Legacy internal leg (no group): the lots never left the source
+          // account's queue — nothing to re-create here.
+          if (!moved) break;
+          // Re-create the moved lot slices in this account, keeping the
+          // original acquisition date and cost basis. The in-leg amount is
+          // net of the BTC fee, so the tail slice (the fee) stays unclaimed.
+          let remaining = amount;
+          for (const part of moved) {
+            if (remaining.lte(0)) break;
+            const take = Decimal.min(part.amountBtc, remaining);
+            if (take.lte(0)) continue;
+            part.amountBtc = part.amountBtc.minus(take);
+            remaining = remaining.minus(take);
+            lots.push({
+              txId: e.id,
+              acquiredDate: part.acquiredDate,
+              accountId: e.accountId,
+              walletName: e.walletName,
+              accountName: e.accountName,
+              originalAmountBtc: take,
+              remainingBtc: take,
+              costPerBtcEur: part.costPerBtcEur,
+              taxFreeDate: taxFreeDateFor(part.acquiredDate),
+              note: e.note,
+            });
+          }
+          if (remaining.gt(0)) {
+            // More arrived than the out-leg moved (data gap): the remainder
+            // starts a fresh lot with unknown basis at the arrival date.
+            lots.push({
+              txId: e.id,
+              acquiredDate: e.date,
+              accountId: e.accountId,
+              walletName: e.walletName,
+              accountName: e.accountName,
+              originalAmountBtc: remaining,
+              remainingBtc: remaining,
+              costPerBtcEur: null,
+              taxFreeDate: taxFreeDateFor(e.date),
+              note: e.note,
+            });
+          }
+          break;
+        }
         // External receive: new lot with unknown (or provided) basis.
         lots.push({
           txId: e.id,
@@ -193,18 +274,46 @@ export function computeFifo(
           originalAmountBtc: amount,
           remainingBtc: amount,
           costPerBtcEur: price,
-          taxFreeDate: new Date(
-            new Date(e.date).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY,
-          ),
+          taxFreeDate: taxFreeDateFor(e.date),
           note: e.note,
         });
         break;
       }
       case "transfer_out": {
-        // Internal leg: no disposal. Only the network fee leaves the portfolio.
-        // External leg: coins leave the ledger without taxable proceeds.
-        const gone = e.counterpartyAccountId ? feeBtc : amount.plus(feeBtc);
-        if (gone.gt(0)) consumeFifo(gone, e.date);
+        if (e.counterpartyAccountId && e.transferGroupId) {
+          // Lot-moving transfer: close the allocated source-account lots and
+          // stash them for the in-leg(s) of the same group. No disposal, no
+          // separate fee consumption — the in-leg re-materializes the amount
+          // net of the fee.
+          const { parts } = e.lotAllocations?.length
+            ? consumeAllocated(e.lotAllocations, amount, e.date)
+            : consumeFifo(amount, e.date, e.accountId);
+          const moved = movedByGroup.get(e.transferGroupId) ?? [];
+          for (const p of parts) {
+            moved.push({
+              acquiredDate: p.acquiredDate,
+              amountBtc: p.amountBtc,
+              costPerBtcEur:
+                p.costBasisEur === null ? null : p.costBasisEur.div(p.amountBtc),
+            });
+          }
+          movedByGroup.set(e.transferGroupId, moved);
+          break;
+        }
+        if (e.counterpartyAccountId) {
+          // Legacy internal leg: no disposal, no lot movement. Only the
+          // network fee leaves the portfolio.
+          if (feeBtc.gt(0)) consumeFifo(feeBtc, e.date);
+          break;
+        }
+        // External send: coins leave the ledger without taxable proceeds;
+        // persisted allocations pin which lots close. As with internal
+        // transfers, the BTC fee is part of amountBtc — no extra consumption.
+        if (e.lotAllocations?.length) {
+          consumeAllocated(e.lotAllocations, amount, e.date);
+        } else if (amount.gt(0)) {
+          consumeFifo(amount, e.date);
+        }
         break;
       }
       case "sell":
@@ -312,7 +421,14 @@ export function allocateFifo(
     if (remaining.lte(0)) break;
     if (lot.remainingBtc.lte(0)) continue;
     const take = Decimal.min(remaining, lot.remainingBtc);
-    out.push({ lotTransactionId: lot.txId, amountBtc: take.toString() });
+    const last = out[out.length - 1];
+    if (last && last.lotTransactionId === lot.txId) {
+      // Several queue lots can share one transaction id (multi-lot
+      // transfer_in) — collapse them into a single allocation entry.
+      last.amountBtc = dec(last.amountBtc).plus(take).toString();
+    } else {
+      out.push({ lotTransactionId: lot.txId, amountBtc: take.toString() });
+    }
     remaining = remaining.minus(take);
   }
   return out;

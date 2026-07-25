@@ -73,14 +73,19 @@ Transaction schema:
   "feeBtc": "decimal | null (optional — many brokers only report fees in EUR)",
   "feeFiatEur": "decimal | null (optional)",
   "counterpartyAccountId": "transfer_in/transfer_out only: reference to the destination/source account",
-  "lotAllocations": "sell/spend only: array of { lotTransactionId, amountBtc } — references the buy/transfer_in transaction(s) (lots) this amount came from",
+  "transferGroupId": "transfer_in/transfer_out only: shared id linking the out-leg and in-leg(s) of one internal transfer",
+  "lotAllocations": "sell/spend/transfer_out: array of { lotTransactionId, amountBtc } — references the buy/transfer_in transaction(s) (lots) this amount came from; for a transfer_out these are the source-account lots the transfer closes, and their sum must equal amountBtc exactly",
   "note": "string"
 }
 ```
 
 Note: process amounts as strings/with a decimal library, not as JS `number` (avoid rounding errors with crypto amounts). For buy/sell/spend, at least one of `pricePerBtcEur` or `totalFiatEur` must be set — the missing field is derived from the other (`totalFiatEur = pricePerBtcEur × amountBtc` or vice versa).
 
+Fee convention (`feeBtc`): for transfers the BTC network fee is **part of** the transfer_out's `amountBtc` (gross amount leaving the source account); the transfer_in leg records the net arriving amount (`amountBtc − feeBtc`). For buys, `amountBtc` is gross and `amountBtc − feeBtc` is credited; for sell/spend the fee is charged **on top of** `amountBtc`.
+
 **Lot concept:** A "lot" is not a separate entity but any buy/transfer_in transaction with a remaining balance (amount − amount already sold via `lotAllocations`). The assignment of a sale to one or more lots is computed at the time of the sale (automatically via FIFO or chosen manually) and stored permanently in `lotAllocations` — it is never retroactively recomputed when new transactions are added later.
+
+**Lot continuity across internal transfers:** Moving coins between own wallets/accounts must not reset the tax lot history. An internal transfer_out carries `lotAllocations` (FIFO-selected or user-targeted, possibly several lots batched into one on-chain transaction) and shares a `transferGroupId` with its transfer_in leg(s). A transfer_in does NOT start a new lot at the transfer date — its `date` is only the arrival time for display purposes. The FIFO/tax engine resolves lot identity (original acquisition date + cost basis) at runtime by following transferGroupId → transfer_out → lotAllocations back to the original buy, across any number of transfer hops. Holding-period and cost-basis calculations for later disposals always use the traced original lot.
 
 ### 3.3 Address Watchlist
 
