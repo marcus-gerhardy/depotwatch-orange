@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useI18n, intlLocale } from "@/lib/i18n";
+import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { fetchDailyCloses, type DailyClose } from "@/lib/binance";
 import { dailyBalanceSeries } from "@/lib/portfolio";
@@ -74,7 +74,8 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
     return <p className="py-8 text-center text-sm text-muted">{t("dashboard.chartEmpty")}</p>;
   }
 
-  const fmtDate = (ms: number) =>
+  // Axis ticks stay compact on purpose; the tooltip shows the full locale date.
+  const fmtAxisDate = (ms: number) =>
     new Date(ms).toLocaleDateString(loc, { month: "short", day: "numeric", year: "2-digit" });
   const fmtMoney = (v: number) =>
     new Intl.NumberFormat(loc, {
@@ -127,7 +128,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
               <CartesianGrid stroke="#2a2a30" strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="time"
-                tickFormatter={fmtDate}
+                tickFormatter={fmtAxisDate}
                 stroke="#98989f"
                 fontSize={11}
                 tickLine={false}
@@ -159,7 +160,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
                   borderRadius: 8,
                   fontSize: 12,
                 }}
-                labelFormatter={(ms) => fmtDate(Number(ms))}
+                labelFormatter={(ms) => formatDate(Number(ms), loc)}
                 formatter={(v, name) => [
                   typeof v === "number" ? fmtMoney(v) : String(v ?? ""),
                   name === "value"

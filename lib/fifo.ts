@@ -72,10 +72,31 @@ export interface Disposal {
   note: string;
 }
 
+/** One internal transfer_out leg that moved (part of) a lot to another own account. */
+export interface LotTransferLeg {
+  transferOutTxId: string;
+  transferGroupId: string;
+  counterpartyAccountId: string;
+  date: string;
+  amountBtc: Decimal;
+}
+
+export interface FullyTransferredLot {
+  amountBtc: Decimal;
+  transfers: LotTransferLeg[];
+}
+
 export interface FifoResult {
   openLots: OpenLot[];
   disposals: Disposal[];
-  totalBtc: Decimal;
+  /**
+   * BTC still covered by open lots. This is NOT the portfolio holding: a
+   * disposal the engine cannot cover (a sell whose buy is missing, e.g. from a
+   * partial CSV export) leaves `uncoveredBtc` behind and no lot to consume, so
+   * this stays above the actual balance. Use portfolio.totalBalance() for
+   * "how much BTC do I hold" — this value only bounds what has a cost basis.
+   */
+  openLotsBtc: Decimal;
   /** Cost basis of open lots with known basis. */
   openCostBasisEur: Decimal;
   /** Average cost per BTC over open lots with known basis. */
@@ -83,6 +104,13 @@ export interface FifoResult {
   realizedGainEur: Decimal;
   realizedTaxableGainEur: Decimal;
   realizedTaxFreeGainEur: Decimal;
+  /**
+   * Lot-creating transactions (buy/transfer_in) whose entire balance left
+   * exclusively via one or more internal transfers — none of it sold, spent,
+   * sent externally, or still open. Keyed by the lot-creating transaction's
+   * id (matches how the UI aggregates a lot's remaining balance by id).
+   */
+  fullyTransferredLots: Map<string, FullyTransferredLot>;
 }
 
 function holdingDaysBetween(acquired: string, disposed: string): number {
@@ -108,6 +136,32 @@ export function computeFifo(
   const lots: OpenLot[] = [];
   const disposals: Disposal[] = [];
   const movedByGroup = new Map<string, MovedPart[]>();
+  // Per lot-creating tx id: BTC consumed by an internal transfer (with legs),
+  // vs. BTC consumed by anything else (sell/spend/external send/legacy fee).
+  // A lot only fades in the UI when it's fully closed and 100% of that
+  // closure came from the "transfer" bucket — see fullyTransferredLots below.
+  const transferConsumed = new Map<string, LotTransferLeg[]>();
+  const otherConsumedBtc = new Map<string, Decimal>();
+
+  function addTransferConsumption(
+    parts: DisposalPart[],
+    leg: Omit<LotTransferLeg, "amountBtc">,
+  ) {
+    for (const p of parts) {
+      const legs = transferConsumed.get(p.lotTxId) ?? [];
+      legs.push({ ...leg, amountBtc: p.amountBtc });
+      transferConsumed.set(p.lotTxId, legs);
+    }
+  }
+
+  function addOtherConsumption(parts: DisposalPart[]) {
+    for (const p of parts) {
+      otherConsumedBtc.set(
+        p.lotTxId,
+        (otherConsumedBtc.get(p.lotTxId) ?? ZERO).plus(p.amountBtc),
+      );
+    }
+  }
 
   const taxFreeDateFor = (acquired: string) =>
     new Date(new Date(acquired).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY);
@@ -181,6 +235,29 @@ export function computeFifo(
       uncovered = uncovered.plus(want);
     }
     return { parts, uncovered: uncovered.plus(budget) };
+  }
+
+  /**
+   * Close `leaving` BTC for a transfer_out: the persisted allocations first
+   * (they pin which lots this transfer closed), then plain FIFO for whatever
+   * they do not cover. The remainder matters for files whose allocations were
+   * written for `amountBtc` alone while the network fee left on top of it —
+   * without it the lots would keep coins the balance has already spent.
+   */
+  function consumeLeaving(
+    leaving: Decimal,
+    e: LedgerEntry,
+    accountId?: string,
+  ): DisposalPart[] {
+    if (leaving.lte(0)) return [];
+    const allocated = e.lotAllocations?.length
+      ? consumeAllocated(e.lotAllocations, leaving, e.date)
+      : { parts: [] as DisposalPart[], uncovered: leaving };
+    if (allocated.uncovered.lte(0)) return allocated.parts;
+    return [
+      ...allocated.parts,
+      ...consumeFifo(allocated.uncovered, e.date, accountId).parts,
+    ];
   }
 
   for (const e of entries) {
@@ -280,14 +357,22 @@ export function computeFifo(
         break;
       }
       case "transfer_out": {
+        // What actually left the account: the transferred amount plus the
+        // network fee on top (CLAUDE.md §3.2) — exactly what the lot
+        // allocations of a transfer add up to.
+        const leaving = amount.plus(feeBtc);
         if (e.counterpartyAccountId && e.transferGroupId) {
           // Lot-moving transfer: close the allocated source-account lots and
-          // stash them for the in-leg(s) of the same group. No disposal, no
-          // separate fee consumption — the in-leg re-materializes the amount
-          // net of the fee.
-          const { parts } = e.lotAllocations?.length
-            ? consumeAllocated(e.lotAllocations, amount, e.date)
-            : consumeFifo(amount, e.date, e.accountId);
+          // stash them for the in-leg(s) of the same group. No disposal — the
+          // in-leg re-materializes `amount`, the fee slice stays behind
+          // unclaimed and is thereby burned.
+          const parts = consumeLeaving(leaving, e, e.accountId);
+          addTransferConsumption(parts, {
+            transferOutTxId: e.id,
+            transferGroupId: e.transferGroupId,
+            counterpartyAccountId: e.counterpartyAccountId,
+            date: e.date,
+          });
           const moved = movedByGroup.get(e.transferGroupId) ?? [];
           for (const p of parts) {
             moved.push({
@@ -303,17 +388,12 @@ export function computeFifo(
         if (e.counterpartyAccountId) {
           // Legacy internal leg: no disposal, no lot movement. Only the
           // network fee leaves the portfolio.
-          if (feeBtc.gt(0)) consumeFifo(feeBtc, e.date);
+          if (feeBtc.gt(0)) addOtherConsumption(consumeFifo(feeBtc, e.date).parts);
           break;
         }
         // External send: coins leave the ledger without taxable proceeds;
-        // persisted allocations pin which lots close. As with internal
-        // transfers, the BTC fee is part of amountBtc — no extra consumption.
-        if (e.lotAllocations?.length) {
-          consumeAllocated(e.lotAllocations, amount, e.date);
-        } else if (amount.gt(0)) {
-          consumeFifo(amount, e.date);
-        }
+        // persisted allocations pin which lots close.
+        addOtherConsumption(consumeLeaving(leaving, e));
         break;
       }
       case "sell":
@@ -323,7 +403,8 @@ export function computeFifo(
         const { parts, uncovered } = e.lotAllocations?.length
           ? consumeAllocated(e.lotAllocations, amount, e.date)
           : consumeFifo(amount, e.date);
-        if (feeBtc.gt(0)) consumeFifo(feeBtc, e.date); // fee BTC leaves too
+        addOtherConsumption(parts);
+        if (feeBtc.gt(0)) addOtherConsumption(consumeFifo(feeBtc, e.date).parts); // fee BTC leaves too
         const gross =
           e.totalFiatEur != null
             ? dec(e.totalFiatEur)
@@ -366,11 +447,11 @@ export function computeFifo(
 
   const openLots = lots.filter((l) => l.remainingBtc.gt(0));
 
-  let totalBtc = ZERO;
+  let openLotsBtc = ZERO;
   let openCost = ZERO;
   let knownBasisBtc = ZERO;
   for (const lot of openLots) {
-    totalBtc = totalBtc.plus(lot.remainingBtc);
+    openLotsBtc = openLotsBtc.plus(lot.remainingBtc);
     if (lot.costPerBtcEur !== null) {
       openCost = openCost.plus(lot.costPerBtcEur.mul(lot.remainingBtc));
       knownBasisBtc = knownBasisBtc.plus(lot.remainingBtc);
@@ -386,15 +467,38 @@ export function computeFifo(
     realizedTaxFree = realizedTaxFree.plus(d.taxFreeGainEur);
   }
 
+  // A lot-creating tx can have several queue entries sharing one id (a
+  // bundled transfer_in re-creates one per origin lot) — aggregate by id
+  // before judging whether the whole thing is closed and how.
+  const partsByTxId = new Map<string, OpenLot[]>();
+  for (const lot of lots) {
+    const arr = partsByTxId.get(lot.txId) ?? [];
+    arr.push(lot);
+    partsByTxId.set(lot.txId, arr);
+  }
+  const fullyTransferredLots = new Map<string, FullyTransferredLot>();
+  for (const [txId, parts] of partsByTxId) {
+    const remaining = parts.reduce((s, l) => s.plus(l.remainingBtc), ZERO);
+    if (remaining.gt(0)) continue; // still (partially) open
+    if ((otherConsumedBtc.get(txId) ?? ZERO).gt(0)) continue; // sold/spent/sent externally too
+    const transfers = transferConsumed.get(txId);
+    if (!transfers?.length) continue; // never consumed at all
+    fullyTransferredLots.set(txId, {
+      amountBtc: transfers.reduce((s, t) => s.plus(t.amountBtc), ZERO),
+      transfers,
+    });
+  }
+
   return {
     openLots,
     disposals,
-    totalBtc,
+    openLotsBtc,
     openCostBasisEur: openCost,
     avgCostPerBtcEur: knownBasisBtc.gt(0) ? openCost.div(knownBasisBtc) : null,
     realizedGainEur: realized,
     realizedTaxableGainEur: realizedTaxable,
     realizedTaxFreeGainEur: realizedTaxFree,
+    fullyTransferredLots,
   };
 }
 

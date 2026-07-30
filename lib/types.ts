@@ -1,6 +1,8 @@
 // Data model for the DepotWatch Orange portfolio file.
 // All BTC/fiat amounts are decimal strings — never JS numbers (see CLAUDE.md §10).
 
+import type { UserImportPreset } from "./importPresets";
+
 export type WalletType = "exchange" | "hardware" | "software" | "paper";
 
 export type TransactionType =
@@ -54,6 +56,23 @@ export interface Transaction {
   transferGroupId?: string;
   /** Optional, purely informative reference to a watchlist entry. */
   watchedAddressId?: string;
+  /**
+   * transfer_in/transfer_out only: the on-chain transaction id (64 hex chars,
+   * lower case). Optional — transactions written before this field existed
+   * stay valid.
+   */
+  txid?: string;
+  /**
+   * transfer_in/transfer_out only: the Bitcoin address this leg refers to —
+   * the destination for a transfer_out, the receiving address for a
+   * transfer_in. One on-chain transaction can pay several outputs, so the
+   * address pins down which one is meant.
+   *
+   * Matching aid only (pairing an out-leg with its in-leg). The security and
+   * privacy features deliberately never read it: they operate exclusively on
+   * the separate address watchlist (CLAUDE.md §3.1/§3.3).
+   */
+  address?: string;
   note: string;
 }
 
@@ -115,6 +134,8 @@ export interface PortfolioFile {
   watchedAddresses: WatchedAddress[];
   explorerSettings: ExplorerSettings;
   utxoLabels: UtxoLabel[];
+  /** User-defined CSV import presets, portable with the file (see CLAUDE.md §3.4). */
+  importPresets: UserImportPreset[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -133,6 +154,7 @@ export function emptyPortfolio(): PortfolioFile {
     watchedAddresses: [],
     explorerSettings: { provider: "mempool.space" },
     utxoLabels: [],
+    importPresets: [],
   };
 }
 

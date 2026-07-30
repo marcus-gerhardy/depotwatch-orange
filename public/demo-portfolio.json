@@ -1,0 +1,199 @@
+{
+  "version": "1.0",
+  "settings": {
+    "locale": "de",
+    "currencyDisplay": "EUR",
+    "holdingPeriodDays": 365,
+    "costBasisMethod": "FIFO",
+    "autosaveDebounceMs": 1500
+  },
+  "wallets": [
+    {
+      "id": "wallet-kraken",
+      "name": "Kraken",
+      "type": "exchange",
+      "accounts": [
+        {
+          "id": "acct-kraken-spot",
+          "name": "Spot",
+          "transactions": [
+            {
+              "id": "buy-kraken-1",
+              "type": "buy",
+              "date": "2024-03-01T10:15:00.000Z",
+              "amountBtc": "0.5",
+              "pricePerBtcEur": "60000",
+              "totalFiatEur": null,
+              "note": "Erstkauf per SEPA-Überweisung"
+            },
+            {
+              "id": "buy-kraken-2",
+              "type": "buy",
+              "date": "2025-01-15T09:00:00.000Z",
+              "amountBtc": "0.3",
+              "pricePerBtcEur": null,
+              "totalFiatEur": "27000",
+              "note": "Sparplan-Kauf"
+            },
+            {
+              "id": "sell-kraken-1",
+              "type": "sell",
+              "date": "2026-06-01T14:30:00.000Z",
+              "amountBtc": "0.1",
+              "pricePerBtcEur": null,
+              "totalFiatEur": "11500",
+              "feeFiatEur": "5",
+              "lotAllocations": [
+                { "lotTransactionId": "buy-kraken-1", "amountBtc": "0.1" }
+              ],
+              "note": "Teilverkauf zur Gewinnmitnahme"
+            },
+            {
+              "id": "bundle-transfer-out-1",
+              "type": "transfer_out",
+              "date": "2026-06-15T08:00:00.000Z",
+              "amountBtc": "0.4999",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.0001",
+              "lotAllocations": [
+                { "lotTransactionId": "buy-kraken-1", "amountBtc": "0.2" },
+                { "lotTransactionId": "buy-kraken-2", "amountBtc": "0.3" }
+              ],
+              "counterpartyAccountId": "acct-bitbox02-cold",
+              "transferGroupId": "g-bundle-transfer-1",
+              "note": "Sammel-Auszahlung auf Hardware-Wallet"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wallet-bitpanda",
+      "name": "Bitpanda",
+      "type": "exchange",
+      "accounts": [
+        {
+          "id": "acct-bitpanda-main",
+          "name": "Main",
+          "transactions": [
+            {
+              "id": "buy-bitpanda-1",
+              "type": "buy",
+              "date": "2025-09-01T11:00:00.000Z",
+              "amountBtc": "0.2",
+              "pricePerBtcEur": "100000",
+              "totalFiatEur": null,
+              "feeFiatEur": "1.50",
+              "note": "Kauf via Kreditkarte"
+            },
+            {
+              "id": "buy-bitpanda-2",
+              "type": "buy",
+              "date": "2026-05-01T16:20:00.000Z",
+              "amountBtc": "0.15",
+              "pricePerBtcEur": null,
+              "totalFiatEur": "16500",
+              "note": "Kauf via Kreditkarte"
+            },
+            {
+              "id": "spend-bitpanda-1",
+              "type": "spend",
+              "date": "2026-07-01T12:00:00.000Z",
+              "amountBtc": "0.02",
+              "pricePerBtcEur": "112000",
+              "totalFiatEur": null,
+              "lotAllocations": [
+                { "lotTransactionId": "buy-bitpanda-1", "amountBtc": "0.02" }
+              ],
+              "note": "Hardware-Wallet direkt mit BTC bezahlt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wallet-bitbox02",
+      "name": "BitBox02",
+      "type": "hardware",
+      "accounts": [
+        {
+          "id": "acct-bitbox02-cold",
+          "name": "Cold Storage",
+          "transactions": [
+            {
+              "id": "bundle-transfer-in-1",
+              "type": "transfer_in",
+              "date": "2026-06-15T09:45:00.000Z",
+              "amountBtc": "0.4999",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "acct-kraken-spot",
+              "transferGroupId": "g-bundle-transfer-1",
+              "note": "Sammel-Einzahlung von Kraken"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wallet-phoenix",
+      "name": "Phoenix",
+      "type": "software",
+      "accounts": [
+        {
+          "id": "acct-phoenix-lightning",
+          "name": "Lightning",
+          "transactions": [
+            {
+              "id": "phoenix-transfer-in-1",
+              "type": "transfer_in",
+              "date": "2026-04-01T18:00:00.000Z",
+              "amountBtc": "0.01",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "note": "Lightning-Kanal-Einzahlung (extern)"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "watchedAddresses": [
+    {
+      "id": "wa-bitbox02-receive-1",
+      "type": "address",
+      "value": "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+      "label": "BitBox02 Empfangsadresse (Beispiel)",
+      "tags": ["hardware-wallet"]
+    },
+    {
+      "id": "wa-kraken-xpub-1",
+      "type": "xpub",
+      "value": "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
+      "label": "Kraken Withdrawal-Wallet (Beispiel-xpub)",
+      "tags": ["kyc"]
+    }
+  ],
+  "explorerSettings": {
+    "provider": "mempool.space"
+  },
+  "utxoLabels": [],
+  "importPresets": [
+    {
+      "id": "preset-demo-broker",
+      "name": "Beispiel: Mein Broker-Export",
+      "delimiter": ",",
+      "decimalSeparator": ".",
+      "encoding": "utf-8",
+      "dateFormat": "iso",
+      "amountUnit": "btc",
+      "mapping": {
+        "type": "Type",
+        "date": "Date",
+        "amountBtc": "Amount",
+        "pricePerBtcEur": "Price"
+      }
+    }
+  ]
+}

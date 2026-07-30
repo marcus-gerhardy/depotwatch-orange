@@ -1,14 +1,34 @@
 // CSV import: parsing, delimiter/decimal detection, column mapping, row
 // validation. Pure client-side logic — file contents never leave the browser
-// (spec §2). Mapping templates live in localStorage, not in the portfolio file,
-// because they are device preferences, not portfolio data.
+// (spec §2). Reusable import presets (system + user) live in
+// lib/importPresets.ts and PortfolioFile.importPresets (see CLAUDE.md §3.4).
 
-import { dec } from "./decimal";
+import { btcString, dec, fiatString } from "./decimal";
+import {
+  isValidBitcoinAddress,
+  isValidTxid,
+  normalizeBitcoinAddress,
+  normalizeTxid,
+} from "./bitcoin";
 import type { Transaction, TransactionType } from "./types";
 
 export type CsvDelimiter = "," | ";";
 export type DecimalSeparator = "." | ",";
 export type CsvEncoding = "utf-8" | "iso-8859-1" | "iso-8859-15";
+export type AmountUnit = "btc" | "sats";
+
+/**
+ * How the file's BTC amount relates to its BTC fee: exports differ in whether
+ * the amount column already has the fee taken out of it ("deducted", e.g. a
+ * withdrawal row showing what arrived) or still contains it ("included", e.g. a
+ * withdrawal row showing what left the account). `buildImportRows` converts
+ * either one to the ledger convention of CLAUDE.md §3.2.
+ */
+export const FEE_MODES = ["included", "deducted"] as const;
+
+export type FeeMode = (typeof FEE_MODES)[number];
+
+export const SATS_PER_BTC = 100_000_000;
 
 // ---------------------------------------------------------------------------
 // Encoding detection
@@ -271,6 +291,239 @@ export function normalizeDate(raw: string): string | null {
 }
 
 /**
+ * Parse an import row's date: the column's detected/chosen format first, with
+ * the flexible parse as a fallback so a value the user types into the preview
+ * (ISO or German) is accepted too.
+ */
+export function parseImportDate(
+  raw: string,
+  dateFormat?: CsvDateFormat,
+): string | null {
+  const viaFormat =
+    dateFormat !== undefined ? parseDateWithFormat(raw, dateFormat) : null;
+  return viaFormat ?? normalizeDate(raw);
+}
+
+/**
+ * An ISO value with an explicit zone ("…T23:30:00Z", "…+02:00") names an
+ * instant, not a wall-clock date: day and time then both have to be read in
+ * local terms, or recombining them would shift the timestamp.
+ */
+const ZONED_ISO = /[T ]\d{1,2}:\d{2}.*(Z|[+-]\d{2}:?\d{2})$/i;
+
+function localParts(iso: string): { y: string; mo: string; d: string } {
+  const dt = new Date(iso);
+  return {
+    y: String(dt.getFullYear()),
+    mo: String(dt.getMonth() + 1),
+    d: String(dt.getDate()),
+  };
+}
+
+/** Calendar day of a date cell, in the terms of the file's own format. */
+function dayOf(
+  raw: string,
+  dateFormat?: CsvDateFormat,
+): { y: string; mo: string; d: string } | null {
+  const s = raw.trim();
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  const german = GERMAN_DATE.exec(s);
+  const slash = SLASH_DATE.exec(s);
+  const ymd = YMD_SLASH_DATE.exec(s);
+  if (ZONED_ISO.test(s)) {
+    const parsed = parseIsoDate(s);
+    if (parsed !== null) return localParts(parsed);
+  }
+  switch (dateFormat) {
+    case "iso":
+      return iso && { y: iso[1], mo: iso[2], d: iso[3] };
+    case "de":
+      return german && { y: german[3], mo: german[2], d: german[1] };
+    case "mdy":
+      return slash && { y: slash[3], mo: slash[1], d: slash[2] };
+    case "dmy":
+      return slash && { y: slash[3], mo: slash[2], d: slash[1] };
+    case "ymd":
+      return ymd && { y: ymd[1], mo: ymd[2], d: ymd[3] };
+    case "unix-s":
+    case "unix-ms": {
+      const parsed = parseDateWithFormat(s, dateFormat);
+      return parsed === null ? null : localParts(parsed);
+    }
+    default:
+      // No format given (e.g. a value typed into the preview): ISO or German,
+      // the same two forms normalizeDate accepts.
+      if (iso) return { y: iso[1], mo: iso[2], d: iso[3] };
+      return german && { y: german[3], mo: german[2], d: german[1] };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Time parsing
+//
+// The clock time is its own mapping field: some exports keep it in a separate
+// column ("Datum" + "Uhrzeit"), others in the same column as the date — then
+// both fields point at that one column and it is parsed once.
+// ---------------------------------------------------------------------------
+
+export const TIME_FORMATS = ["hms", "h12", "datetime"] as const;
+
+export type CsvTimeFormat = (typeof TIME_FORMATS)[number];
+
+// Sub-second digits are tolerated and dropped: Bitvavo writes "23:53:28.645",
+// and the ledger keeps whole seconds.
+const FRACTION = "(?:[.,]\\d+)?";
+const TIME_24H = new RegExp(`^(\\d{1,2}):(\\d{2})(?::(\\d{2})${FRACTION})?$`);
+const TIME_12H = new RegExp(
+  `^(\\d{1,2}):(\\d{2})(?::(\\d{2})${FRACTION})?\\s*(am|pm)$`,
+  "i",
+);
+/** Clock time inside a full date-time value ("05.01.2024 14:30", ISO). */
+const TIME_IN_VALUE = /[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/;
+
+export interface ClockTime {
+  h: number;
+  m: number;
+  s: number;
+}
+
+function clock(
+  h: string,
+  m: string,
+  s: string | undefined,
+  ampm?: string,
+): ClockTime | null {
+  let hours = Number(h);
+  if (ampm !== undefined) {
+    if (hours < 1 || hours > 12) return null;
+    if (ampm.toLowerCase() === "pm") hours = hours === 12 ? 12 : hours + 12;
+    else hours = hours === 12 ? 0 : hours;
+  }
+  const minutes = Number(m);
+  const seconds = Number(s ?? 0);
+  if (hours > 23 || minutes > 59 || seconds > 59) return null;
+  return { h: hours, m: minutes, s: seconds };
+}
+
+/** Parse a time cell in one specific format, or null. */
+export function parseTimeWithFormat(
+  raw: string,
+  format: CsvTimeFormat,
+): ClockTime | null {
+  const s = raw.trim();
+  if (s === "") return null;
+  switch (format) {
+    case "hms": {
+      const m = TIME_24H.exec(s);
+      return m ? clock(m[1], m[2], m[3]) : null;
+    }
+    case "h12": {
+      const m = TIME_12H.exec(s);
+      return m ? clock(m[1], m[2], m[3], m[4]) : null;
+    }
+    case "datetime": {
+      // Read the clock time off the parsed instant where possible, so a zoned
+      // value ("…T14:30:00Z") yields the local time it stands for. The literal
+      // match covers formats the flexible parser does not know (07/24/2026),
+      // whose day is read literally as well.
+      if (/^\d{9,14}$/.test(s)) {
+        const iso = parseDateWithFormat(s, s.length <= 11 ? "unix-s" : "unix-ms");
+        if (iso === null) return null;
+        const dt = new Date(iso);
+        return { h: dt.getHours(), m: dt.getMinutes(), s: dt.getSeconds() };
+      }
+      const m = TIME_IN_VALUE.exec(s);
+      if (m === null) return null;
+      const iso = normalizeDate(s);
+      if (iso !== null) {
+        const dt = new Date(iso);
+        return { h: dt.getHours(), m: dt.getMinutes(), s: dt.getSeconds() };
+      }
+      return clock(m[1], m[2], m[3]);
+    }
+  }
+}
+
+/** The column's format first, then any recognizable form (for manual edits). */
+export function parseImportTime(
+  raw: string,
+  timeFormat?: CsvTimeFormat,
+): ClockTime | null {
+  const s = raw.trim();
+  if (s === "") return null;
+  const viaFormat =
+    timeFormat !== undefined ? parseTimeWithFormat(s, timeFormat) : null;
+  if (viaFormat !== null) return viaFormat;
+  for (const format of TIME_FORMATS) {
+    const hit = parseTimeWithFormat(s, format);
+    if (hit !== null) return hit;
+  }
+  return null;
+}
+
+/** A clock time as "HH:MM:SS" — what the preview shows and validates against. */
+export function formatClockTime({ h, m, s }: ClockTime): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+/**
+ * The time for a preview row: readable values become "HH:MM:SS" (so a column
+ * that holds the whole timestamp shows just its time, and an AM/PM value shows
+ * the 24-hour one), anything unreadable stays as it is so the row can be
+ * flagged and fixed.
+ */
+export function normalizeTimeCell(raw: string, timeFormat?: CsvTimeFormat): string {
+  const parsed = parseImportTime(raw, timeFormat);
+  return parsed === null ? raw.trim() : formatClockTime(parsed);
+}
+
+/** Detect the format of a time column from sample values (see detectDateFormat). */
+export function detectTimeFormat(samples: string[]): CsvTimeFormat | null {
+  const vals = samples
+    .map((v) => v.trim())
+    .filter((v) => v !== "")
+    .slice(0, 20);
+  if (vals.length === 0) return null;
+  return (
+    TIME_FORMATS.find((format) =>
+      vals.every((v) => parseTimeWithFormat(v, format) !== null),
+    ) ?? null
+  );
+}
+
+export interface DateTimeFormats {
+  dateFormat?: CsvDateFormat;
+  timeFormat?: CsvTimeFormat;
+}
+
+/**
+ * The row's timestamp from its date and time cell. Both fields pointing at the
+ * same column means the value carries date and time together, so it is parsed
+ * once; otherwise the time cell's clock time is applied to the date's calendar
+ * day, the way "01.02.2024 10:30" in a single cell has always been read.
+ */
+export function parseImportDateTime(
+  date: string,
+  time: string,
+  { dateFormat, timeFormat }: DateTimeFormats = {},
+): string | null {
+  const t = time.trim();
+  if (t === "" || t === date.trim()) return parseImportDate(date, dateFormat);
+  const parsedTime = parseImportTime(t, timeFormat);
+  const day = dayOf(date, dateFormat);
+  if (parsedTime === null || day === null) return null;
+  return fromParts(
+    day.y,
+    day.mo,
+    day.d,
+    String(parsedTime.h),
+    String(parsedTime.m),
+    String(parsedTime.s),
+  );
+}
+
+/**
  * Detect the date format of a column from sample values. All samples must
  * agree on one format; returns null when ambiguous (e.g. slash dates where
  * day/month cannot be told apart) so the user can choose manually.
@@ -304,46 +557,515 @@ export function detectDateFormat(samples: string[]): CsvDateFormat | null {
 export const MAPPING_FIELDS = [
   "type",
   "date",
+  "time",
   "amountBtc",
   "pricePerBtcEur",
   "totalFiatEur",
   "feeBtc",
   "feeFiatEur",
+  "txid",
+  "address",
   "note",
 ] as const;
 
 export type MappingField = (typeof MAPPING_FIELDS)[number];
 
-export const REQUIRED_FIELDS: MappingField[] = ["type", "date", "amountBtc"];
+export const REQUIRED_FIELDS: MappingField[] = ["type", "date", "time", "amountBtc"];
 
 /** Target field → CSV column header (survives column reordering). */
 export type ColumnMapping = Partial<Record<MappingField, string>>;
 
-const HEADER_GUESSES: Record<MappingField, RegExp> = {
-  type: /^(type|typ|art|side|richtung)$/i,
-  date: /^(date|datum|time|timestamp|zeit(punkt)?|created)/i,
-  amountBtc: /(amount|menge|anzahl|btc|size|volume)/i,
-  pricePerBtcEur: /(price|preis|kurs|rate)/i,
-  totalFiatEur: /(total|summe|gesamt|betrag|kosten|cost)/i,
-  feeBtc: /^fee.?btc$|geb(ü|u)hr.?btc/i,
-  feeFiatEur: /(fee.?(eur|fiat)|geb(ü|u)hr.?(eur|fiat)|^fee$|^geb(ü|u)hr$)/i,
-  note: /(note|notiz|comment|kommentar|memo|beschreibung|description)/i,
+/**
+ * How a header is matched to a field, strongest signal first: the whole header
+ * name (`exact`), every word of a phrase somewhere in the header in any order
+ * (`word` — "fee btc" matches "Fee (BTC)" and "BTC network fee"), or a plain
+ * substring (`part`, for glued headers like "amountbtc"). A hit on `avoid`
+ * rules the header out for that field, which is what keeps "Amount Fiat" out of
+ * the BTC amount and "Fee unit" out of the fee.
+ */
+interface HeaderRules {
+  exact?: string[];
+  word?: string[];
+  part?: string[];
+  avoid?: string[];
+}
+
+const HEADER_RULES: Record<MappingField, HeaderRules> = {
+  type: {
+    exact: ["type", "typ", "art", "side", "richtung", "direction"],
+    word: ["type", "typ", "art", "side", "richtung", "direction"],
+    part: ["type", "typ"],
+    avoid: [
+      "asset",
+      "address",
+      "adresse",
+      "currency",
+      "wahrung",
+      "unit",
+      "fee",
+      "wallet",
+    ],
+  },
+  date: {
+    exact: [
+      "date",
+      "datum",
+      "time",
+      "timestamp",
+      "zeit",
+      "zeitpunkt",
+      "created",
+      "created at",
+      "datetime",
+      "date time",
+      "buchungstag",
+      "valuta",
+    ],
+    word: [
+      "date",
+      "datum",
+      "time",
+      "timestamp",
+      "zeit",
+      "zeitpunkt",
+      "created",
+      "executed",
+      "buchungstag",
+    ],
+    part: ["date", "datum", "zeit", "time"],
+  },
+  time: {
+    exact: ["time", "zeit", "uhrzeit", "uhr", "clock time"],
+    word: ["time", "zeit", "uhrzeit", "uhr"],
+    part: ["uhrzeit"],
+    avoid: ["zone", "force", "stamp"],
+  },
+  amountBtc: {
+    exact: [
+      "amount",
+      "menge",
+      "anzahl",
+      "size",
+      "volume",
+      "vol",
+      "quantity",
+      "qty",
+      "btc",
+    ],
+    word: [
+      "amount",
+      "menge",
+      "anzahl",
+      "size",
+      "volume",
+      "vol",
+      "quantity",
+      "qty",
+      "btc",
+      "bitcoin",
+      "sats",
+    ],
+    part: ["amount", "menge", "btc", "vol"],
+    // Anything naming fiat, a price or a fee is not the BTC amount.
+    avoid: [
+      "fee",
+      "gebuhr",
+      "fiat",
+      "eur",
+      "usd",
+      "euro",
+      "price",
+      "preis",
+      "kurs",
+      "rate",
+      "total",
+      "unit",
+      "currency",
+      "wahrung",
+    ],
+  },
+  pricePerBtcEur: {
+    exact: [
+      "price",
+      "preis",
+      "kurs",
+      "rate",
+      "unit price",
+      "market price",
+      "spot price",
+    ],
+    word: ["price", "preis", "kurs", "rate"],
+    part: ["price", "preis", "kurs"],
+    avoid: ["fee", "gebuhr", "currency", "wahrung", "ticker", "symbol"],
+  },
+  totalFiatEur: {
+    exact: [
+      "total",
+      "summe",
+      "gesamt",
+      "betrag",
+      "kosten",
+      "cost",
+      "amount fiat",
+      "fiat amount",
+      "gegenwert",
+      "countervalue",
+      "proceeds",
+    ],
+    word: [
+      "total",
+      "summe",
+      "gesamt",
+      "betrag",
+      "kosten",
+      "cost",
+      "gegenwert",
+      "countervalue",
+      "proceeds",
+      "amount fiat",
+      "amount eur",
+      "value eur",
+      "value fiat",
+    ],
+    part: ["total", "summe", "gesamt", "betrag", "kosten", "cost"],
+    // "Countervalue Ticker" names a currency, "Countervalue at ..." the value.
+    avoid: ["fee", "gebuhr", "currency", "wahrung", "unit", "ticker", "symbol"],
+  },
+  feeBtc: {
+    exact: [
+      "fee btc",
+      "fees btc",
+      "gebuhr btc",
+      "gebuhren btc",
+      "network fee",
+      "miner fee",
+    ],
+    word: [
+      "fee btc",
+      "fees btc",
+      "gebuhr btc",
+      "gebuhren btc",
+      "fee bitcoin",
+      "fee sats",
+      "fee satoshis",
+    ],
+    part: ["feebtc", "feesbtc", "gebuhrbtc", "feesats"],
+    avoid: ["eur", "usd", "euro", "fiat", "currency", "wahrung", "unit"],
+  },
+  feeFiatEur: {
+    exact: ["fee", "fees", "gebuhr", "gebuhren", "commission", "provision"],
+    word: [
+      "fee eur",
+      "fees eur",
+      "gebuhr eur",
+      "gebuhren eur",
+      "fee fiat",
+      "fee usd",
+      "fee euro",
+      "commission",
+      "provision",
+      "fee",
+      "fees",
+      "gebuhr",
+      "gebuhren",
+    ],
+    part: ["fee", "gebuhr"],
+    avoid: ["btc", "bitcoin", "sats", "currency", "wahrung", "unit"],
+  },
+  txid: {
+    exact: [
+      "txid",
+      "tx id",
+      "tx hash",
+      "txhash",
+      "transaction id",
+      "transaction hash",
+      "transaktions id",
+      "transaktionsid",
+      "hash",
+    ],
+    word: [
+      "txid",
+      "tx id",
+      "tx hash",
+      "transaction id",
+      "transaction hash",
+      "transaktions id",
+      "transaktion id",
+      "hash",
+    ],
+    part: ["txid", "txhash", "transactionid", "transactionhash", "transaktionsid"],
+  },
+  address: {
+    exact: [
+      "address",
+      "adresse",
+      "empfanger",
+      "recipient",
+      "destination",
+      "to address",
+      "from address",
+      "wallet address",
+      "zieladresse",
+    ],
+    word: [
+      "address",
+      "adresse",
+      "empfanger",
+      "empfangeradresse",
+      "recipient",
+      "destination",
+    ],
+    part: ["address", "adresse"],
+    avoid: ["type", "typ", "label", "tag"],
+  },
+  note: {
+    exact: [
+      "note",
+      "notiz",
+      "comment",
+      "kommentar",
+      "memo",
+      "beschreibung",
+      "description",
+      "label",
+      "tag",
+      "reference",
+      "verwendungszweck",
+      "bemerkung",
+    ],
+    word: [
+      "note",
+      "notiz",
+      "comment",
+      "kommentar",
+      "memo",
+      "beschreibung",
+      "description",
+      "verwendungszweck",
+      "bemerkung",
+    ],
+    part: ["note", "notiz", "memo", "kommentar"],
+  },
 };
 
-/** Suggest a mapping from header names (best-effort, user can override). */
-export function guessMapping(headers: string[]): ColumnMapping {
-  const mapping: ColumnMapping = {};
-  const taken = new Set<string>();
-  for (const field of MAPPING_FIELDS) {
-    const hit = headers.find(
-      (h) => !taken.has(h) && HEADER_GUESSES[field].test(h.trim()),
-    );
-    if (hit !== undefined) {
-      mapping[field] = hit;
-      taken.add(hit);
+interface NormalizedHeader {
+  /** Lower case, umlauts folded, separators turned into single spaces. */
+  text: string;
+  words: string[];
+  /** Same without spaces, so "amount btc" also matches the part "amountbtc". */
+  squashed: string;
+}
+
+function normalizeHeader(header: string): NormalizedHeader {
+  const text = header
+    .toLowerCase()
+    .replace(/ä/g, "a")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return {
+    text,
+    words: text.split(" ").filter((w) => w !== ""),
+    squashed: text.replace(/ /g, ""),
+  };
+}
+
+/** 0 = no match; a longer phrase scores higher than a single word. */
+function scoreHeader(rules: HeaderRules, h: NormalizedHeader): number {
+  if (h.text === "") return 0;
+  if (rules.avoid?.some((a) => h.words.includes(a))) return 0;
+  if (rules.exact?.includes(h.text)) return 100;
+  let best = 0;
+  for (const phrase of rules.word ?? []) {
+    const tokens = phrase.split(" ");
+    if (tokens.every((token) => h.words.includes(token))) {
+      best = Math.max(best, 60 + 10 * (tokens.length - 1));
     }
   }
+  if (best > 0) return best;
+  return rules.part?.some((p) => h.squashed.includes(p.replace(/ /g, ""))) ? 30 : 0;
+}
+
+/** Does every value in this column carry a clock time (alone or after a date)? */
+function columnHasTime(rows: string[][], headers: string[], header: string): boolean {
+  const i = headers.indexOf(header);
+  if (i < 0) return false;
+  const samples = rows
+    .map((r) => (r[i] ?? "").trim())
+    .filter((v) => v !== "")
+    .slice(0, 20);
+  return samples.length > 0 && samples.every((v) => parseImportTime(v) !== null);
+}
+
+/**
+ * Suggest a mapping from header names (best-effort, the user can override every
+ * field in the wizard). Every field/column pair is scored, then the best pairs
+ * are taken first — so an exact "type" beats "ordertype" elsewhere in the file
+ * and a column only ends up on a field when nothing fits it better. Equal
+ * scores go to the earlier field and then the earlier column, i.e. the first
+ * column that says "type" wins.
+ *
+ * With `dataRows` given, the time field is settled against the values: a time
+ * column of its own is only kept when it really holds clock times, and a date
+ * column that carries the time as well fills the time field too.
+ */
+export function guessMapping(headers: string[], dataRows?: string[][]): ColumnMapping {
+  const normalized = headers.map(normalizeHeader);
+  const candidates: {
+    field: MappingField;
+    fieldRank: number;
+    column: number;
+    score: number;
+  }[] = [];
+  MAPPING_FIELDS.forEach((field, fieldRank) => {
+    normalized.forEach((h, column) => {
+      const score = scoreHeader(HEADER_RULES[field], h);
+      if (score > 0) candidates.push({ field, fieldRank, column, score });
+    });
+  });
+  candidates.sort(
+    (a, b) => b.score - a.score || a.fieldRank - b.fieldRank || a.column - b.column,
+  );
+
+  const mapping: ColumnMapping = {};
+  // By header name, not index: the mapping stores names, so two columns sharing
+  // a name cannot be told apart later anyway.
+  const taken = new Set<string>();
+  for (const { field, column } of candidates) {
+    const header = headers[column];
+    if (mapping[field] !== undefined || taken.has(header)) continue;
+    mapping[field] = header;
+    taken.add(header);
+  }
+
+  // The time field is checked against the data: a header alone can be
+  // misleading ("Time in force" is not a clock time), and one column holding
+  // date and time fills both fields (CLAUDE.md §3.4).
+  const dateHeader = mapping.date;
+  if (dataRows !== undefined && dateHeader !== undefined) {
+    if (
+      mapping.time !== undefined &&
+      !columnHasTime(dataRows, headers, mapping.time)
+    ) {
+      delete mapping.time;
+    }
+    // The time is required, so it always falls back to the date column: that
+    // is right for a column holding the whole timestamp, and for a date-only
+    // export it makes the missing time visible instead of blocking the wizard.
+    if (mapping.time === undefined) mapping.time = dateHeader;
+  }
   return mapping;
+}
+
+/**
+ * Trimmed, non-empty values of a column with how often each occurs, in
+ * first-seen order. Drives both the type-value step and the row filter's
+ * value picker.
+ */
+export function columnValueCounts(
+  rows: string[][],
+  headers: string[],
+  header: string | undefined,
+): { value: string; count: number }[] {
+  if (header === undefined) return [];
+  const i = headers.indexOf(header);
+  if (i < 0) return [];
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const v = (row[i] ?? "").trim();
+    if (v === "") continue;
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts].map(([value, count]) => ({ value, count }));
+}
+
+/** Unique, trimmed, non-empty values of a mapped column, in first-seen order. */
+export function distinctColumnValues(
+  rows: string[][],
+  headers: string[],
+  header: string | undefined,
+): string[] {
+  return columnValueCounts(rows, headers, header).map((v) => v.value);
+}
+
+// ---------------------------------------------------------------------------
+// Row filter — which CSV lines take part in the import at all
+// ---------------------------------------------------------------------------
+
+/** How a rule compares a cell against its selected values. */
+export type RowFilterMatch = "isAnyOf" | "isNoneOf";
+
+export type RowFilterCombinator = "and" | "or";
+
+/** One condition: "column X is (not) one of these values". */
+export interface RowFilterRule {
+  /** CSV column header (not a mapped field — the filter runs on raw columns). */
+  column: string;
+  match: RowFilterMatch;
+  /** Selected values, trimmed exactly as shown in the wizard. */
+  values: string[];
+}
+
+export interface RowFilter {
+  combinator: RowFilterCombinator;
+  rules: RowFilterRule[];
+}
+
+export const EMPTY_ROW_FILTER: RowFilter = { combinator: "and", rules: [] };
+
+/**
+ * Rules that can actually decide anything for this file: a rule without
+ * selected values is still being configured, and one naming a column the file
+ * does not have (e.g. a preset made for a different export) must not silently
+ * drop every row — both are ignored.
+ */
+export function activeFilterRules(
+  headers: string[],
+  filter: RowFilter | undefined,
+): RowFilterRule[] {
+  if (!filter) return [];
+  return filter.rules.filter((r) => r.values.length > 0 && headers.includes(r.column));
+}
+
+/** Rules referencing a column this file does not have (surfaced as a warning). */
+export function unknownFilterColumns(
+  headers: string[],
+  filter: RowFilter | undefined,
+): string[] {
+  if (!filter) return [];
+  return [
+    ...new Set(
+      filter.rules.map((r) => r.column).filter((c) => c !== "" && !headers.includes(c)),
+    ),
+  ];
+}
+
+export function rowMatchesFilter(
+  row: string[],
+  headers: string[],
+  filter: RowFilter | undefined,
+): boolean {
+  const rules = activeFilterRules(headers, filter);
+  if (rules.length === 0) return true;
+  const test = (rule: RowFilterRule): boolean => {
+    const value = (row[headers.indexOf(rule.column)] ?? "").trim();
+    const hit = rule.values.includes(value);
+    return rule.match === "isNoneOf" ? !hit : hit;
+  };
+  return filter!.combinator === "or" ? rules.some(test) : rules.every(test);
+}
+
+export function filterRows(
+  rows: string[][],
+  headers: string[],
+  filter: RowFilter | undefined,
+): string[][] {
+  const rules = activeFilterRules(headers, filter);
+  if (rules.length === 0) return rows;
+  return rows.filter((row) => rowMatchesFilter(row, headers, filter));
 }
 
 // ---------------------------------------------------------------------------
@@ -353,12 +1075,27 @@ export function guessMapping(headers: string[]): ColumnMapping {
 /** Editable, normalized values of one CSV row (all plain strings). */
 export interface ImportRowValues {
   type: string;
+  /**
+   * The date exactly as the CSV column has it (e.g. "01.02.2024", "07/24/2026",
+   * a unix timestamp) — never rewritten to ISO, so the preview shows the file's
+   * own value. It is parsed with the column's date format when the row is
+   * validated and imported (see `parseImportDateTime`).
+   */
   date: string;
+  /**
+   * The clock time as "HH:MM:SS" (`normalizeTimeCell`), empty when no time
+   * column is mapped. A value that cannot be read is kept verbatim so the row
+   * shows what has to be fixed.
+   */
+  time: string;
   amountBtc: string;
   pricePerBtcEur: string;
   totalFiatEur: string;
   feeBtc: string;
   feeFiatEur: string;
+  /** On-chain data, kept only for transfer rows (see rowToTransaction). */
+  txid: string;
+  address: string;
   note: string;
 }
 
@@ -376,8 +1113,21 @@ export interface BuildOptions {
    * without a type column, e.g. buy-only exchange reports).
    */
   fixedType?: TransactionType;
-  /** Per-column date format (detected once, not guessed per row). */
-  dateFormat?: CsvDateFormat;
+  /** Format of the mapped time column, used to normalize it for the preview. */
+  timeFormat?: CsvTimeFormat;
+  /** Whether the amount column already has the BTC fee taken out (default "included"). */
+  feeMode?: FeeMode;
+  /** Unit of the mapped amountBtc column (default "btc"). */
+  amountUnit?: AmountUnit;
+  /** Unit of the mapped feeBtc column (default "btc"). */
+  feeUnit?: AmountUnit;
+  /** Raw type-column value → internal TransactionType, resolved in the wizard's value-mapping step. */
+  typeValueMapping?: Record<string, TransactionType>;
+  /**
+   * Only rows matching this filter become import rows; the others never show
+   * up in the preview. Line numbers still refer to the original file.
+   */
+  rowFilter?: RowFilter;
 }
 
 /** Apply mapping + normalization to raw CSV rows → editable import rows. */
@@ -386,7 +1136,15 @@ export function buildImportRows(
   headers: string[],
   mapping: ColumnMapping,
   decimalSep: DecimalSeparator,
-  { fixedType, dateFormat }: BuildOptions = {},
+  {
+    fixedType,
+    timeFormat,
+    feeMode = "included",
+    amountUnit,
+    feeUnit,
+    typeValueMapping,
+    rowFilter,
+  }: BuildOptions = {},
 ): ImportRow[] {
   const idx: Partial<Record<MappingField, number>> = {};
   for (const field of MAPPING_FIELDS) {
@@ -402,38 +1160,95 @@ export function buildImportRows(
   const num = (row: string[], field: MappingField): string => {
     const raw = cell(row, field);
     if (raw === "") return "";
+    const normalized = normalizeNumber(raw, decimalSep);
     // Keep the raw value if unparseable so the user sees what failed.
-    return normalizeNumber(raw, decimalSep) ?? raw;
+    if (normalized === null) return raw;
+    const unit =
+      field === "amountBtc" ? amountUnit : field === "feeBtc" ? feeUnit : undefined;
+    // Exports encode the direction in the sign (Bitvavo writes a withdrawal as
+    // "-0.5"); the ledger stores magnitudes and takes the direction from the
+    // transaction type, so a leading minus is dropped here.
+    const value = (
+      unit === "sats" ? dec(normalized).div(SATS_PER_BTC) : dec(normalized)
+    ).abs();
+    // Same shape as everywhere else: BTC with all 8 decimals (anything finer
+    // than a satoshi is rounded to the nearest one), fiat with at least 2 — the
+    // preview shows these values and the import stores them.
+    return field === "amountBtc" || field === "feeBtc"
+      ? btcString(value)
+      : fiatString(value);
   };
-  const parseDate = (raw: string): string | null =>
-    dateFormat !== undefined
-      ? parseDateWithFormat(raw, dateFormat)
-      : normalizeDate(raw);
-  return rows.map((row, i) => ({
-    id: crypto.randomUUID(),
-    line: i + 1,
-    excluded: false,
-    values: {
-      type: fixedType ?? normalizeType(cell(row, "type")) ?? cell(row, "type"),
-      date: parseDate(cell(row, "date")) ?? cell(row, "date"),
-      amountBtc: num(row, "amountBtc"),
-      pricePerBtcEur: num(row, "pricePerBtcEur"),
-      totalFiatEur: num(row, "totalFiatEur"),
-      feeBtc: num(row, "feeBtc"),
-      feeFiatEur: num(row, "feeFiatEur"),
-      note: cell(row, "note"),
-    },
-  }));
+  /**
+   * Put the BTC amount on the ledger's fee convention (CLAUDE.md §3.2), where
+   * `feeBtc` is always on top of `amountBtc`: a buy credits amount − fee, the
+   * outgoing types debit amount + fee. So exactly one side needs correcting per
+   * fee mode — a file whose amount still contains the fee gives the outgoing
+   * amount away too high, one whose amount is already net gives the bought
+   * amount too low. A transfer_in is never touched: its credit is the arriving
+   * amount, the network fee belongs to the out-leg.
+   */
+  const amountForFeeMode = (
+    type: TransactionType | null,
+    amount: string,
+    fee: string,
+  ): string => {
+    if (fee === "" || !NUMBER.test(fee) || !NUMBER.test(amount)) return amount;
+    if (type === "buy" && feeMode === "deducted") {
+      return btcString(dec(amount).plus(fee));
+    }
+    const isOutgoing = type === "sell" || type === "spend" || type === "transfer_out";
+    if (isOutgoing && feeMode === "included") {
+      return btcString(dec(amount).minus(fee));
+    }
+    return amount;
+  };
+  const resolveType = (raw: string): TransactionType | null => {
+    if (typeValueMapping && raw in typeValueMapping) return typeValueMapping[raw];
+    return normalizeType(raw);
+  };
+  // Filtered-out rows are dropped, but the surviving ones keep the line number
+  // they have in the file, so the preview still points at the right CSV line.
+  return rows
+    .map((row, i) => ({ row, line: i + 1 }))
+    .filter(({ row }) => rowMatchesFilter(row, headers, rowFilter))
+    .map(({ row, line }) => {
+      const type = fixedType ?? resolveType(cell(row, "type"));
+      const feeBtc = num(row, "feeBtc");
+      return {
+        id: crypto.randomUUID(),
+        line,
+        excluded: false,
+        values: {
+          type: type ?? cell(row, "type"),
+          // The date stays 1:1 as the file has it and is parsed with the
+          // column's format on validate/import; the time is normalized because
+          // its column may hold a whole timestamp or a 12-hour value.
+          date: cell(row, "date"),
+          time: normalizeTimeCell(cell(row, "time"), timeFormat),
+          amountBtc: amountForFeeMode(type, num(row, "amountBtc"), feeBtc),
+          pricePerBtcEur: num(row, "pricePerBtcEur"),
+          totalFiatEur: num(row, "totalFiatEur"),
+          feeBtc,
+          feeFiatEur: num(row, "feeFiatEur"),
+          txid: normalizeTxid(cell(row, "txid")),
+          address: normalizeBitcoinAddress(cell(row, "address")),
+          note: cell(row, "note"),
+        },
+      };
+    });
 }
 
 export type RowErrorCode =
   | "invalidType"
   | "invalidDate"
+  | "invalidTime"
   | "invalidAmount"
   | "missingPrice"
   | "invalidPrice"
   | "invalidTotal"
-  | "invalidFee";
+  | "invalidFee"
+  | "invalidTxid"
+  | "invalidAddress";
 
 const NUMBER = /^-?\d+(\.\d+)?$/;
 
@@ -445,11 +1260,23 @@ function nonNegativeOptional(s: string): boolean {
   return s === "" || (NUMBER.test(s) && Number(s) >= 0);
 }
 
-export function validateRow(v: ImportRowValues): RowErrorCode[] {
+export function validateRow(
+  v: ImportRowValues,
+  { dateFormat, timeFormat }: DateTimeFormats = {},
+): RowErrorCode[] {
   const errors: RowErrorCode[] = [];
   const type = normalizeType(v.type);
   if (type === null) errors.push("invalidType");
-  if (normalizeDate(v.date) === null) errors.push("invalidDate");
+  if (parseImportDate(v.date, dateFormat) === null) errors.push("invalidDate");
+  // The time is mandatory (REQUIRED_FIELDS); one column feeding both fields is
+  // already covered by the date check above.
+  const time = v.time.trim();
+  if (
+    time === "" ||
+    (time !== v.date.trim() && parseImportTime(time, timeFormat) === null)
+  ) {
+    errors.push("invalidTime");
+  }
   if (!positiveNumber(v.amountBtc)) errors.push("invalidAmount");
   const needsPrice = type === "buy" || type === "sell" || type === "spend";
   if (needsPrice) {
@@ -464,11 +1291,20 @@ export function validateRow(v: ImportRowValues): RowErrorCode[] {
   if (!nonNegativeOptional(v.feeBtc) || !nonNegativeOptional(v.feeFiatEur)) {
     errors.push("invalidFee");
   }
+  // On-chain data is optional and only kept for transfers, but a malformed
+  // value is always worth flagging — silently dropping it would be worse.
+  if (v.txid !== "" && !isValidTxid(v.txid)) errors.push("invalidTxid");
+  if (v.address !== "" && !isValidBitcoinAddress(v.address)) {
+    errors.push("invalidAddress");
+  }
   return errors;
 }
 
 /** Convert validated row values to a Transaction. Call only if validateRow is empty. */
-export function rowToTransaction(v: ImportRowValues): Transaction {
+export function rowToTransaction(
+  v: ImportRowValues,
+  formats: DateTimeFormats = {},
+): Transaction {
   const type = normalizeType(v.type)!;
   const isTransfer = type === "transfer_in" || type === "transfer_out";
   let price = !isTransfer && positiveNumber(v.pricePerBtcEur) ? v.pricePerBtcEur : null;
@@ -484,63 +1320,16 @@ export function rowToTransaction(v: ImportRowValues): Transaction {
   return {
     id: crypto.randomUUID(),
     type,
-    date: normalizeDate(v.date)!,
+    date: parseImportDateTime(v.date, v.time, formats)!,
     amountBtc: v.amountBtc,
     pricePerBtcEur: price,
     totalFiatEur: total,
     feeBtc: v.feeBtc === "" ? undefined : v.feeBtc,
     feeFiatEur: v.feeFiatEur === "" ? undefined : v.feeFiatEur,
+    // On-chain data belongs to transfer legs only (CLAUDE.md §3.2) — a buy or
+    // sell row that happens to carry a txid column keeps it out of the ledger.
+    ...(isTransfer && v.txid !== "" ? { txid: v.txid } : {}),
+    ...(isTransfer && v.address !== "" ? { address: v.address } : {}),
     note: v.note,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Mapping templates (localStorage — device preference, not portfolio data)
-// ---------------------------------------------------------------------------
-
-export interface MappingTemplate {
-  id: string;
-  name: string;
-  mapping: ColumnMapping;
-  delimiter: CsvDelimiter;
-  decimalSeparator: DecimalSeparator;
-  /** Set when the template uses a fixed type for all rows instead of a column. */
-  fixedType?: TransactionType;
-  /** Date format of the mapped date column, if the user resolved one. */
-  dateFormat?: CsvDateFormat;
-}
-
-const TEMPLATES_KEY = "dwo.csvMappingTemplates";
-
-export function loadTemplates(): MappingTemplate[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const parsed = JSON.parse(localStorage.getItem(TEMPLATES_KEY) ?? "[]");
-    return Array.isArray(parsed) ? (parsed as MappingTemplate[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function saveTemplate(tpl: MappingTemplate): MappingTemplate[] {
-  const next = [...loadTemplates().filter((t) => t.name !== tpl.name), tpl];
-  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next));
-  return next;
-}
-
-export function deleteTemplate(id: string): MappingTemplate[] {
-  const next = loadTemplates().filter((t) => t.id !== id);
-  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next));
-  return next;
-}
-
-/** Template whose mapped headers all exist in this file (→ auto-suggest). */
-export function findMatchingTemplate(
-  templates: MappingTemplate[],
-  headers: string[],
-): MappingTemplate | undefined {
-  return templates.find((tpl) => {
-    const mapped = Object.values(tpl.mapping).filter((h): h is string => !!h);
-    return mapped.length > 0 && mapped.every((h) => headers.includes(h));
-  });
 }

@@ -25,10 +25,6 @@ const en: typeof de = {
   start: {
     openFile: "Open portfolio file",
     createFile: "Create new portfolio",
-    fsaHint:
-      "Your browser supports direct file access: changes are saved back to your file automatically.",
-    fallbackHint:
-      "Your browser does not support direct file access. You open the file via upload and save changes as a download using the Save button.",
     passwordTitle: "Enter password",
     passwordFor: "Password for {name}",
     newPasswordTitle: "Set a password for the new file",
@@ -43,9 +39,15 @@ const en: typeof de = {
     localFirst:
       "All data stays in a single password-encrypted file on your device. No server, no account, no tracking.",
     howItWorks: "How it works",
+    loadDemo: "Load demo portfolio",
+    demoHint:
+      "Loads sample data to try the app. Your edits are only saved to a file of your own once you save; the sample file itself is never changed.",
+    demoLoadError: "Could not load the demo portfolio.",
+    demoFileName: "Demo-Portfolio.dwp",
   },
   wizard: {
     title: "Create new portfolio",
+    titleSaveExisting: "Save demo data",
     stepOf: "Step {current} of {total}",
     steps: {
       location: "Location",
@@ -56,20 +58,22 @@ const en: typeof de = {
     locationIntroFsa:
       "Choose where your portfolio file should be stored. Changes will be written there automatically later.",
     locationIntroFallback:
-      "Your browser does not support direct file access. The file will be saved as a download at the end of the wizard — choose the file name here.",
+      "Your browser does not support direct file access. The file will be saved as a download at the end of the wizard. Choose the file name here.",
     chooseLocation: "Choose location …",
     locationChosen: "Selected: {name}",
     fileNameLabel: "File name",
     passwordIntro:
-      "The file is encrypted with this password (AES-256-GCM). Without the password nobody — including you — can recover the data.",
+      "The file is encrypted with this password (AES-256-GCM). Without the password nobody can recover the data, not even you.",
     strength: "Password strength",
     strengthWeak: "weak",
     strengthMedium: "medium",
     strengthStrong: "strong",
     walletIntro:
-      "Create your first wallet with an account — it is needed for your first transaction (e.g. wallet “Kraken” with account “Spot”).",
+      "Create your first wallet with an account. It is needed for your first transaction (e.g. wallet “Kraken” with account “Spot”).",
     summaryIntro:
       "Please review your entries. “Create” will initialize and save the file.",
+    summaryIntroExisting:
+      "Please review your entries. Your existing demo data is carried over unchanged into the new file.",
     summaryLocation: "Location",
     summaryDownload: "Download ({name})",
     summaryEncryption: "Encryption",
@@ -77,6 +81,8 @@ const en: typeof de = {
     summaryUnencrypted: "disabled",
     summaryWallet: "Wallet",
     summaryAccount: "Account",
+    summaryExistingData: "Data",
+    summaryExistingDataValue: "{wallets} wallets, {transactions} transactions",
     back: "Back",
     next: "Next",
     create: "Create & save",
@@ -86,6 +92,62 @@ const en: typeof de = {
     github: "Don't trust, verify on GitHub",
     imprint: "Legal Notice",
     privacy: "Privacy",
+  },
+  howItWorks: {
+    metaTitle: "How It Works | DepotWatch Orange",
+    metaDescription:
+      "How DepotWatch Orange works: local-first, one encrypted file, no server. The security architecture in detail.",
+    title: "How it works",
+    intro:
+      "DepotWatch Orange is deliberately built differently from typical portfolio trackers. This page explains the architecture, with a focus on why your data is safe.",
+    localFirstTitle: "Local-first: no server, no cloud, no account",
+    localFirstBody:
+      "All of your data (wallets, accounts, transactions, settings) lives in a single file on your own device. There is no server database, no sign-up, and no tracking. The app runs entirely in your browser: whatever you enter or import from CSV never leaves your machine. Nobody but you can see your holdings, not even us, because there simply is no place where they would be stored.",
+    filesTitle: "Open & save: direct file access in the browser",
+    filesBody:
+      "In browsers with the File System Access API (e.g. Chrome, Edge) you pick your portfolio file once; from then on the app writes changes straight back to it after a short delay (autosave). In browsers without that API (e.g. Firefox, Safari) you open the file through an upload dialog and save changes as a download via the save button. Either way, the file only moves between your browser and your disk, never across the network.",
+    encryptionTitle: "Encryption: your password, your key",
+    encryptionBody:
+      "Your file is encrypted with AES-256-GCM by default. The key is derived from your password with PBKDF2-SHA256 at 600,000 iterations, right in the browser via the WebCrypto API. The password itself is never stored; it only exists in memory for as long as the file is open.",
+    encryptionWarning:
+      "Important: there is no password reset. Since nothing sits on a server, nobody can send you a new password or decrypt the file, not even us. If you lose the password or the file, the data is gone for good. Keep both safe and back the file up regularly (it is encrypted, so storing it on a USB stick, for example, is perfectly fine).",
+    watchlistTitle: "Watchlist: deliberately separate from the portfolio",
+    watchlistBody:
+      "The address watchlist (balances, UTXOs, privacy checks) is watch-only and kept apart from the portfolio ledger: watched addresses are never automatically part of your holdings, and your recorded transactions are never tied to on-chain lookups. There is a security and a privacy reason for that: live data comes from a configurable explorer source (your own node if you prefer). With public APIs, the provider sees the addresses you query. Your ledger, in contrast, needs no network access at all. So you decide per address what gets queried, and your portfolio stays completely private even if you never use the watchlist.",
+    openSourceTitle: "Open source: don't trust, verify",
+    openSourceBody:
+      "You don't have to take our word for any of this. DepotWatch Orange is open source (MIT license). Anyone can check the code: whether nothing really is uploaded, how the encryption is implemented, and what else the app does.",
+  },
+  imprint: {
+    metaTitle: "Legal Notice | DepotWatch Orange",
+    title: "Legal Notice",
+    placeholder:
+      "Placeholder: fill in the real details before publishing the site.",
+    providerTitle: "Information pursuant to § 5 DDG (German Digital Services Act)",
+    providerBody: "[First name Last name]\n[Street and number]\n[Postal code, city]\nGermany",
+    contactTitle: "Contact",
+    contactBody: "Email: [kontakt@depotwatch-orange.com]",
+    responsibleTitle: "Responsible for the content",
+    responsibleBody: "[First name Last name, address as above]",
+  },
+  privacyPolicy: {
+    metaTitle: "Privacy | DepotWatch Orange",
+    title: "Privacy Policy",
+    placeholder:
+      "Placeholder: have this reviewed legally and completed before publishing.",
+    noStorageTitle: "No storage of user data",
+    noStorageBody:
+      "DepotWatch Orange is a pure client application. All portfolio data lives exclusively in a local, password-encrypted file on your device. There is no server storing user data, no account, and no tracking (no cookies, no analytics tools).",
+    externalTitle: "Requests to external services",
+    externalIntro:
+      "While you use the app, data is fetched from external interfaces at runtime. For technical reasons the respective provider receives your IP address and the request data:",
+    externalBinance: "Binance (price data): no portfolio data is transmitted.",
+    externalExplorer:
+      "mempool.space / blockstream.info (on-chain data): the Bitcoin addresses you added to the watchlist are transmitted. The settings let you configure your own server instead.",
+    hostingTitle: "Hosting",
+    hostingBody: "[Add details about the hosting provider and any server logs.]",
+    controllerTitle: "Controller",
+    controllerBody: "[See the legal notice, details to be added.]",
   },
   nav: {
     dashboard: "Dashboard",
@@ -105,6 +167,9 @@ const en: typeof de = {
     closeFile: "Close file",
     closeFileConfirm:
       "Close file? Unsaved changes will be lost (in automatic mode everything is already saved).",
+    closeFileConfirmDemo:
+      "Close file? This demo data has never been saved. All changes will be lost.",
+    setUpFile: "Save demo data",
   },
   dashboard: {
     totalValue: "Total value",
@@ -123,8 +188,12 @@ const en: typeof de = {
     chartTitle: "Value over time",
     chartPortfolio: "Portfolio value",
     chartBtcPrice: "BTC price",
+    uncoveredHint:
+      "{amount} BTC of your sells, spends, or outgoing transfers have no matching purchase in the portfolio (e.g. a CSV export that starts mid-history). The holding above is correct, but cost basis, average cost, and unrealized P/L are incomplete.",
+    negativeBalanceHint:
+      "The total holding is negative: more sells, spends, and outgoing transfers are recorded than buys and incoming transfers. Please check the transactions.",
     chartCompare: "Compare with BTC price",
-    chartEmpty: "No transactions yet — your value history will appear here.",
+    chartEmpty: "No transactions yet. Your value history will appear here.",
     showTransactions: "Show this account's transactions",
     range90: "90 d",
     range365: "1 y",
@@ -152,9 +221,11 @@ const en: typeof de = {
   },
   tx: {
     title: "Transactions",
+    titleCount: "{filtered} of {total}",
     add: "Add transaction",
     edit: "Edit transaction",
     date: "Date",
+    time: "Time",
     type: "Type",
     types: {
       buy: "Buy",
@@ -176,8 +247,28 @@ const en: typeof de = {
     feeEur: "Fee (EUR)",
     valueEur: "Value (EUR)",
     note: "Note",
+    onChainSection: "On-chain data (optional)",
+    onChainHint:
+      "Used to match an outgoing transfer with its incoming counterpart between your wallets. Informational only: the security and privacy checks keep working exclusively on the address watchlist.",
+    txid: "Transaction ID (txid)",
+    txidPlaceholder: "64 hex characters, e.g. 4a5e1e4b…deda33b",
+    txidInvalid: "Invalid transaction ID: exactly 64 hex characters (0-9, a-f) expected.",
+    address: "Bitcoin address",
+    addressPlaceholder: "bc1… / 1… / 3…",
+    addressHint:
+      "Destination address for an outgoing transfer, receiving address for an incoming one. It pins down which output of the transaction is meant.",
+    addressInvalid:
+      "Invalid Bitcoin address (allowed: legacy 1…/3…, bech32 bc1q…, bech32m bc1p…).",
+    copyValue: "Copy to clipboard",
+    copied: "Copied",
+    openInExplorer: "Open in block explorer",
     deleteTitle: "Delete transaction",
     deleteConfirm: "Really delete this transaction?",
+    bulkDeleteConfirm: "Really delete {count} selected transactions?",
+    deleteReleasesLegs:
+      "{count} linked transfer entr(ies) lose their counterpart and become external transfers.",
+    deleteClearsAllocations:
+      "{count} transaction(s) have their lot allocation released; they will fall back to the oldest available lots (FIFO).",
     filterAll: "All",
     filterFrom: "From",
     filterTo: "To",
@@ -206,8 +297,45 @@ const en: typeof de = {
     moveTransferConflict:
       "Not possible: {count} transfer(s) would end up with both legs in the same account. Please adjust the target account or the selection.",
     moveLegacyTransferWarning:
-      "{count} older transfer transaction(s) without a group link: the counterpart cannot be updated automatically — please review it manually afterwards.",
+      "{count} older transfer transaction(s) without a group link: the counterpart cannot be updated automatically. Please review it manually afterwards.",
     moveAction: "Move",
+    transferAction: "Transfer to …",
+    transferSubmit: "Transfer",
+    transferIntro:
+      "Bundles the selected open buy/transfer-in lots into one real transfer to another wallet/account. Unlike \"Change wallet/account\", this creates a transfer_out with lot allocations and a linked transfer_in. The lots' original acquisition data and cost basis are preserved for the holding-period/FIFO calculation.",
+    transferIneligible:
+      "{count} selected transaction(s) are not a buy/transfer-in with a remaining balance and will be ignored.",
+    transferMultiSource:
+      "The selected lots are spread across several different accounts. Please select lots from a single source account only.",
+    transferRemaining: "Remaining",
+    transferAmount: "To transfer",
+    transferFeeBtc: "Network fee (optional)",
+    transferFeeOnTopHint:
+      "The fee is charged on top of the amount: the source account loses amount + fee, the target receives the amount.",
+    transferSameAccount: "The target account must differ from the source account.",
+    transferSummaryLots: "Number of lots",
+    transferSummarySource: "Source",
+    transferSummaryTarget: "Target",
+    transferSummaryTotal: "Sum of the lots (BTC, leaves the account)",
+    transferSummaryNet: "Amount of the transfer entry (BTC, without fee)",
+    transferSummaryAvgCost: "Ø cost basis (quantity-weighted)",
+    transferSummaryCostBasis: "Total cost basis",
+    transferSummaryUnknownBasisNote:
+      "No cost basis is known for part of this amount (e.g. externally received lots), that portion is excluded from the values above.",
+    transferDate: "Transfer date",
+    transferOutSectionTitle: "Outgoing transaction (source: {source})",
+    transferOutModeNew: "Create new outgoing transaction",
+    transferOutModeExisting: "Link to an existing transaction",
+    transferInSectionTitle: "Incoming transaction (target: {target})",
+    transferInModeNew: "Create new incoming transaction",
+    transferInModeExisting: "Link to an existing transaction",
+    transferCandidateNone: "No matching candidates found in this account.",
+    transferBestMatch: "🎯 most likely match",
+    transferMismatchOut:
+      "The selected outgoing transaction is {actual} BTC, but {expected} BTC is expected. The assigned lots add up to {lots} BTC minus the {fee} BTC network fee.",
+    transferMismatchIn:
+      "The selected incoming transaction is {actual} BTC, but {expected} BTC (total minus fee) was expected.",
+    transferMismatchConfirm: "I confirm linking these despite the amount mismatch.",
     pageOf: "Page {current} of {total}",
     prevPage: "Previous page",
     nextPage: "Next page",
@@ -216,20 +344,54 @@ const en: typeof de = {
     priceRequired: "Price or total (EUR) is required for buy/sell/spend.",
     accountRequired: "Please create a wallet with an account first.",
     sameAccount: "Source and target account must differ.",
+    transferredAway: "transferred",
+    transferredTarget: "Target",
+    transferredDate: "Date",
+    transferredAmount: "Amount",
+    transferredJump: "Go to transaction",
   },
   csvImport: {
     button: "Import",
     title: "Import transactions from CSV",
     steps: {
       file: "File",
+      filter: "Filter",
       mapping: "Columns",
+      typeValues: "Type values",
       preview: "Preview",
       import: "Import",
     },
+    filterIntro:
+      "Optional: limit the import to certain rows. Each condition checks one CSV column against the values that actually occur in it (e.g. only transaction_type = trade). Several conditions can be combined with AND or OR.",
+    filterAddRule: "Add condition",
+    filterRemoveRule: "Remove condition",
+    filterColumn: "Column",
+    filterColumnChoose: "choose a column",
+    filterMatch: "Comparison",
+    filterMatchAnyOf: "is any of",
+    filterMatchNoneOf: "is none of",
+    filterValues: "Values",
+    filterSelectAll: "all",
+    filterSelectNone: "none",
+    filterSearch: "Search values …",
+    filterNoValues: "No values found.",
+    filterRuleInactive: "No value selected. This condition is ignored.",
+    filterCombinator: {
+      and: "AND",
+      or: "OR",
+    },
+    filterMatchCount: "{matched} of {total} rows",
+    filterNoRules: "No filter active. All {count} rows are imported.",
+    filterEmptyResult: "No row matches the filter.",
+    filterUnknownColumn:
+      "This file has no column “{column}”. The condition is ignored.",
+    filterUnknownColumns:
+      "Columns from the preset are missing in this file: {columns}. The affected conditions are ignored.",
+    summaryFilter: "Filter",
     fileIntro:
       "Choose a CSV file (e.g. your exchange's export). The file is processed entirely in your browser and never uploaded.",
     chooseFile: "Choose CSV file …",
-    fileChosen: "{name} — {rows} data rows",
+    fileChosen: "{name} ({rows} data rows)",
     readError: "Could not read the file.",
     emptyFile: "The file contains no data rows.",
     hasHeader: "First row contains column headers",
@@ -249,28 +411,44 @@ const en: typeof de = {
     newAccountOption: "+ Create new account …",
     newWalletName: "Name of the new wallet",
     newAccountName: "Name of the new account",
+    preset: "Import preset",
+    presetManual: "Manual / no preset",
+    presetSystemGroup: "Predefined",
+    presetUserGroup: "My presets",
+    presetPredefined: "This preset is predefined and cannot be edited or deleted.",
+    presetDelete: "Delete preset",
+    presetApplied: "Preset “{name}” applied automatically.",
+    presetSaveAsName: "Name for the new preset (e.g. Kraken)",
+    presetSaveAs: "Save as new preset",
+    presetSaved: "Preset “{name}” saved.",
     column: "Column",
     mappingIntro:
       "Map the CSV columns to the transaction fields. Unmapped fields are imported empty.",
-    noMapping: "— no mapping —",
+    noMapping: "no mapping",
     required: "required",
     typeFromColumn: "From column",
     typeFixed: "Fixed value",
     typeFixedHint:
       "The selected type is applied to all imported rows (e.g. for buy-only exports without a type column).",
     sample: "Sample: {value}",
+    unit: "Unit",
+    unitBtc: "BTC",
+    unitSats: "Sats",
     fields: {
       type: "Type",
       date: "Date",
+      time: "Time",
       amountBtc: "Amount (BTC)",
       pricePerBtcEur: "Price (EUR/BTC)",
       totalFiatEur: "Total (EUR)",
       feeBtc: "Fee (BTC)",
       feeFiatEur: "Fee (EUR)",
+      txid: "Transaction ID (txid)",
+      address: "Bitcoin address",
       note: "Note",
     },
     dateFormat: "Date format",
-    dateFormatChoose: "— choose date format —",
+    dateFormatChoose: "choose date format",
     dateFormats: {
       iso: "ISO 8601 (2026-07-24)",
       de: "DD.MM.YYYY (24.07.2026)",
@@ -280,32 +458,47 @@ const en: typeof de = {
       "unix-s": "Unix timestamp (seconds)",
       "unix-ms": "Unix timestamp (milliseconds)",
     },
-    template: "Mapping template",
-    templateNone: "— choose template —",
-    templateName: "Template name (e.g. Kraken)",
-    templateSave: "Save as template",
-    templateSaved: "Template “{name}” saved.",
-    templateApplied: "Template “{name}” applied automatically.",
-    templateDelete: "Delete template",
+    feeModes: {
+      deducted: "Fee is already deducted from the amount",
+      included: "Fee is still part of the amount",
+    },
+    timeFormat: "Time format",
+    timeFormatChoose: "Choose time format",
+    timeFormats: {
+      hms: "HH:MM(:SS) (14:30:00)",
+      h12: "12-hour (02:30 PM)",
+      datetime: "from date and time in one column",
+    },
+    typeValuesIntro:
+      "Map every value found in the “{column}” column to an internal transaction type. Already recognized values (e.g. “buy”) are pre-filled.",
+    typeValuesUnmapped: "{count} value(s) still need a mapping before you can continue.",
+    typeValuesChoose: "choose type",
     previewIntro:
-      "Review the rows before importing. Invalid rows are highlighted and can be corrected inline or excluded via the checkbox.",
+      "Review the rows before importing. Invalid rows are highlighted and can be corrected inline or excluded via the toggle.",
     validRows: "{count} valid",
     errorRows: "{count} invalid",
     excludedRows: "{count} excluded",
     sumBtc: "Sum (valid rows): {amount} BTC",
     line: "Line",
     includeColumn: "Import",
+    dateReadAs: "Read as: {date}",
+    includeRow: "Import line {line}",
+    showAllColumns: "Show all columns",
+    showAllColumnsHint: "Show all columns ({count} unmapped hidden)",
     errors: {
       invalidType: "Invalid or missing type",
       invalidDate: "Invalid date",
+      invalidTime: "Invalid time",
       invalidAmount: "Amount missing or not greater than 0",
       missingPrice: "Price or total (EUR) is required for buy/sell/spend",
       invalidPrice: "Invalid price",
       invalidTotal: "Invalid total (EUR)",
       invalidFee: "Invalid fee (must be ≥ 0)",
+      invalidTxid: "Invalid transaction ID (exactly 64 hex characters)",
+      invalidAddress: "Invalid Bitcoin address",
     },
     confirmIntro:
-      "Ready to import. Only valid, non-excluded rows are imported — invalid rows are skipped.",
+      "Ready to import. Only valid, non-excluded rows are imported. Invalid rows are skipped.",
     summaryFile: "File",
     summaryTarget: "Target",
     summaryImport: "Will be imported",
@@ -331,7 +524,7 @@ const en: typeof de = {
     daysLeft: "{days} days left",
     taxFreeNow: "Tax-free",
     taxable: "Taxable",
-    taxableDaysLeft: "Taxable – {days} days left",
+    taxableDaysLeft: "Taxable, {days} days left",
     disposals: "Disposals (realized)",
     proceeds: "Proceeds",
     cost: "Cost",
@@ -339,7 +532,7 @@ const en: typeof de = {
     taxableGain: "Taxable",
     taxFreeGain: "Tax-free",
     uncoveredWarning:
-      "{amount} BTC disposed without a matching lot — check for missing buys/transfers.",
+      "{amount} BTC disposed without a matching lot. Check for missing buys/transfers.",
     unknownBasis: "Cost basis unknown (external transfer)",
     emptyLots: "No open lots.",
     emptyDisposals: "No sells or spends yet.",
@@ -374,11 +567,11 @@ const en: typeof de = {
       legacyFormat:
         "Legacy/P2SH address format: modern formats (native SegWit bc1q / Taproot bc1p) offer lower fees and better privacy.",
       possiblePoisoning:
-        "Dust deposit detected — possible address poisoning. Be extra careful when copying addresses from your history; never “return” such amounts.",
+        "Dust deposit detected, possible address poisoning. Be extra careful when copying addresses from your history; never “return” such amounts.",
       dustUtxo:
         "{count} dust UTXO(s): spending them would cost more in fees than they are worth.",
       roundAmounts:
-        "{count} conspicuously round received amounts — makes chain analysis (change detection) easier.",
+        "{count} conspicuously round received amounts. That makes chain analysis (change detection) easier.",
     },
     utxoTable: {
       outpoint: "Outpoint",
@@ -389,7 +582,7 @@ const en: typeof de = {
       editLabel: "Edit label",
     },
     consolidation:
-      "{count} small UTXOs and currently low fees ({fee} sat/vB) — a good time to consolidate.",
+      "{count} small UTXOs and currently low fees ({fee} sat/vB). A good time to consolidate.",
     feeRate: "Fees (economy)",
     loadError: "Could not load live data: {error}",
     noLiveData: "No live data for xpub entries.",

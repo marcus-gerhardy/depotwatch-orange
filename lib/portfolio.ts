@@ -3,7 +3,15 @@
 import { Decimal, dec, ZERO } from "./decimal";
 import type { LedgerEntry } from "./types";
 
-/** Signed BTC delta a transaction applies to its own account. */
+/**
+ * Signed BTC delta a transaction applies to its own account (CLAUDE.md §3.2).
+ *
+ * `amountBtc` is what reaches the other side — the coins received on a buy or
+ * transfer_in, the coins sold/spent/sent on the outgoing types. `feeBtc` is
+ * always on top of that: a buy credits `amountBtc − feeBtc`, every outgoing
+ * type (including an internal transfer_out) debits `amountBtc + feeBtc`. For a
+ * transfer that sum is exactly what its lot allocations add up to.
+ */
 export function balanceDelta(e: LedgerEntry): Decimal {
   const amount = dec(e.amountBtc);
   const fee = dec(e.feeBtc);
@@ -12,15 +20,23 @@ export function balanceDelta(e: LedgerEntry): Decimal {
       return amount.minus(fee);
     case "transfer_in":
       return amount;
-    case "transfer_out":
-      // For transfers the BTC network fee is part of the sent amount (the
-      // in-leg records amountBtc − feeBtc), so it must not be subtracted
-      // again here.
-      return amount.neg();
     case "sell":
     case "spend":
+    case "transfer_out":
       return amount.plus(fee).neg();
   }
+}
+
+/**
+ * Total BTC held across all accounts: buys + transfer_ins − sells −
+ * transfer_outs − spends, with BTC fees applied per the fee convention
+ * (CLAUDE.md §3.2). This — not the FIFO engine's open-lot sum — is the
+ * portfolio holding: FIFO can only account for disposals it finds lots for,
+ * so an incomplete history (e.g. a CSV export that starts mid-history) would
+ * overstate the balance there.
+ */
+export function totalBalance(entries: LedgerEntry[]): Decimal {
+  return entries.reduce((sum, e) => sum.plus(balanceDelta(e)), ZERO);
 }
 
 export interface AccountBalance {

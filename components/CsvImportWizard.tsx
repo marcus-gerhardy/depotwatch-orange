@@ -1,48 +1,69 @@
 "use client";
 
-// 4-step CSV import wizard for transactions:
-// 1. file + target wallet/account → 2. column mapping (+ templates) →
-// 3. preview with validation/inline fixes → 4. confirm + import.
+// 6-step CSV import wizard for transactions:
+// 1. file + preset + target wallet/account → 2. row filter (which lines take
+// part at all) → 3. column mapping → 4. type-value mapping (if "type" comes
+// from a column) → 5. preview with validation/inline fixes → 6. confirm +
+// import.
 // All parsing happens in the browser; the CSV never touches a server (spec §2).
 
-import { useMemo, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useCallback, useMemo, useState } from "react";
+import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import type { TransactionType, WalletType } from "@/lib/types";
-import { dec, ZERO } from "@/lib/decimal";
+import { dec, formatBtc, ZERO } from "@/lib/decimal";
 import {
   buildImportRows,
   DATE_FORMATS,
+  FEE_MODES,
+  TIME_FORMATS,
+  EMPTY_ROW_FILTER,
+  filterRows,
+  activeFilterRules,
+  unknownFilterColumns,
   decodeCsvBuffer,
-  deleteTemplate,
   detectDateFormat,
   detectDecimalSeparator,
   detectDelimiter,
   detectEncoding,
-  findMatchingTemplate,
+  distinctColumnValues,
   guessMapping,
-  loadTemplates,
+  detectTimeFormat,
   MAPPING_FIELDS,
+  parseImportDateTime,
   normalizeType,
   parseCsv,
   REQUIRED_FIELDS,
   rowToTransaction,
-  saveTemplate,
   validateRow,
+  type AmountUnit,
   type ColumnMapping,
   type CsvDateFormat,
+  type CsvTimeFormat,
+  type FeeMode,
+  type DateTimeFormats,
   type CsvDelimiter,
   type CsvEncoding,
   type DecimalSeparator,
   type ImportRow,
   type MappingField,
-  type MappingTemplate,
   type RowErrorCode,
+  type RowFilter,
 } from "@/lib/csvImport";
-import { Button, Field, Modal, inputCls } from "./ui";
+import {
+  findMatchingPreset,
+  SYSTEM_IMPORT_PRESETS,
+  type ImportPresetConfig,
+  type ImportPresetOption,
+  type UserImportPreset,
+} from "@/lib/importPresets";
+import { Button, Field, Modal, Switch, inputCls } from "./ui";
+import NumberInput from "./NumberInput";
+import CsvRowFilter from "./CsvRowFilter";
 
 const NEW = "__new__";
-const TOTAL_STEPS = 4;
+const MANUAL = "";
+type StepKey = "file" | "filter" | "mapping" | "typeValues" | "preview" | "confirm";
 const WALLET_TYPES: WalletType[] = ["exchange", "hardware", "software", "paper"];
 const TX_TYPES: TransactionType[] = [
   "buy",
@@ -56,12 +77,19 @@ const TX_TYPES: TransactionType[] = [
 const ERROR_FIELDS: Record<RowErrorCode, MappingField[]> = {
   invalidType: ["type"],
   invalidDate: ["date"],
+  invalidTime: ["time"],
   invalidAmount: ["amountBtc"],
   missingPrice: ["pricePerBtcEur", "totalFiatEur"],
   invalidPrice: ["pricePerBtcEur"],
   invalidTotal: ["totalFiatEur"],
   invalidFee: ["feeBtc", "feeFiatEur"],
+  invalidTxid: ["txid"],
+  invalidAddress: ["address"],
 };
+
+function presetKey(p: { source: string; id: string }): string {
+  return `${p.source}:${p.id}`;
+}
 
 function makeHeaders(
   firstRow: string[],
@@ -79,13 +107,29 @@ function makeHeaders(
 }
 
 export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
   const update = useAppStore((s) => s.update);
+  const saveImportPresetAction = useAppStore((s) => s.saveImportPreset);
+  const deleteImportPresetAction = useAppStore((s) => s.deleteImportPreset);
 
   const [step, setStep] = useState(1);
 
-  // Step 1: file + target
+  // Step 1: preset + file + target
+  const presetOptions: ImportPresetOption[] = useMemo(
+    () => [
+      ...SYSTEM_IMPORT_PRESETS.map((p) => ({ ...p, source: "system" as const })),
+      ...portfolio.importPresets.map((p) => ({ ...p, source: "user" as const })),
+    ],
+    [portfolio.importPresets],
+  );
+  const [selectedPreset, setSelectedPreset] = useState<string>(MANUAL);
+  const [presetNotice, setPresetNotice] = useState<string | null>(null);
+  const selectedPresetObj = presetOptions.find(
+    (p) => presetKey(p) === selectedPreset,
+  );
+
   const [fileName, setFileName] = useState<string | null>(null);
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
   const [parsed, setParsed] = useState<string[][]>([]);
@@ -105,20 +149,33 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
   const [newWalletType, setNewWalletType] = useState<WalletType>("exchange");
   const [newAccountName, setNewAccountName] = useState("");
 
-  // Step 2: mapping + templates
+  // Step "filter": which CSV lines take part in the import at all
+  const [rowFilter, setRowFilter] = useState<RowFilter>(EMPTY_ROW_FILTER);
+
+  // Step "mapping": column mapping
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [typeMode, setTypeMode] = useState<"column" | "fixed">("column");
   const [fixedType, setFixedType] = useState<TransactionType>("buy");
   /** "" = follow the auto-detected format; otherwise the user's manual choice. */
   const [dateFormatChoice, setDateFormatChoice] = useState<CsvDateFormat | "">("");
-  const [templates, setTemplates] = useState<MappingTemplate[]>(loadTemplates);
-  const [selectedTemplate, setSelectedTemplate] = useState("");
-  const [templateName, setTemplateName] = useState("");
-  const [templateNotice, setTemplateNotice] = useState<string | null>(null);
+  const [timeFormatChoice, setTimeFormatChoice] = useState<CsvTimeFormat | "">("");
+  const [amountUnit, setAmountUnit] = useState<AmountUnit>("btc");
+  const [feeUnit, setFeeUnit] = useState<AmountUnit>("btc");
+  /** Does the file's amount column already have the BTC fee taken out? */
+  const [feeMode, setFeeMode] = useState<FeeMode>("included");
 
-  // Step 3: preview rows / Step 4: result
+  // Step "typeValues": explicit overrides on top of auto-detected synonyms
+  const [typeValueMapping, setTypeValueMapping] = useState<
+    Record<string, TransactionType>
+  >({});
+
+  // Step "preview": preview rows / Step "confirm": result + save-as-preset
   const [rows, setRows] = useState<ImportRow[]>([]);
+  /** false = columns nothing was mapped to are hidden (they are all empty). */
+  const [showAllColumns, setShowAllColumns] = useState(false);
   const [imported, setImported] = useState<number | null>(null);
+  const [newPresetName, setNewPresetName] = useState("");
+  const [presetSavedNotice, setPresetSavedNotice] = useState<string | null>(null);
 
   const headers = useMemo(
     () =>
@@ -131,37 +188,125 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     () => (hasHeader ? parsed.slice(1) : parsed),
     [parsed, hasHeader],
   );
+  // Everything after the filter step (date detection, type values, preview)
+  // only ever looks at the rows that survive the filter.
+  const filteredDataRows = useMemo(
+    () => filterRows(dataRows, headers, rowFilter),
+    [dataRows, headers, rowFilter],
+  );
+  const filterRuleCount = activeFilterRules(headers, rowFilter).length;
+  const filterUnknownColumns = unknownFilterColumns(headers, rowFilter);
 
-  // Date format: detected once per column from sample rows, manual override wins.
-  const detectedDateFormat = useMemo(() => {
-    const header = mapping.date;
-    if (header === undefined) return null;
-    const i = headers.indexOf(header);
-    if (i < 0) return null;
-    return detectDateFormat(dataRows.slice(0, 20).map((r) => r[i] ?? ""));
-  }, [mapping.date, headers, dataRows]);
+  // Date and time format: detected per column from sample rows, manual override
+  // wins. Both may point at the same column (one value carrying date and time).
+  const columnSamples = useCallback(
+    (header: string | undefined): string[] => {
+      if (header === undefined) return [];
+      const i = headers.indexOf(header);
+      if (i < 0) return [];
+      return filteredDataRows.slice(0, 20).map((r) => r[i] ?? "");
+    },
+    [headers, filteredDataRows],
+  );
+  const detectedDateFormat = useMemo(
+    () =>
+      mapping.date === undefined ? null : detectDateFormat(columnSamples(mapping.date)),
+    [mapping.date, columnSamples],
+  );
+  const detectedTimeFormat = useMemo(
+    () =>
+      mapping.time === undefined ? null : detectTimeFormat(columnSamples(mapping.time)),
+    [mapping.time, columnSamples],
+  );
   const effectiveDateFormat: CsvDateFormat | null =
     dateFormatChoice !== "" ? dateFormatChoice : detectedDateFormat;
+  const effectiveTimeFormat: CsvTimeFormat | null =
+    timeFormatChoice !== "" ? timeFormatChoice : detectedTimeFormat;
 
-  /** Suggest a mapping for the given headers: saved template first, then heuristics. */
-  function suggestMapping(hdrs: string[], initialLoad = false) {
-    const tpl = findMatchingTemplate(templates, hdrs);
-    if (tpl) {
-      setMapping(tpl.mapping);
-      // Only override the user's decimal choice on initial file load.
-      if (initialLoad) setDecimalSep(tpl.decimalSeparator);
-      if (tpl.fixedType) {
-        setTypeMode("fixed");
-        setFixedType(tpl.fixedType);
-      }
-      setDateFormatChoice(tpl.dateFormat ?? "");
-      setSelectedTemplate(tpl.id);
-      setTemplateNotice(t("csvImport.templateApplied", { name: tpl.name }));
-    } else {
-      setMapping(guessMapping(hdrs));
-      setSelectedTemplate("");
-      setTemplateNotice(null);
+  // Type-value mapping: values with no explicit override fall back to the
+  // built-in synonym table (e.g. "Kauf" → buy) so only genuinely unknown
+  // values (e.g. a BitBox02 export's "received"/"sent") need user input.
+  const distinctTypeValues = useMemo(
+    () =>
+      typeMode === "column"
+        ? distinctColumnValues(filteredDataRows, headers, mapping.type)
+        : [],
+    [typeMode, filteredDataRows, headers, mapping.type],
+  );
+  const effectiveTypeValueMapping = useMemo(() => {
+    const guessed: Record<string, TransactionType> = {};
+    for (const v of distinctTypeValues) {
+      const guess = normalizeType(v);
+      if (guess !== null) guessed[v] = guess;
     }
+    return { ...guessed, ...typeValueMapping };
+  }, [distinctTypeValues, typeValueMapping]);
+  const unmappedTypeValues = distinctTypeValues.filter(
+    (v) => effectiveTypeValueMapping[v] === undefined,
+  );
+
+  /** Apply a preset's mapping-stage fields (not delimiter/encoding — see applyPreset). */
+  function applyPresetMappingFields(preset: ImportPresetConfig) {
+    setMapping(preset.mapping);
+    if (preset.fixedType) {
+      setTypeMode("fixed");
+      setFixedType(preset.fixedType);
+    } else {
+      setTypeMode("column");
+    }
+    setDateFormatChoice(preset.dateFormat ?? "");
+    setTimeFormatChoice(preset.timeFormat ?? "");
+    setAmountUnit(preset.amountUnit ?? "btc");
+    setFeeUnit(preset.feeUnit ?? "btc");
+    setFeeMode(preset.feeMode ?? "included");
+    setTypeValueMapping(preset.typeValueMapping ?? {});
+    setRowFilter(preset.rowFilter ?? EMPTY_ROW_FILTER);
+  }
+
+  /** Auto-suggest on file load/reparse: a preset only matches once headers are already
+   *  correct for it, so delimiter/encoding never need to change here — see applyPreset
+   *  for the explicit, user-driven case which does touch them. */
+  function suggestMapping(hdrs: string[], rows: string[][], initialLoad = false) {
+    const preset = findMatchingPreset(presetOptions, hdrs);
+    if (preset) {
+      applyPresetMappingFields(preset);
+      // Only override the user's decimal choice on initial file load.
+      if (initialLoad) setDecimalSep(preset.decimalSeparator);
+      setSelectedPreset(presetKey(preset));
+      setPresetNotice(t("csvImport.presetApplied", { name: preset.name }));
+    } else {
+      setMapping(guessMapping(hdrs, rows));
+      setAmountUnit("btc");
+      setFeeUnit("btc");
+      setFeeMode("included");
+      setTypeValueMapping({});
+      setRowFilter(EMPTY_ROW_FILTER);
+      setSelectedPreset(MANUAL);
+      setPresetNotice(null);
+    }
+  }
+
+  /** Explicit preset pick in step 1 (dropdown) — always applies the full config. */
+  async function applyPreset(key: string) {
+    setSelectedPreset(key);
+    setPresetNotice(null);
+    if (key === MANUAL) return;
+    const preset = presetOptions.find((p) => presetKey(p) === key);
+    if (!preset) return;
+    applyPresetMappingFields(preset);
+    setDecimalSep(preset.decimalSeparator);
+    if (buffer === null) {
+      setEncoding(preset.encoding);
+      setDelimiter(preset.delimiter);
+      return;
+    }
+    if (preset.encoding === encoding && preset.delimiter === delimiter) return;
+    setParsing(true);
+    await nextPaint();
+    setEncoding(preset.encoding);
+    setDelimiter(preset.delimiter);
+    setParsed(parseCsv(decodeCsvBuffer(buffer, preset.encoding), preset.delimiter));
+    setParsing(false);
   }
 
   /** Let the spinner paint before the (synchronous) decode/parse work runs. */
@@ -175,9 +320,10 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     try {
       const buf = await file.arrayBuffer();
       await nextPaint();
-      const enc = detectEncoding(buf);
+      const preset = selectedPreset !== MANUAL ? selectedPresetObj : undefined;
+      const enc = preset?.encoding ?? detectEncoding(buf);
       const text = decodeCsvBuffer(buf, enc);
-      const delim = detectDelimiter(text);
+      const delim = preset?.delimiter ?? detectDelimiter(text);
       const rowsParsed = parseCsv(text, delim);
       if (rowsParsed.length === 0) {
         setFileError(t("csvImport.emptyFile"));
@@ -188,11 +334,17 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       setEncoding(enc);
       setDelimiter(delim);
       setParsed(rowsParsed);
-      setDecimalSep(detectDecimalSeparator(rowsParsed));
-      suggestMapping(
-        makeHeaders(rowsParsed[0], hasHeader, t("csvImport.column")),
-        true,
-      );
+      if (preset) {
+        setDecimalSep(preset.decimalSeparator);
+        applyPresetMappingFields(preset);
+      } else {
+        setDecimalSep(detectDecimalSeparator(rowsParsed));
+        suggestMapping(
+          makeHeaders(rowsParsed[0], hasHeader, t("csvImport.column")),
+          hasHeader ? rowsParsed.slice(1) : rowsParsed,
+          true,
+        );
+      }
     } catch {
       setFileError(t("csvImport.readError"));
     } finally {
@@ -218,7 +370,10 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     const rowsParsed = parseCsv(decodeCsvBuffer(buffer, enc), delim);
     setParsed(rowsParsed);
     if (rowsParsed.length > 0) {
-      suggestMapping(makeHeaders(rowsParsed[0], header, t("csvImport.column")));
+      suggestMapping(
+        makeHeaders(rowsParsed[0], header, t("csvImport.column")),
+        header ? rowsParsed.slice(1) : rowsParsed,
+      );
     }
     setParsing(false);
   }
@@ -231,38 +386,38 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     setParsing(false);
   }
 
-  function applyTemplate(id: string) {
-    setSelectedTemplate(id);
-    const tpl = templates.find((x) => x.id === id);
-    if (!tpl) return;
-    setMapping(tpl.mapping);
-    setDecimalSep(tpl.decimalSeparator);
-    if (tpl.fixedType) {
-      setTypeMode("fixed");
-      setFixedType(tpl.fixedType);
-    } else {
-      setTypeMode("column");
-    }
-    setDateFormatChoice(tpl.dateFormat ?? "");
-    setTemplateNotice(null);
-  }
-
-  function saveCurrentTemplate() {
-    const name = templateName.trim();
+  function saveCurrentAsPreset() {
+    const name = newPresetName.trim();
     if (!name) return;
-    const tpl: MappingTemplate = {
+    const preset: UserImportPreset = {
       id: crypto.randomUUID(),
       name,
-      mapping,
       delimiter,
       decimalSeparator: decimalSep,
+      encoding,
+      mapping,
+      amountUnit,
+      feeUnit,
+      ...(mapping.feeBtc !== undefined ? { feeMode } : {}),
       ...(typeMode === "fixed" ? { fixedType } : {}),
       ...(effectiveDateFormat !== null ? { dateFormat: effectiveDateFormat } : {}),
+      ...(mapping.time !== undefined && effectiveTimeFormat !== null
+        ? { timeFormat: effectiveTimeFormat }
+        : {}),
+      ...(typeMode === "column" && distinctTypeValues.length > 0
+        ? { typeValueMapping: effectiveTypeValueMapping }
+        : {}),
+      ...(filterRuleCount > 0 ? { rowFilter } : {}),
     };
-    setTemplates(saveTemplate(tpl));
-    setSelectedTemplate(tpl.id);
-    setTemplateName("");
-    setTemplateNotice(t("csvImport.templateSaved", { name }));
+    saveImportPresetAction(preset);
+    setNewPresetName("");
+    setPresetSavedNotice(t("csvImport.presetSaved", { name }));
+  }
+
+  function deleteSelectedPreset() {
+    if (!selectedPresetObj || selectedPresetObj.source !== "user") return;
+    deleteImportPresetAction(selectedPresetObj.id);
+    setSelectedPreset(MANUAL);
   }
 
   function setRowValue(rowId: string, field: MappingField, value: string) {
@@ -273,10 +428,18 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     );
   }
 
-  // Preview stats
+  // Preview stats. The preview keeps date and time exactly as the CSV has them,
+  // so validation and import parse them with the columns' formats.
+  const formats: DateTimeFormats = useMemo(
+    () => ({
+      dateFormat: effectiveDateFormat ?? undefined,
+      timeFormat: effectiveTimeFormat ?? undefined,
+    }),
+    [effectiveDateFormat, effectiveTimeFormat],
+  );
   const rowErrors = useMemo(
-    () => new Map(rows.map((r) => [r.id, validateRow(r.values)])),
-    [rows],
+    () => new Map(rows.map((r) => [r.id, validateRow(r.values, formats)])),
+    [rows, formats],
   );
   const includedRows = rows.filter((r) => !r.excluded);
   const validRows = includedRows.filter((r) => rowErrors.get(r.id)!.length === 0);
@@ -299,24 +462,55 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       (f) =>
         (f === "type" && typeMode === "fixed") ||
         (mapping[f] !== undefined && headers.includes(mapping[f]!)),
-    ) && effectiveDateFormat !== null;
-  const stepValid = [
-    !parsing &&
+    ) &&
+    effectiveDateFormat !== null &&
+    // A time column of its own needs a format; the date column standing in for
+    // it (one value carrying both, or a date-only export) is read as the date.
+    (mapping.time === undefined ||
+      mapping.time === mapping.date ||
+      effectiveTimeFormat !== null);
+
+  const steps: StepKey[] = useMemo(
+    () => [
+      "file",
+      "filter",
+      "mapping",
+      ...(typeMode === "column" ? (["typeValues"] as const) : []),
+      "preview",
+      "confirm",
+    ],
+    [typeMode],
+  );
+  const TOTAL_STEPS = steps.length;
+  const currentStepKey = steps[step - 1];
+
+  const stepValidByKey: Record<StepKey, boolean> = {
+    file:
+      !parsing &&
       buffer !== null &&
       dataRows.length > 0 &&
       (targetWallet !== NEW || newWalletName.trim() !== "") &&
       (!accountIsNew || newAccountName.trim() !== ""),
-    requiredMapped,
-    validRows.length > 0,
-    true,
-  ][step - 1];
+    filter: filteredDataRows.length > 0,
+    mapping: requiredMapped,
+    typeValues: unmappedTypeValues.length === 0,
+    preview: validRows.length > 0,
+    confirm: true,
+  };
+  const stepValid = stepValidByKey[currentStepKey];
 
   function next() {
-    if (step === 2) {
+    const nextStepKey = steps[step];
+    if (nextStepKey === "preview") {
       setRows(
         buildImportRows(dataRows, headers, mapping, decimalSep, {
           fixedType: typeMode === "fixed" ? fixedType : undefined,
-          dateFormat: effectiveDateFormat ?? undefined,
+          timeFormat: effectiveTimeFormat ?? undefined,
+          feeMode,
+          amountUnit,
+          feeUnit,
+          typeValueMapping: typeMode === "column" ? effectiveTypeValueMapping : undefined,
+          rowFilter,
         }),
       );
     }
@@ -324,7 +518,7 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
   }
 
   function doImport() {
-    const txs = validRows.map((r) => rowToTransaction(r.values));
+    const txs = validRows.map((r) => rowToTransaction(r.values, formats));
     update((p) => {
       let wallets = p.wallets;
       let walletId = targetWallet;
@@ -370,28 +564,118 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     setImported(txs.length);
   }
 
-  const stepNames = [
-    t("csvImport.steps.file"),
-    t("csvImport.steps.mapping"),
-    t("csvImport.steps.preview"),
-    t("csvImport.steps.import"),
-  ];
+  const stepLabels: Record<StepKey, string> = {
+    file: t("csvImport.steps.file"),
+    filter: t("csvImport.steps.filter"),
+    mapping: t("csvImport.steps.mapping"),
+    typeValues: t("csvImport.steps.typeValues"),
+    preview: t("csvImport.steps.preview"),
+    confirm: t("csvImport.steps.import"),
+  };
+  const stepNames = steps.map((k) => stepLabels[k]);
 
   const errorInputCls = `${inputCls} border-loss!`;
+  /** BTC columns keep 8 decimals, fiat columns 2 — see NumberInput. */
+  const NUMERIC_KIND: Partial<Record<MappingField, "btc" | "fiat">> = {
+    amountBtc: "btc",
+    feeBtc: "btc",
+    pricePerBtcEur: "fiat",
+    totalFiatEur: "fiat",
+    feeFiatEur: "fiat",
+  };
+  const COLUMN_LABEL: Record<MappingField, string> = {
+    type: t("tx.type"),
+    date: t("tx.date"),
+    time: t("tx.time"),
+    amountBtc: t("tx.amountBtc"),
+    pricePerBtcEur: t("tx.priceEur"),
+    totalFiatEur: t("tx.totalEur"),
+    feeBtc: t("tx.feeBtc"),
+    feeFiatEur: t("tx.feeEur"),
+    txid: t("tx.txid"),
+    address: t("tx.address"),
+    note: t("tx.note"),
+  };
+
+  // Preview columns: a field nothing was mapped to stays empty in every row, so
+  // it only costs width — hide it unless the user asks for all columns (they may
+  // want to type a value the CSV does not carry). Required fields always show.
+  const populatedFields = useMemo(() => {
+    const set = new Set<MappingField>(REQUIRED_FIELDS);
+    for (const r of rows)
+      for (const f of MAPPING_FIELDS) if (r.values[f].trim() !== "") set.add(f);
+    return set;
+  }, [rows]);
+  const previewFields = MAPPING_FIELDS.filter(
+    (f) => showAllColumns || populatedFields.has(f),
+  );
+  const hiddenColumnCount = MAPPING_FIELDS.length - populatedFields.size;
+
+  /**
+   * Column width from the widest value in it (plus the header and, for numeric
+   * columns, room for the locale's grouping separators), so no value is cut off.
+   * The table scrolls horizontally instead of shrinking its inputs.
+   */
+  const columnWidths = useMemo(() => {
+    const widths = {} as Record<MappingField, string>;
+    for (const f of MAPPING_FIELDS) {
+      let chars = COLUMN_LABEL[f].length;
+      if (f === "type") {
+        // A select: the widest option plus the dropdown arrow.
+        for (const ty of TX_TYPES)
+          chars = Math.max(chars, t(`tx.types.${ty}`).length + 3);
+      } else {
+        for (const r of rows)
+          chars = Math.max(chars, r.values[f].length + (NUMERIC_KIND[f] ? 2 : 0));
+      }
+      // px-3 padding plus borders on top of the text itself.
+      widths[f] = `calc(${Math.min(Math.max(chars, 8), 68)}ch + 1.75rem)`;
+    }
+    return widths;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, locale]);
+
+  /** Date and time cells keep the file's own values — say how they are read. */
+  const dateTitle = (row: ImportRow): string | undefined => {
+    const iso = parseImportDateTime(row.values.date, row.values.time, formats);
+    return iso === null
+      ? undefined
+      : t("csvImport.dateReadAs", { date: formatDateTime(iso, loc) });
+  };
+
   const cellInput = (
     row: ImportRow,
     field: MappingField,
-    opts: { numeric?: boolean; width?: string; placeholder?: string } = {},
+    opts: { numeric?: boolean; placeholder?: string; title?: string } = {},
   ) => {
     const hasError = rowErrors
       .get(row.id)!
       .some((code) => ERROR_FIELDS[code].includes(field));
+    const cls = `${hasError ? errorInputCls : inputCls} ${
+      opts.numeric ? "text-right font-mono" : ""
+    }`;
+    const style = { width: columnWidths[field] };
+    const kind = NUMERIC_KIND[field];
+    // Numeric cells are edited in the user's locale but stay canonical
+    // decimal strings underneath, which is what validation and import use.
+    if (kind) {
+      return (
+        <NumberInput
+          className={cls}
+          style={style}
+          kind={kind}
+          placeholder={opts.placeholder}
+          disabled={row.excluded}
+          value={row.values[field]}
+          onChange={(v) => setRowValue(row.id, field, v)}
+        />
+      );
+    }
     return (
       <input
-        className={`${hasError ? errorInputCls : inputCls} ${opts.width ?? "w-28"} ${
-          opts.numeric ? "text-right font-mono" : ""
-        }`}
-        inputMode={opts.numeric ? "decimal" : undefined}
+        className={cls}
+        style={style}
+        title={opts.title}
         placeholder={opts.placeholder}
         value={row.values[field]}
         disabled={row.excluded}
@@ -444,11 +728,53 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
         </ol>
 
         {/* Step 1: file + target */}
-        {step === 1 && (
+        {currentStepKey === "file" && (
           <div className="space-y-4">
             <p className="text-xs leading-relaxed text-muted">
               {t("csvImport.fileIntro")}
             </p>
+
+            <div className="space-y-2 border-b border-border-c/60 pb-4">
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Field label={t("csvImport.preset")}>
+                    <select
+                      className={inputCls}
+                      value={selectedPreset}
+                      onChange={(e) => applyPreset(e.target.value)}
+                    >
+                      <option value={MANUAL}>{t("csvImport.presetManual")}</option>
+                      <optgroup label={t("csvImport.presetSystemGroup")}>
+                        {SYSTEM_IMPORT_PRESETS.map((p) => (
+                          <option key={p.id} value={presetKey({ source: "system", id: p.id })}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      {portfolio.importPresets.length > 0 && (
+                        <optgroup label={t("csvImport.presetUserGroup")}>
+                          {portfolio.importPresets.map((p) => (
+                            <option key={p.id} value={presetKey({ source: "user", id: p.id })}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </Field>
+                </div>
+                {selectedPresetObj?.source === "user" && (
+                  <Button variant="ghost" onClick={deleteSelectedPreset}>
+                    {t("csvImport.presetDelete")}
+                  </Button>
+                )}
+              </div>
+              {selectedPresetObj?.source === "system" && (
+                <p className="text-xs text-muted">🔒 {t("csvImport.presetPredefined")}</p>
+              )}
+              {presetNotice && <p className="text-xs text-gain">{presetNotice}</p>}
+            </div>
+
             <div className="space-y-2">
               <label className="inline-block">
                 <span className="cursor-pointer rounded-lg border border-border-c bg-surface-2 px-3 py-1.5 text-sm hover:border-accent-dim">
@@ -627,45 +953,61 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* Step 2: column mapping */}
-        {step === 2 && (
+        {/* Step: row filter */}
+        {currentStepKey === "filter" && (
+          <div className="space-y-4">
+            <p className="text-xs leading-relaxed text-muted">
+              {t("csvImport.filterIntro")}
+            </p>
+
+            <CsvRowFilter
+              headers={headers}
+              rows={dataRows}
+              filter={rowFilter}
+              onChange={setRowFilter}
+            />
+
+            {filterUnknownColumns.length > 0 && (
+              <p className="text-xs text-warning">
+                ⚠{" "}
+                {t("csvImport.filterUnknownColumns", {
+                  columns: filterUnknownColumns.join(", "),
+                })}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 border-t border-border-c/60 pt-3 text-xs">
+              {filterRuleCount === 0 ? (
+                <span className="text-muted">
+                  {t("csvImport.filterNoRules", { count: dataRows.length })}
+                </span>
+              ) : (
+                <span
+                  className={`rounded-full px-2.5 py-1 ${
+                    filteredDataRows.length > 0
+                      ? "bg-gain/15 text-gain"
+                      : "bg-loss/15 text-loss"
+                  }`}
+                >
+                  {t("csvImport.filterMatchCount", {
+                    matched: filteredDataRows.length,
+                    total: dataRows.length,
+                  })}
+                </span>
+              )}
+              {filterRuleCount > 0 && filteredDataRows.length === 0 && (
+                <span className="text-loss">{t("csvImport.filterEmptyResult")}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step: column mapping */}
+        {currentStepKey === "mapping" && (
           <div className="space-y-4">
             <p className="text-xs leading-relaxed text-muted">
               {t("csvImport.mappingIntro")}
             </p>
-
-            {templates.length > 0 && (
-              <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <Field label={t("csvImport.template")}>
-                    <select
-                      className={inputCls}
-                      value={selectedTemplate}
-                      onChange={(e) => applyTemplate(e.target.value)}
-                    >
-                      <option value="">{t("csvImport.templateNone")}</option>
-                      {templates.map((tpl) => (
-                        <option key={tpl.id} value={tpl.id}>
-                          {tpl.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-                {selectedTemplate && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setTemplates(deleteTemplate(selectedTemplate));
-                      setSelectedTemplate("");
-                    }}
-                  >
-                    {t("csvImport.templateDelete")}
-                  </Button>
-                )}
-              </div>
-            )}
-            {templateNotice && <p className="text-xs text-gain">{templateNotice}</p>}
 
             <div className="space-y-2">
               {MAPPING_FIELDS.map((field) => {
@@ -673,20 +1015,26 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                 const header = mapping[field];
                 const colIdx = header !== undefined ? headers.indexOf(header) : -1;
                 const sample =
-                  colIdx >= 0 ? (dataRows[0]?.[colIdx] ?? "").trim() : "";
+                  colIdx >= 0 ? (filteredDataRows[0]?.[colIdx] ?? "").trim() : "";
                 const isType = field === "type";
                 const isDate = field === "date";
-                const columnSelect = (
+                const isTime = field === "time";
+                const isAmount = field === "amountBtc";
+                const isFee = field === "feeBtc";
+                const columnSelect = (extraCls = "", title?: string) => (
                   <select
-                    className={inputCls}
+                    className={`${inputCls} ${extraCls}`}
+                    title={title}
                     value={header !== undefined && colIdx >= 0 ? header : ""}
                     onChange={(e) => {
                       setMapping((m) => ({
                         ...m,
                         [field]: e.target.value === "" ? undefined : e.target.value,
                       }));
-                      // New column → re-detect the date format from scratch.
+                      // New column → re-detect its format / type values from scratch.
                       if (isDate) setDateFormatChoice("");
+                      if (isTime) setTimeFormatChoice("");
+                      if (isType) setTypeValueMapping({});
                     }}
                   >
                     <option value="">{t("csvImport.noMapping")}</option>
@@ -731,6 +1079,24 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                           </label>
                         </span>
                       )}
+                      {/* Exports differ in whether the amount column already has
+                          the BTC fee taken out; the import converts either one
+                          to the ledger convention (CLAUDE.md §3.2). */}
+                      {isFee && colIdx >= 0 && (
+                        <span className="mt-1.5 flex flex-col gap-1 text-xs text-muted">
+                          {FEE_MODES.map((mode) => (
+                            <label key={mode} className="flex items-center gap-1.5">
+                              <input
+                                type="radio"
+                                name="feeMode"
+                                checked={feeMode === mode}
+                                onChange={() => setFeeMode(mode)}
+                              />
+                              {t(`csvImport.feeModes.${mode}`)}
+                            </label>
+                          ))}
+                        </span>
+                      )}
                     </span>
                     {isType && typeMode === "fixed" ? (
                       <>
@@ -751,9 +1117,41 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                           {t("csvImport.typeFixedHint")}
                         </span>
                       </>
+                    ) : isAmount || isFee ? (
+                      colIdx >= 0 ? (
+                        // Column-select and unit-select each fill one grid cell
+                        // (50/50, like the date row); the sample value moves to
+                        // a tooltip so the row never wraps.
+                        <>
+                          {columnSelect(
+                            "min-w-0",
+                            sample
+                              ? t("csvImport.sample", { value: sample })
+                              : undefined,
+                          )}
+                          <select
+                            className={`${inputCls} min-w-0`}
+                            title={t("csvImport.unit")}
+                            value={isAmount ? amountUnit : feeUnit}
+                            onChange={(e) =>
+                              (isAmount ? setAmountUnit : setFeeUnit)(
+                                e.target.value as AmountUnit,
+                              )
+                            }
+                          >
+                            <option value="btc">{t("csvImport.unitBtc")}</option>
+                            <option value="sats">{t("csvImport.unitSats")}</option>
+                          </select>
+                        </>
+                      ) : (
+                        <>
+                          {columnSelect()}
+                          <span className="hidden truncate text-xs text-muted md:block" />
+                        </>
+                      )
                     ) : (
                       <>
-                        {columnSelect}
+                        {columnSelect()}
                         {isDate && colIdx >= 0 ? (
                           <select
                             className={`${inputCls} ${
@@ -776,6 +1174,28 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                               </option>
                             ))}
                           </select>
+                        ) : isTime && colIdx >= 0 && header !== mapping.date ? (
+                          <select
+                            className={`${inputCls} ${
+                              effectiveTimeFormat === null ? "border-loss!" : ""
+                            }`}
+                            title={t("csvImport.timeFormat")}
+                            value={effectiveTimeFormat ?? ""}
+                            onChange={(e) =>
+                              setTimeFormatChoice(e.target.value as CsvTimeFormat)
+                            }
+                          >
+                            {effectiveTimeFormat === null && (
+                              <option value="">
+                                {t("csvImport.timeFormatChoose")}
+                              </option>
+                            )}
+                            {TIME_FORMATS.map((f) => (
+                              <option key={f} value={f}>
+                                {t(`csvImport.timeFormats.${f}`)}
+                              </option>
+                            ))}
+                          </select>
                         ) : (
                           <span className="hidden truncate text-xs text-muted md:block">
                             {sample && t("csvImport.sample", { value: sample })}
@@ -787,26 +1207,60 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                 );
               })}
             </div>
+          </div>
+        )}
 
-            <div className="flex items-end gap-2 border-t border-border-c/60 pt-3">
-              <div className="flex-1">
-                <Field label={t("csvImport.templateName")}>
-                  <input
-                    className={inputCls}
-                    value={templateName}
-                    onChange={(e) => setTemplateName(e.target.value)}
-                  />
-                </Field>
-              </div>
-              <Button disabled={!templateName.trim()} onClick={saveCurrentTemplate}>
-                {t("csvImport.templateSave")}
-              </Button>
+        {/* Step: type-value mapping (only when the type column is used) */}
+        {currentStepKey === "typeValues" && (
+          <div className="space-y-4">
+            <p className="text-xs leading-relaxed text-muted">
+              {t("csvImport.typeValuesIntro", { column: mapping.type ?? "" })}
+            </p>
+            {unmappedTypeValues.length > 0 && (
+              <p className="text-xs text-loss">
+                {t("csvImport.typeValuesUnmapped", { count: unmappedTypeValues.length })}
+              </p>
+            )}
+            <div className="space-y-2">
+              {distinctTypeValues.map((value) => {
+                const current = effectiveTypeValueMapping[value];
+                const isUnmapped = current === undefined;
+                return (
+                  <div
+                    key={value}
+                    className="grid grid-cols-2 items-center gap-3 md:grid-cols-3"
+                  >
+                    <span className="truncate font-mono text-sm" title={value}>
+                      {value}
+                    </span>
+                    <select
+                      className={`${isUnmapped ? errorInputCls : inputCls} md:col-span-2`}
+                      value={current ?? ""}
+                      onChange={(e) =>
+                        setTypeValueMapping((m) => ({
+                          ...m,
+                          [value]: e.target.value as TransactionType,
+                        }))
+                      }
+                    >
+                      {isUnmapped && (
+                        <option value="">{t("csvImport.typeValuesChoose")}</option>
+                      )}
+                      {TX_TYPES.map((ty) => (
+                        <option key={ty} value={ty}>
+                          {t(`tx.types.${ty}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Step 3: preview + validation */}
-        {step === 3 && (
+        {/* Step: preview + validation */}
+        {currentStepKey === "preview" && (
           <div className="space-y-3">
             <p className="text-xs leading-relaxed text-muted">
               {t("csvImport.previewIntro")}
@@ -826,12 +1280,25 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                 {t("csvImport.excludedRows", { count: excludedCount })}
               </span>
               <span className="ml-auto font-mono text-muted">
-                {t("csvImport.sumBtc", { amount: sumBtc.toFixed(8) })}
+                {t("csvImport.sumBtc", { amount: formatBtc(sumBtc, loc) })}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs text-muted">
+              <Switch
+                checked={showAllColumns}
+                onChange={setShowAllColumns}
+                label={t("csvImport.showAllColumns")}
+              />
+              <span>
+                {hiddenColumnCount > 0
+                  ? t("csvImport.showAllColumnsHint", { count: hiddenColumnCount })
+                  : t("csvImport.showAllColumns")}
               </span>
             </div>
 
             <div className="max-h-96 overflow-auto rounded-lg border border-border-c">
-              <table className="w-full min-w-[64rem] text-sm">
+              <table className="w-max min-w-full text-sm">
                 <thead className="sticky top-0 bg-surface-2">
                   <tr className="text-xs text-muted">
                     <th className="px-2 py-2 text-left font-normal">
@@ -840,20 +1307,11 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                     <th className="px-2 py-2 text-left font-normal">
                       {t("csvImport.line")}
                     </th>
-                    <th className="px-2 py-2 text-left font-normal">{t("tx.type")}</th>
-                    <th className="px-2 py-2 text-left font-normal">{t("tx.date")}</th>
-                    <th className="px-2 py-2 text-left font-normal">
-                      {t("tx.amountBtc")}
-                    </th>
-                    <th className="px-2 py-2 text-left font-normal">
-                      {t("tx.priceEur")}
-                    </th>
-                    <th className="px-2 py-2 text-left font-normal">
-                      {t("tx.totalEur")}
-                    </th>
-                    <th className="px-2 py-2 text-left font-normal">{t("tx.feeBtc")}</th>
-                    <th className="px-2 py-2 text-left font-normal">{t("tx.feeEur")}</th>
-                    <th className="px-2 py-2 text-left font-normal">{t("tx.note")}</th>
+                    {previewFields.map((field) => (
+                      <th key={field} className="px-2 py-2 text-left font-normal">
+                        {COLUMN_LABEL[field]}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -867,76 +1325,73 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                           row.excluded ? "opacity-40" : ""
                         }`}
                       >
-                        <td className="px-2 py-1.5 text-center">
-                          <input
-                            type="checkbox"
+                        <td className="px-2 py-1.5">
+                          <Switch
                             checked={!row.excluded}
-                            onChange={(e) =>
+                            onChange={(checked) =>
                               setRows((rs) =>
                                 rs.map((r) =>
-                                  r.id === row.id
-                                    ? { ...r, excluded: !e.target.checked }
-                                    : r,
+                                  r.id === row.id ? { ...r, excluded: !checked } : r,
                                 ),
                               )
                             }
+                            label={t("csvImport.includeRow", { line: row.line })}
                           />
                         </td>
                         <td className="px-2 py-2 text-xs text-muted">{row.line}</td>
-                        <td className="px-2 py-1.5">
-                          <select
-                            className={`${
-                              !row.excluded && errors.includes("invalidType")
-                                ? errorInputCls
-                                : inputCls
-                            } w-36`}
-                            value={row.values.type}
-                            disabled={row.excluded}
-                            onChange={(e) => setRowValue(row.id, "type", e.target.value)}
-                          >
-                            {typeInvalid && (
-                              <option value={row.values.type}>
-                                {row.values.type || "—"}
-                              </option>
+                        {previewFields.map((field) => (
+                          <td key={field} className="px-2 py-1.5">
+                            {field === "type" ? (
+                              <>
+                                <select
+                                  className={
+                                    !row.excluded && errors.includes("invalidType")
+                                      ? errorInputCls
+                                      : inputCls
+                                  }
+                                  style={{ width: columnWidths.type }}
+                                  value={row.values.type}
+                                  disabled={row.excluded}
+                                  onChange={(e) =>
+                                    setRowValue(row.id, "type", e.target.value)
+                                  }
+                                >
+                                  {typeInvalid && (
+                                    <option value={row.values.type}>
+                                      {row.values.type || "—"}
+                                    </option>
+                                  )}
+                                  {TX_TYPES.map((ty) => (
+                                    <option key={ty} value={ty}>
+                                      {t(`tx.types.${ty}`)}
+                                    </option>
+                                  ))}
+                                </select>
+                                {!row.excluded && errors.length > 0 && (
+                                  <p
+                                    className="mt-1 text-[11px] leading-tight text-loss"
+                                    style={{ width: columnWidths.type }}
+                                  >
+                                    {errors
+                                      .map((code) => t(`csvImport.errors.${code}`))
+                                      .join(" · ")}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              cellInput(row, field, {
+                                numeric: NUMERIC_KIND[field] !== undefined,
+                                placeholder: field === "date" ? "YYYY-MM-DD" : undefined,
+                                // The cell shows the file's own value, so name
+                                // the date it is read as.
+                                title:
+                                  field === "date" || field === "time"
+                                    ? dateTitle(row)
+                                    : undefined,
+                              })
                             )}
-                            {TX_TYPES.map((ty) => (
-                              <option key={ty} value={ty}>
-                                {t(`tx.types.${ty}`)}
-                              </option>
-                            ))}
-                          </select>
-                          {!row.excluded && errors.length > 0 && (
-                            <p className="mt-1 w-36 text-[11px] leading-tight text-loss">
-                              {errors
-                                .map((code) => t(`csvImport.errors.${code}`))
-                                .join(" · ")}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {cellInput(row, "date", {
-                            width: "w-44",
-                            placeholder: "YYYY-MM-DD",
-                          })}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {cellInput(row, "amountBtc", { numeric: true })}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {cellInput(row, "pricePerBtcEur", { numeric: true })}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {cellInput(row, "totalFiatEur", { numeric: true })}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {cellInput(row, "feeBtc", { numeric: true, width: "w-24" })}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {cellInput(row, "feeFiatEur", { numeric: true, width: "w-24" })}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {cellInput(row, "note", { width: "w-36" })}
-                        </td>
+                          </td>
+                        ))}
                       </tr>
                     );
                   })}
@@ -946,8 +1401,8 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* Step 4: confirm / done */}
-        {step === 4 &&
+        {/* Step: confirm / done */}
+        {currentStepKey === "confirm" &&
           (imported === null ? (
             <div className="space-y-3">
               <p className="text-xs leading-relaxed text-muted">
@@ -962,6 +1417,17 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                   <dt className="text-muted">{t("csvImport.summaryTarget")}</dt>
                   <dd>{targetLabel}</dd>
                 </div>
+                {filterRuleCount > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-muted">{t("csvImport.summaryFilter")}</dt>
+                    <dd>
+                      {t("csvImport.filterMatchCount", {
+                        matched: filteredDataRows.length,
+                        total: dataRows.length,
+                      })}
+                    </dd>
+                  </div>
+                )}
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">{t("csvImport.summaryImport")}</dt>
                   <dd className="text-gain">
@@ -980,9 +1446,27 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted">{t("csvImport.summarySum")}</dt>
-                  <dd className="font-mono">{sumBtc.toFixed(8)}</dd>
+                  <dd className="font-mono">{formatBtc(sumBtc, loc)}</dd>
                 </div>
               </dl>
+
+              <div className="flex items-end gap-2 border-t border-border-c/60 pt-3">
+                <div className="flex-1">
+                  <Field label={t("csvImport.presetSaveAsName")}>
+                    <input
+                      className={inputCls}
+                      value={newPresetName}
+                      onChange={(e) => setNewPresetName(e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <Button disabled={!newPresetName.trim()} onClick={saveCurrentAsPreset}>
+                  {t("csvImport.presetSaveAs")}
+                </Button>
+              </div>
+              {presetSavedNotice && (
+                <p className="text-xs text-gain">{presetSavedNotice}</p>
+              )}
             </div>
           ) : (
             <div className="space-y-4 py-4 text-center">

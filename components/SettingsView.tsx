@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import type { Currency, ExplorerProvider, Locale } from "@/lib/types";
+import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
 
 export default function SettingsView() {
@@ -11,6 +12,7 @@ export default function SettingsView() {
   const portfolio = useAppStore((s) => s.portfolio)!;
   const update = useAppStore((s) => s.update);
   const setPassword = useAppStore((s) => s.setPassword);
+  const setUiLocale = useAppStore((s) => s.setUiLocale);
   const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
   const fileMode = useAppStore((s) => s.fileMode);
 
@@ -48,7 +50,9 @@ export default function SettingsView() {
             <select
               className={inputCls}
               value={s.locale}
-              onChange={(e) => patchSettings({ locale: e.target.value as Locale })}
+              // Writes the portfolio setting and the device preference, so the
+              // start screen and legal pages keep the same language.
+              onChange={(e) => setUiLocale(e.target.value as Locale)}
             >
               <option value="de">Deutsch</option>
               <option value="en">English</option>
@@ -157,27 +161,31 @@ export default function SettingsView() {
         </p>
       </Card>
 
-      <Card className="space-y-3">
-        <SectionTitle>{t("settings.taxSettings")}</SectionTitle>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("settings.holdingPeriod")}>
-            <input
-              type="number"
-              min={0}
-              className={inputCls}
-              value={s.holdingPeriodDays}
-              onChange={(e) =>
-                patchSettings({ holdingPeriodDays: Number(e.target.value) || 0 })
-              }
-            />
-          </Field>
-          <Field label={t("settings.costBasisMethod")}>
-            <select className={inputCls} value="FIFO" disabled>
-              <option value="FIFO">FIFO</option>
-            </select>
-          </Field>
-        </div>
-      </Card>
+      {TAX_FEATURES_ENABLED && (
+        <Card className="space-y-3">
+          <SectionTitle>{t("settings.taxSettings")}</SectionTitle>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("settings.holdingPeriod")}>
+              <input
+                type="number"
+                min={0}
+                className={inputCls}
+                value={s.holdingPeriodDays}
+                onChange={(e) =>
+                  patchSettings({
+                    holdingPeriodDays: Number(e.target.value) || 0,
+                  })
+                }
+              />
+            </Field>
+            <Field label={t("settings.costBasisMethod")}>
+              <select className={inputCls} value="FIFO" disabled>
+                <option value="FIFO">FIFO</option>
+              </select>
+            </Field>
+          </div>
+        </Card>
+      )}
 
       <Card className="space-y-3">
         <SectionTitle>{t("settings.autosave")}</SectionTitle>

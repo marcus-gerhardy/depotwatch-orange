@@ -23,10 +23,6 @@ const de = {
   start: {
     openFile: "Portfolio-Datei öffnen",
     createFile: "Neues Portfolio anlegen",
-    fsaHint:
-      "Dein Browser unterstützt direkten Dateizugriff: Änderungen werden automatisch in deine Datei gespeichert.",
-    fallbackHint:
-      "Dein Browser unterstützt keinen direkten Dateizugriff. Du öffnest die Datei per Upload und speicherst Änderungen über den Speichern-Button als Download.",
     passwordTitle: "Passwort eingeben",
     passwordFor: "Passwort für {name}",
     newPasswordTitle: "Passwort für die neue Datei festlegen",
@@ -41,9 +37,15 @@ const de = {
     localFirst:
       "Alle Daten bleiben in einer einzigen, passwortverschlüsselten Datei auf deinem Gerät. Es gibt keinen Server, kein Konto, kein Tracking.",
     howItWorks: "So funktioniert's",
+    loadDemo: "Testportfolio laden",
+    demoHint:
+      "Lädt Beispieldaten zum Ausprobieren. Deine Änderungen werden erst beim Speichern in einer eigenen Datei gesichert, die Beispieldatei bleibt dabei unverändert.",
+    demoLoadError: "Testportfolio konnte nicht geladen werden.",
+    demoFileName: "Testportfolio.dwp",
   },
   wizard: {
     title: "Neues Portfolio anlegen",
+    titleSaveExisting: "Testdaten speichern",
     stepOf: "Schritt {current} von {total}",
     steps: {
       location: "Speicherort",
@@ -54,19 +56,21 @@ const de = {
     locationIntroFsa:
       "Wähle, wo deine Portfolio-Datei gespeichert werden soll. Änderungen werden später automatisch dorthin geschrieben.",
     locationIntroFallback:
-      "Dein Browser unterstützt keinen direkten Dateizugriff. Die Datei wird am Ende des Assistenten als Download gespeichert — wähle hier den Dateinamen.",
+      "Dein Browser unterstützt keinen direkten Dateizugriff. Die Datei wird am Ende des Assistenten als Download gespeichert. Wähle hier den Dateinamen.",
     chooseLocation: "Speicherort wählen …",
     locationChosen: "Ausgewählt: {name}",
     fileNameLabel: "Dateiname",
     passwordIntro:
-      "Die Datei wird mit diesem Passwort verschlüsselt (AES-256-GCM). Ohne Passwort kann niemand — auch du nicht — die Daten wiederherstellen.",
+      "Die Datei wird mit diesem Passwort verschlüsselt (AES-256-GCM). Ohne Passwort kann niemand die Daten wiederherstellen, auch du nicht.",
     strength: "Passwortstärke",
     strengthWeak: "schwach",
     strengthMedium: "mittel",
     strengthStrong: "stark",
     walletIntro:
-      "Lege dein erstes Wallet mit einem Konto an — es wird für deine erste Transaktion benötigt (z. B. Wallet „Kraken“ mit Konto „Spot“).",
+      "Lege dein erstes Wallet mit einem Konto an. Es wird für deine erste Transaktion benötigt (z. B. Wallet „Kraken“ mit Konto „Spot“).",
     summaryIntro: "Bitte prüfe deine Angaben. Mit „Erstellen“ wird die Datei angelegt und gespeichert.",
+    summaryIntroExisting:
+      "Bitte prüfe deine Angaben. Deine bisherigen Testdaten werden unverändert in die neue Datei übernommen.",
     summaryLocation: "Speicherort",
     summaryDownload: "Download ({name})",
     summaryEncryption: "Verschlüsselung",
@@ -74,6 +78,8 @@ const de = {
     summaryUnencrypted: "deaktiviert",
     summaryWallet: "Wallet",
     summaryAccount: "Konto",
+    summaryExistingData: "Daten",
+    summaryExistingDataValue: "{wallets} Wallets, {transactions} Transaktionen",
     back: "Zurück",
     next: "Weiter",
     create: "Erstellen & speichern",
@@ -83,6 +89,62 @@ const de = {
     github: "Don't trust, verify on GitHub",
     imprint: "Impressum",
     privacy: "Datenschutz",
+  },
+  howItWorks: {
+    metaTitle: "So funktioniert's | DepotWatch Orange",
+    metaDescription:
+      "Wie DepotWatch Orange funktioniert: Local-First, eine verschlüsselte Datei, kein Server. Die Sicherheitsarchitektur im Detail.",
+    title: "So funktioniert's",
+    intro:
+      "DepotWatch Orange ist bewusst anders gebaut als typische Portfolio-Tracker. Diese Seite erklärt die Architektur, mit dem Schwerpunkt darauf, warum deine Daten sicher sind.",
+    localFirstTitle: "Local-First: kein Server, keine Cloud, kein Konto",
+    localFirstBody:
+      "Alle deine Daten (Wallets, Konten, Transaktionen, Einstellungen) liegen in einer einzigen Datei auf deinem eigenen Gerät. Es gibt keine Serverdatenbank, keine Registrierung und kein Tracking. Die App läuft vollständig in deinem Browser: Was du erfasst oder per CSV importierst, verlässt deinen Rechner zu keinem Zeitpunkt. Niemand außer dir kann deine Bestände einsehen, auch wir nicht, denn es existiert schlicht kein Ort, an dem sie gespeichert wären.",
+    filesTitle: "Öffnen & Speichern: direkte Dateizugriffe im Browser",
+    filesBody:
+      "In Browsern mit File System Access API (z. B. Chrome, Edge) wählst du deine Portfolio-Datei einmal aus; danach schreibt die App Änderungen nach kurzer Verzögerung automatisch dorthin zurück (Autosave). In Browsern ohne diese API (z. B. Firefox, Safari) öffnest du die Datei per Upload-Dialog und speicherst Änderungen über den Speichern-Button als Download. In beiden Fällen gilt: Die Datei bewegt sich nur zwischen deinem Browser und deiner Festplatte, nie über das Netz.",
+    encryptionTitle: "Verschlüsselung: dein Passwort, dein Schlüssel",
+    encryptionBody:
+      "Deine Datei wird standardmäßig mit AES-256-GCM verschlüsselt. Der Schlüssel wird per PBKDF2-SHA256 mit 600.000 Iterationen aus deinem Passwort abgeleitet, direkt im Browser über die WebCrypto-API. Das Passwort selbst wird nirgends gespeichert, es existiert nur im Arbeitsspeicher, solange die Datei geöffnet ist.",
+    encryptionWarning:
+      "Wichtig: Es gibt keinen Passwort-Reset. Da nichts auf einem Server liegt, kann dir niemand ein neues Passwort schicken oder die Datei entschlüsseln, auch wir nicht. Verlierst du Passwort oder Datei, sind die Daten unwiederbringlich verloren. Verwahre beides sicher und lege regelmäßig Backups der Datei an (die Datei ist verschlüsselt, du kannst sie also bedenkenlos z. B. auf einem USB-Stick sichern).",
+    watchlistTitle: "Watchlist: bewusst getrennt vom Portfolio",
+    watchlistBody:
+      "Die Adress-Watchlist (Salden, UTXOs, Privacy-Checks) ist watch-only und vom Portfolio-Ledger getrennt: Beobachtete Adressen sind niemals automatisch Teil deiner Bestände, und deine erfassten Transaktionen werden nie mit On-Chain-Abfragen verknüpft. Das hat einen Sicherheits- und einen Privacy-Grund: Live-Daten kommen von einer konfigurierbaren Explorer-Quelle (auf Wunsch dein eigener Node). Bei öffentlichen APIs sieht der Anbieter die abgefragten Adressen. Dein Ledger dagegen braucht überhaupt keine Netzwerkzugriffe. So entscheidest du pro Adresse, was du abfragst, und dein Portfolio bleibt auch dann vollständig privat, wenn du die Watchlist gar nicht nutzt.",
+    openSourceTitle: "Open Source: Don't trust, verify",
+    openSourceBody:
+      "All das musst du uns nicht glauben. DepotWatch Orange ist Open Source (MIT-Lizenz). Jeder kann den Code prüfen: ob wirklich nichts hochgeladen wird, wie die Verschlüsselung implementiert ist und was die App sonst tut.",
+  },
+  imprint: {
+    metaTitle: "Impressum | DepotWatch Orange",
+    title: "Impressum",
+    placeholder:
+      "Platzhalter, vor Veröffentlichung der Seite mit den echten Angaben ausfüllen.",
+    providerTitle: "Angaben gemäß § 5 DDG",
+    providerBody: "[Vorname Nachname]\n[Straße Hausnummer]\n[PLZ Ort]\nDeutschland",
+    contactTitle: "Kontakt",
+    contactBody: "E-Mail: [kontakt@depotwatch-orange.com]",
+    responsibleTitle: "Verantwortlich für den Inhalt",
+    responsibleBody: "[Vorname Nachname, Anschrift wie oben]",
+  },
+  privacyPolicy: {
+    metaTitle: "Datenschutz | DepotWatch Orange",
+    title: "Datenschutzerklärung",
+    placeholder:
+      "Platzhalter, vor Veröffentlichung rechtlich prüfen und vervollständigen.",
+    noStorageTitle: "Keine Speicherung von Nutzerdaten",
+    noStorageBody:
+      "DepotWatch Orange ist eine reine Client-Anwendung. Alle Portfoliodaten liegen ausschließlich in einer lokalen, passwortverschlüsselten Datei auf deinem Gerät. Es gibt keinen Server, der Nutzerdaten speichert, kein Konto und kein Tracking (keine Cookies, keine Analyse-Tools).",
+    externalTitle: "Abfragen an externe Dienste",
+    externalIntro:
+      "Bei Nutzung der App werden zur Laufzeit Daten von externen Schnittstellen abgerufen. Dabei erhält der jeweilige Anbieter technisch bedingt deine IP-Adresse und die Anfragedaten:",
+    externalBinance: "Binance (Kursdaten): Es werden keine Portfoliodaten übermittelt.",
+    externalExplorer:
+      "mempool.space / blockstream.info (On-Chain-Daten): Übermittelt werden die von dir zur Beobachtung eingetragenen Bitcoin-Adressen. In den Einstellungen kann stattdessen ein eigener Server konfiguriert werden.",
+    hostingTitle: "Hosting",
+    hostingBody: "[Angaben zum Hosting-Anbieter und ggf. Server-Logs ergänzen.]",
+    controllerTitle: "Verantwortlicher",
+    controllerBody: "[Siehe Impressum, Angaben ergänzen.]",
   },
   nav: {
     dashboard: "Dashboard",
@@ -102,6 +164,9 @@ const de = {
     closeFile: "Datei schließen",
     closeFileConfirm:
       "Datei schließen? Ungespeicherte Änderungen gehen verloren (im automatischen Modus ist bereits alles gespeichert).",
+    closeFileConfirmDemo:
+      "Datei schließen? Diese Testdaten wurden noch nie gespeichert. Alle Änderungen gehen verloren.",
+    setUpFile: "Testdaten speichern",
   },
   dashboard: {
     totalValue: "Gesamtwert",
@@ -120,8 +185,12 @@ const de = {
     chartTitle: "Wertverlauf",
     chartPortfolio: "Portfoliowert",
     chartBtcPrice: "BTC-Kurs",
+    uncoveredHint:
+      "Für {amount} BTC aus Verkäufen, Ausgaben oder Abgängen fehlen die zugehörigen Käufe im Portfolio (z. B. bei einem CSV-Export, der erst mitten in der Historie beginnt). Der Bestand oben stimmt, aber Einstandswert, Ø Einstandspreis und unrealisierter G/V sind unvollständig.",
+    negativeBalanceHint:
+      "Der Gesamtbestand ist negativ: Es wurden mehr Verkäufe, Ausgaben und Abgänge erfasst als Käufe und Zugänge. Bitte die Transaktionen prüfen.",
     chartCompare: "Mit BTC-Kurs vergleichen",
-    chartEmpty: "Noch keine Transaktionen — der Wertverlauf erscheint hier.",
+    chartEmpty: "Noch keine Transaktionen. Der Wertverlauf erscheint hier.",
     showTransactions: "Transaktionen dieses Kontos anzeigen",
     range90: "90 T",
     range365: "1 J",
@@ -149,9 +218,11 @@ const de = {
   },
   tx: {
     title: "Transaktionen",
+    titleCount: "{filtered} von insgesamt {total}",
     add: "Transaktion erfassen",
     edit: "Transaktion bearbeiten",
     date: "Datum",
+    time: "Uhrzeit",
     type: "Typ",
     types: {
       buy: "Kauf",
@@ -173,8 +244,28 @@ const de = {
     feeEur: "Gebühr (EUR)",
     valueEur: "Wert (EUR)",
     note: "Notiz",
+    onChainSection: "On-Chain-Daten (optional)",
+    onChainHint:
+      "Dient zum Abgleich von Transfer-Ausgang und -Eingang zwischen deinen Wallets. Rein informativ: die Sicherheits- und Privacy-Prüfungen arbeiten weiterhin ausschließlich mit der Adress-Watchlist.",
+    txid: "Transaktions-ID (txid)",
+    txidPlaceholder: "64 Hex-Zeichen, z. B. 4a5e1e4b…deda33b",
+    txidInvalid: "Ungültige Transaktions-ID: erwartet werden genau 64 Hex-Zeichen (0-9, a-f).",
+    address: "Bitcoin-Adresse",
+    addressPlaceholder: "bc1… / 1… / 3…",
+    addressHint:
+      "Zieladresse beim Ausgang, Empfangsadresse beim Eingang. Das grenzt ein, welcher Output der Transaktion gemeint ist.",
+    addressInvalid:
+      "Ungültige Bitcoin-Adresse (erlaubt: Legacy 1…/3…, Bech32 bc1q…, Bech32m bc1p…).",
+    copyValue: "In die Zwischenablage kopieren",
+    copied: "Kopiert",
+    openInExplorer: "Im Block-Explorer öffnen",
     deleteTitle: "Transaktion löschen",
     deleteConfirm: "Transaktion wirklich löschen?",
+    bulkDeleteConfirm: "{count} ausgewählte Transaktionen wirklich löschen?",
+    deleteReleasesLegs:
+      "{count} verknüpfte Transfer-Buchung(en) verlieren dadurch ihre Gegenseite und werden zu externen Transfers.",
+    deleteClearsAllocations:
+      "Bei {count} Transaktion(en) wird die Lot-Zuordnung gelöst; sie greifen künftig automatisch auf die ältesten verfügbaren Lots zu (FIFO).",
     filterAll: "Alle",
     filterFrom: "Von",
     filterTo: "Bis",
@@ -204,8 +295,45 @@ const de = {
     moveTransferConflict:
       "Nicht möglich: Bei {count} Transfer(s) lägen danach Ausgangs- und Eingangsseite im selben Konto. Bitte Ziel-Konto oder Auswahl anpassen.",
     moveLegacyTransferWarning:
-      "{count} ältere Transfer-Transaktion(en) ohne Gruppen-Verknüpfung: Die Gegenseite kann nicht automatisch aktualisiert werden — bitte anschließend manuell prüfen.",
+      "{count} ältere Transfer-Transaktion(en) ohne Gruppen-Verknüpfung: Die Gegenseite kann nicht automatisch aktualisiert werden. Bitte anschließend manuell prüfen.",
     moveAction: "Verschieben",
+    transferAction: "Übertragen zu …",
+    transferSubmit: "Übertragen",
+    transferIntro:
+      "Bündelt die ausgewählten offenen Kauf-/Transfer-Eingang-Lots zu einem echten Transfer an ein anderes Wallet/Konto. Anders als „Wallet/Konto ändern“ entsteht dabei ein transfer_out mit Lot-Zuordnung sowie ein verknüpfter transfer_in. Die ursprünglichen Einstandsdaten und Kaufkurse der Lots bleiben für die Haltefrist-/FIFO-Berechnung erhalten.",
+    transferIneligible:
+      "{count} ausgewählte Transaktion(en) sind kein Kauf/Transfer-Eingang mit Restbestand und werden ignoriert.",
+    transferMultiSource:
+      "Die ausgewählten Lots liegen in mehreren unterschiedlichen Konten. Bitte nur Lots aus einem einzigen Quell-Konto auswählen.",
+    transferRemaining: "Restbestand",
+    transferAmount: "Zu übertragen",
+    transferFeeBtc: "Netzwerkgebühr (optional)",
+    transferFeeOnTopHint:
+      "Die Gebühr kommt zur Menge hinzu: Vom Quellkonto gehen Menge + Gebühr ab, beim Ziel kommt die Menge an.",
+    transferSameAccount: "Ziel-Konto muss sich vom Quell-Konto unterscheiden.",
+    transferSummaryLots: "Anzahl Lots",
+    transferSummarySource: "Quelle",
+    transferSummaryTarget: "Ziel",
+    transferSummaryTotal: "Summe der Lots (BTC, verlässt das Konto)",
+    transferSummaryNet: "Betrag der Transferbuchung (BTC, ohne Gebühr)",
+    transferSummaryAvgCost: "Ø Einstandskurs (mengengewichtet)",
+    transferSummaryCostBasis: "Einstandswert gesamt",
+    transferSummaryUnknownBasisNote:
+      "Für einen Teil der Menge ist kein Einstandskurs bekannt (z. B. extern empfangene Lots). Dieser Anteil ist in den Werten oben nicht enthalten.",
+    transferDate: "Transfer-Datum",
+    transferOutSectionTitle: "Ausgangstransaktion (Quelle: {source})",
+    transferOutModeNew: "Neue Ausgangstransaktion anlegen",
+    transferOutModeExisting: "Bestehende Transaktion zuordnen",
+    transferInSectionTitle: "Zieltransaktion (Ziel: {target})",
+    transferInModeNew: "Neue Zieltransaktion anlegen",
+    transferInModeExisting: "Bestehende Transaktion zuordnen",
+    transferCandidateNone: "Keine passenden Kandidaten in diesem Konto gefunden.",
+    transferBestMatch: "🎯 wahrscheinlichste Übereinstimmung",
+    transferMismatchOut:
+      "Die gewählte Ausgangstransaktion hat {actual} BTC, erwartet werden {expected} BTC. Die zugeordneten Lots ergeben {lots} BTC abzüglich {fee} BTC Netzwerkgebühr.",
+    transferMismatchIn:
+      "Die gewählte Zieltransaktion hat {actual} BTC, erwartet werden aber {expected} BTC (Gesamtmenge abzüglich Gebühr).",
+    transferMismatchConfirm: "Ich bestätige die Verknüpfung trotz abweichender Menge.",
     pageOf: "Seite {current} von {total}",
     prevPage: "Vorherige Seite",
     nextPage: "Nächste Seite",
@@ -215,20 +343,54 @@ const de = {
       "Kurs oder Betrag (EUR) wird für Kauf/Verkauf/Ausgabe benötigt.",
     accountRequired: "Bitte zuerst ein Wallet mit Konto anlegen.",
     sameAccount: "Quell- und Zielkonto müssen verschieden sein.",
+    transferredAway: "übertragen",
+    transferredTarget: "Ziel",
+    transferredDate: "Datum",
+    transferredAmount: "Menge",
+    transferredJump: "Zur Transaktion",
   },
   csvImport: {
     button: "Import",
     title: "Transaktionen aus CSV importieren",
     steps: {
       file: "Datei",
+      filter: "Filter",
       mapping: "Spalten",
+      typeValues: "Typ-Werte",
       preview: "Vorschau",
       import: "Import",
     },
+    filterIntro:
+      "Optional: Beschränke den Import auf bestimmte Zeilen. Jede Bedingung prüft eine CSV-Spalte gegen die dort tatsächlich vorkommenden Werte (z. B. nur transaction_type = trade). Mehrere Bedingungen lassen sich mit UND bzw. ODER verknüpfen.",
+    filterAddRule: "Bedingung hinzufügen",
+    filterRemoveRule: "Bedingung entfernen",
+    filterColumn: "Spalte",
+    filterColumnChoose: "Spalte wählen",
+    filterMatch: "Vergleich",
+    filterMatchAnyOf: "ist einer von",
+    filterMatchNoneOf: "ist keiner von",
+    filterValues: "Werte",
+    filterSelectAll: "alle",
+    filterSelectNone: "keine",
+    filterSearch: "Werte durchsuchen …",
+    filterNoValues: "Keine Werte gefunden.",
+    filterRuleInactive: "Kein Wert gewählt. Diese Bedingung wird ignoriert.",
+    filterCombinator: {
+      and: "UND",
+      or: "ODER",
+    },
+    filterMatchCount: "{matched} von {total} Zeilen",
+    filterNoRules: "Kein Filter aktiv. Alle {count} Zeilen werden übernommen.",
+    filterEmptyResult: "Keine Zeile erfüllt den Filter.",
+    filterUnknownColumn:
+      "Diese Datei hat keine Spalte „{column}“. Die Bedingung wird ignoriert.",
+    filterUnknownColumns:
+      "Spalten aus dem Preset fehlen in dieser Datei: {columns}. Die betroffenen Bedingungen werden ignoriert.",
+    summaryFilter: "Filter",
     fileIntro:
       "Wähle eine CSV-Datei (z. B. den Export deiner Börse). Die Datei wird ausschließlich lokal in deinem Browser verarbeitet und niemals hochgeladen.",
     chooseFile: "CSV-Datei wählen …",
-    fileChosen: "{name} — {rows} Datenzeilen",
+    fileChosen: "{name} ({rows} Datenzeilen)",
     readError: "Datei konnte nicht gelesen werden.",
     emptyFile: "Die Datei enthält keine Datenzeilen.",
     hasHeader: "Erste Zeile enthält Spaltenüberschriften",
@@ -248,28 +410,44 @@ const de = {
     newAccountOption: "+ Neues Konto anlegen …",
     newWalletName: "Name des neuen Wallets",
     newAccountName: "Name des neuen Kontos",
+    preset: "Import-Preset",
+    presetManual: "Manuell / ohne Vorlage",
+    presetSystemGroup: "Vordefiniert",
+    presetUserGroup: "Eigene Presets",
+    presetPredefined: "Dieses Preset ist vordefiniert und kann nicht bearbeitet oder gelöscht werden.",
+    presetDelete: "Preset löschen",
+    presetApplied: "Preset „{name}“ automatisch angewendet.",
+    presetSaveAsName: "Name für neues Preset (z. B. Kraken)",
+    presetSaveAs: "Als neues Preset speichern",
+    presetSaved: "Preset „{name}“ gespeichert.",
     column: "Spalte",
     mappingIntro:
       "Ordne die CSV-Spalten den Transaktionsfeldern zu. Felder ohne Zuordnung werden leer übernommen.",
-    noMapping: "— keine Zuordnung —",
+    noMapping: "keine Zuordnung",
     required: "Pflichtfeld",
     typeFromColumn: "Aus Spalte",
     typeFixed: "Fester Wert",
     typeFixedHint:
       "Der gewählte Typ wird für alle importierten Zeilen übernommen (z. B. für reine Kauf-Exports ohne Typ-Spalte).",
     sample: "Beispiel: {value}",
+    unit: "Einheit",
+    unitBtc: "BTC",
+    unitSats: "Sats",
     fields: {
       type: "Typ",
       date: "Datum",
+      time: "Uhrzeit",
       amountBtc: "Menge (BTC)",
       pricePerBtcEur: "Kurs (EUR/BTC)",
       totalFiatEur: "Betrag (EUR)",
       feeBtc: "Gebühr (BTC)",
       feeFiatEur: "Gebühr (EUR)",
+      txid: "Transaktions-ID (txid)",
+      address: "Bitcoin-Adresse",
       note: "Notiz",
     },
     dateFormat: "Datumsformat",
-    dateFormatChoose: "— Datumsformat wählen —",
+    dateFormatChoose: "Datumsformat wählen",
     dateFormats: {
       iso: "ISO 8601 (2026-07-24)",
       de: "TT.MM.JJJJ (24.07.2026)",
@@ -279,32 +457,48 @@ const de = {
       "unix-s": "Unix-Timestamp (Sekunden)",
       "unix-ms": "Unix-Timestamp (Millisekunden)",
     },
-    template: "Mapping-Vorlage",
-    templateNone: "— Vorlage wählen —",
-    templateName: "Vorlagen-Name (z. B. Kraken)",
-    templateSave: "Als Vorlage speichern",
-    templateSaved: "Vorlage „{name}“ gespeichert.",
-    templateApplied: "Vorlage „{name}“ automatisch angewendet.",
-    templateDelete: "Vorlage löschen",
+    feeModes: {
+      deducted: "Gebühr ist von der Menge bereits abgezogen",
+      included: "Gebühr ist in der Menge noch enthalten",
+    },
+    timeFormat: "Zeitformat",
+    timeFormatChoose: "Zeitformat wählen",
+    timeFormats: {
+      hms: "HH:MM(:SS) (14:30:00)",
+      h12: "12-Stunden (02:30 PM)",
+      datetime: "aus Datum und Uhrzeit in einer Spalte",
+    },
+    typeValuesIntro:
+      "Ordne jedem in der Spalte „{column}“ vorkommenden Wert einen internen Transaktionstyp zu. Bereits bekannte Werte (z. B. „Kauf“) sind vorausgefüllt.",
+    typeValuesUnmapped:
+      "{count} Wert(e) benötigen noch eine Zuordnung, bevor du fortfahren kannst.",
+    typeValuesChoose: "Typ wählen",
     previewIntro:
-      "Prüfe die Zeilen vor dem Import. Fehlerhafte Zeilen sind markiert und können direkt korrigiert oder über die Checkbox ausgeschlossen werden.",
+      "Prüfe die Zeilen vor dem Import. Fehlerhafte Zeilen sind markiert und können direkt korrigiert oder über den Schalter ausgeschlossen werden.",
     validRows: "{count} gültig",
     errorRows: "{count} fehlerhaft",
     excludedRows: "{count} ausgeschlossen",
     sumBtc: "Summe (gültige Zeilen): {amount} BTC",
     line: "Zeile",
     includeColumn: "Import",
+    dateReadAs: "Wird gelesen als: {date}",
+    includeRow: "Zeile {line} importieren",
+    showAllColumns: "Alle Spalten anzeigen",
+    showAllColumnsHint: "Alle Spalten anzeigen ({count} nicht gemappte ausgeblendet)",
     errors: {
       invalidType: "Ungültiger oder fehlender Typ",
       invalidDate: "Ungültiges Datum",
+      invalidTime: "Ungültige Uhrzeit",
       invalidAmount: "Menge fehlt oder ist nicht größer als 0",
       missingPrice: "Kurs oder Betrag (EUR) wird für Kauf/Verkauf/Ausgabe benötigt",
       invalidPrice: "Ungültiger Kurs",
       invalidTotal: "Ungültiger Betrag (EUR)",
       invalidFee: "Ungültige Gebühr (muss ≥ 0 sein)",
+      invalidTxid: "Ungültige Transaktions-ID (genau 64 Hex-Zeichen)",
+      invalidAddress: "Ungültige Bitcoin-Adresse",
     },
     confirmIntro:
-      "Bereit zum Import. Es werden nur gültige, nicht ausgeschlossene Zeilen übernommen — fehlerhafte Zeilen werden übersprungen.",
+      "Bereit zum Import. Es werden nur gültige, nicht ausgeschlossene Zeilen übernommen. Fehlerhafte Zeilen werden übersprungen.",
     summaryFile: "Datei",
     summaryTarget: "Ziel",
     summaryImport: "Wird importiert",
@@ -330,7 +524,7 @@ const de = {
     daysLeft: "Noch {days} Tage",
     taxFreeNow: "Steuerfrei",
     taxable: "Steuerpflichtig",
-    taxableDaysLeft: "Steuerpflichtig – noch {days} Tage",
+    taxableDaysLeft: "Steuerpflichtig, noch {days} Tage",
     disposals: "Veräußerungen (realisiert)",
     proceeds: "Erlös",
     cost: "Einstand",
@@ -338,7 +532,7 @@ const de = {
     taxableGain: "Steuerpflichtig",
     taxFreeGain: "Steuerfrei",
     uncoveredWarning:
-      "{amount} BTC ohne zugeordnetes Lot veräußert — prüfe fehlende Käufe/Transfers.",
+      "{amount} BTC ohne zugeordnetes Lot veräußert. Prüfe fehlende Käufe/Transfers.",
     unknownBasis: "Einstand unbekannt (externer Transfer)",
     emptyLots: "Keine offenen Lots.",
     emptyDisposals: "Noch keine Verkäufe oder Ausgaben.",
@@ -373,11 +567,11 @@ const de = {
       legacyFormat:
         "Legacy-/P2SH-Adressformat: moderne Formate (Native SegWit bc1q / Taproot bc1p) bieten niedrigere Gebühren und bessere Privatsphäre.",
       possiblePoisoning:
-        "Dust-Eingang erkannt — mögliches Address Poisoning. Beim Kopieren von Adressen aus der Historie besonders aufpassen, Beträge niemals „zurücksenden“.",
+        "Dust-Eingang erkannt, mögliches Address Poisoning. Beim Kopieren von Adressen aus der Historie besonders aufpassen, Beträge niemals „zurücksenden“.",
       dustUtxo:
         "{count} Dust-UTXO(s): Die Ausgabe würde mehr Gebühren kosten, als der UTXO wert ist.",
       roundAmounts:
-        "{count} auffällig runde Empfangsbeträge — erleichtert Chain-Analyse (Wechselgeld-Erkennung).",
+        "{count} auffällig runde Empfangsbeträge. Das erleichtert die Chain-Analyse (Wechselgeld-Erkennung).",
     },
     utxoTable: {
       outpoint: "Outpoint",
@@ -388,7 +582,7 @@ const de = {
       editLabel: "Label bearbeiten",
     },
     consolidation:
-      "{count} kleine UTXOs und aktuell niedrige Gebühren ({fee} sat/vB) — guter Zeitpunkt zum Konsolidieren.",
+      "{count} kleine UTXOs und aktuell niedrige Gebühren ({fee} sat/vB). Guter Zeitpunkt zum Konsolidieren.",
     feeRate: "Gebühren (Economy)",
     loadError: "Live-Daten konnten nicht geladen werden: {error}",
     noLiveData: "Keine Live-Daten für xpub-Einträge.",

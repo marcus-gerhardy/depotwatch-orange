@@ -16,6 +16,39 @@ export function explorerBase(settings: ExplorerSettings): string {
   }
 }
 
+/**
+ * Web UI of the configured explorer, for links the user clicks explicitly —
+ * never fetched. Returns null for a custom Electrum/Esplora endpoint, which
+ * has an API but no browsable UI we could guess.
+ */
+export function explorerWebBase(settings: ExplorerSettings): string | null {
+  switch (settings.provider) {
+    case "blockstream":
+      return "https://blockstream.info";
+    case "custom-electrum":
+      return null;
+    case "mempool.space":
+    default:
+      return "https://mempool.space";
+  }
+}
+
+export function explorerTxUrl(
+  settings: ExplorerSettings,
+  txid: string,
+): string | null {
+  const base = explorerWebBase(settings);
+  return base === null ? null : `${base}/tx/${txid}`;
+}
+
+export function explorerAddressUrl(
+  settings: ExplorerSettings,
+  address: string,
+): string | null {
+  const base = explorerWebBase(settings);
+  return base === null ? null : `${base}/address/${address}`;
+}
+
 export interface AddressStats {
   address: string;
   chain_stats: {

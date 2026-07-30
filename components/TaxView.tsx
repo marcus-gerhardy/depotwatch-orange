@@ -57,7 +57,7 @@ export default function TaxView() {
         <Card className="border-warning/50">
           {uncovered.map((d) => (
             <p key={d.txId} className="text-sm text-warning">
-              ⚠ {t("tax.uncoveredWarning", { amount: formatBtc(d.uncoveredBtc, loc, 8) })}
+              ⚠ {t("tax.uncoveredWarning", { amount: formatBtc(d.uncoveredBtc, loc) })}
             </p>
           ))}
         </Card>
@@ -96,7 +96,7 @@ export default function TaxView() {
                         {lot.walletName} / {lot.accountName}
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
-                        <Amount>{formatBtc(lot.remainingBtc, loc, 8)}</Amount>
+                        <Amount>{formatBtc(lot.remainingBtc, loc)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         {lot.costPerBtcEur ? (
@@ -201,7 +201,7 @@ export default function TaxView() {
                       </td>
                       <td className="py-2 pr-4">{t(`tx.types.${d.type}`)}</td>
                       <td className="py-2 pr-4 text-right font-mono">
-                        <Amount>{formatBtc(d.amountBtc, loc, 8)}</Amount>
+                        <Amount>{formatBtc(d.amountBtc, loc)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatFiat(d.proceedsEur, "EUR", loc)}</Amount>

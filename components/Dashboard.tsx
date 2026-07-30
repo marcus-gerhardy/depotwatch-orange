@@ -5,7 +5,8 @@ import { useI18n, intlLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
 import { computeFifo } from "@/lib/fifo";
-import { accountBalances } from "@/lib/portfolio";
+import { TAX_FEATURES_ENABLED } from "@/lib/features";
+import { accountBalances, totalBalance } from "@/lib/portfolio";
 import { fetchSpotPrice } from "@/lib/binance";
 import { formatBtc, formatFiat } from "@/lib/decimal";
 import { Amount, Card, PnlValue, SectionTitle } from "./ui";
@@ -63,11 +64,18 @@ export default function Dashboard({
     currency === "EUR" ? 1 : priceEur && priceUsd ? priceUsd / priceEur : null;
   const displayPrice = currency === "EUR" ? priceEur : priceUsd;
 
-  const totalBtc = fifo.totalBtc.toNumber();
+  // The holding comes from the ledger (buys + transfer_ins − sells −
+  // transfer_outs − spends), so it always matches the wallet breakdown below
+  // and the transaction table. The FIFO engine's open-lot sum can be higher
+  // when a disposal has no lot to consume (see fifo.openLotsBtc) — the
+  // difference is surfaced as a hint instead of silently changing the balance.
+  const balanceBtc = useMemo(() => totalBalance(entries), [entries]);
+  const totalBtc = balanceBtc.toNumber();
   const totalValue = displayPrice !== null ? totalBtc * displayPrice : null;
   const openCostEur = fifo.openCostBasisEur.toNumber();
   const unrealizedEur =
     priceEur !== null ? totalBtc * priceEur - openCostEur : null;
+  const uncoveredBtc = fifo.openLotsBtc.minus(balanceBtc);
 
   const fmtDisplay = (vEur: number | null) =>
     vEur === null || eurToDisplay === null
@@ -87,7 +95,7 @@ export default function Dashboard({
             </Amount>
           </div>
           <div className="mt-1 text-xs text-muted">
-            <Amount>{formatBtc(fifo.totalBtc, loc)} BTC</Amount>
+            <Amount>{formatBtc(balanceBtc, loc)} BTC</Amount>
           </div>
         </Card>
         <Card>
@@ -126,14 +134,32 @@ export default function Dashboard({
               {fmtDisplay(fifo.realizedGainEur.toNumber())}
             </PnlValue>
           </div>
-          <div className="mt-1 flex gap-3 text-xs text-muted">
-            <span>
-              {t("tax.taxFreeGain")}:{" "}
-              <Amount>{fmtDisplay(fifo.realizedTaxFreeGainEur.toNumber())}</Amount>
-            </span>
-          </div>
+          {TAX_FEATURES_ENABLED && (
+            <div className="mt-1 flex gap-3 text-xs text-muted">
+              <span>
+                {t("tax.taxFreeGain")}:{" "}
+                <Amount>
+                  {fmtDisplay(fifo.realizedTaxFreeGainEur.toNumber())}
+                </Amount>
+              </span>
+            </div>
+          )}
         </Card>
       </div>
+
+      {balanceBtc.lt(0) && (
+        <p className="rounded-lg border border-loss/40 bg-loss/5 p-3 text-xs text-loss">
+          ⚠ {t("dashboard.negativeBalanceHint")}
+        </p>
+      )}
+      {uncoveredBtc.gt("0.00000001") && (
+        <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
+          ⚠{" "}
+          {t("dashboard.uncoveredHint", {
+            amount: formatBtc(uncoveredBtc, loc),
+          })}
+        </p>
+      )}
 
       <Card>
         <SectionTitle>{t("dashboard.chartTitle")}</SectionTitle>

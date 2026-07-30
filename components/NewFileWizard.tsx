@@ -1,17 +1,20 @@
 "use client";
 
-// 4-step wizard for creating a new portfolio file:
-// 1. storage location → 2. password → 3. first wallet + account → 4. summary.
+// Wizard for creating a new portfolio file: storage location → password →
+// (new file only) first wallet + account → summary. When `existingPortfolio`
+// is given (e.g. saving demo data as a real file for the first time), the
+// wallet step is skipped and that data is kept as-is instead of starting
+// from an empty portfolio.
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import { emptyPortfolio, type WalletType } from "@/lib/types";
+import { emptyPortfolio, type PortfolioFile, type WalletType } from "@/lib/types";
 import { pickFileForCreate } from "@/lib/fileStorage";
-import { Button, Card, Field, inputCls } from "./ui";
+import { Button, Card, Field, Modal, inputCls } from "./ui";
 
 const WALLET_TYPES: WalletType[] = ["exchange", "hardware", "software", "paper"];
-const TOTAL_STEPS = 4;
+type StepKey = "location" | "password" | "wallet" | "summary";
 
 /** 0–4: length and character-class heuristic. */
 function passwordScore(pw: string): number {
@@ -24,23 +27,43 @@ function passwordScore(pw: string): number {
   return Math.min(4, score);
 }
 
-export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
+export default function NewFileWizard({
+  onCancel,
+  onCreated,
+  existingPortfolio,
+  asModal = false,
+}: {
+  onCancel: () => void;
+  /** Called after the file was successfully created/saved (existingPortfolio mode only needs this — the plain "new file" flow unmounts on its own once a portfolio exists). */
+  onCreated?: () => void;
+  /** Save this data as-is instead of starting a new, empty portfolio. */
+  existingPortfolio?: PortfolioFile;
+  /** Render inside the shared Modal overlay instead of as a plain Card. */
+  asModal?: boolean;
+}) {
   const { t } = useI18n();
   const fileMode = useAppStore((s) => s.fileMode);
   const openPortfolio = useAppStore((s) => s.openPortfolio);
   const saveNow = useAppStore((s) => s.saveNow);
+  const uiLocale = useAppStore((s) => s.uiLocale);
+
+  const steps: StepKey[] = existingPortfolio
+    ? ["location", "password", "summary"]
+    : ["location", "password", "wallet", "summary"];
+  const TOTAL_STEPS = steps.length;
 
   const [step, setStep] = useState(1);
   const [busy, setBusy] = useState(false);
+  const currentStepKey = steps[step - 1];
 
-  // Step 1: location
+  // Step "location"
   const [handle, setHandle] = useState<FileSystemFileHandle | null>(null);
   const [fallbackName, setFallbackName] = useState("portfolio.dwp");
-  // Step 2: password
+  // Step "password"
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
   const [noEncryption, setNoEncryption] = useState(false);
-  // Step 3: first wallet + account
+  // Step "wallet" (new file only)
   const [walletName, setWalletName] = useState("");
   const [walletType, setWalletType] = useState<WalletType>("exchange");
   const [accountName, setAccountName] = useState("");
@@ -55,12 +78,13 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
         : t("wizard.strengthStrong");
   const scoreColor = score <= 1 ? "bg-loss" : score <= 3 ? "bg-warning" : "bg-gain";
 
-  const stepValid = [
-    fileMode === "fsa" ? handle !== null : fallbackName.trim().length > 0,
-    noEncryption || (pw1.length > 0 && pw1 === pw2),
-    walletName.trim().length > 0 && accountName.trim().length > 0,
-    true,
-  ][step - 1];
+  const stepValidByKey: Record<StepKey, boolean> = {
+    location: fileMode === "fsa" ? handle !== null : fallbackName.trim().length > 0,
+    password: noEncryption || (pw1.length > 0 && pw1 === pw2),
+    wallet: walletName.trim().length > 0 && accountName.trim().length > 0,
+    summary: true,
+  };
+  const stepValid = stepValidByKey[currentStepKey];
 
   async function chooseLocation() {
     const h = await pickFileForCreate();
@@ -70,19 +94,23 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
   async function create() {
     setBusy(true);
     try {
-      const portfolio = emptyPortfolio();
-      portfolio.wallets.push({
-        id: crypto.randomUUID(),
-        name: walletName.trim(),
-        type: walletType,
-        accounts: [
-          {
-            id: crypto.randomUUID(),
-            name: accountName.trim(),
-            transactions: [],
-          },
-        ],
-      });
+      const portfolio = existingPortfolio ?? emptyPortfolio();
+      if (!existingPortfolio) {
+        // A fresh file starts in the language the user is currently reading.
+        portfolio.settings.locale = uiLocale;
+        portfolio.wallets.push({
+          id: crypto.randomUUID(),
+          name: walletName.trim(),
+          type: walletType,
+          accounts: [
+            {
+              id: crypto.randomUUID(),
+              name: accountName.trim(),
+              transactions: [],
+            },
+          ],
+        });
+      }
       openPortfolio({
         portfolio,
         handle,
@@ -90,26 +118,44 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
         password: noEncryption ? null : pw1,
       });
       await saveNow();
+      onCreated?.();
     } finally {
       setBusy(false);
     }
   }
 
-  const stepNames = [
-    t("wizard.steps.location"),
-    t("wizard.steps.password"),
-    t("wizard.steps.wallet"),
-    t("wizard.steps.summary"),
-  ];
+  const stepLabels: Record<StepKey, string> = {
+    location: t("wizard.steps.location"),
+    password: t("wizard.steps.password"),
+    wallet: t("wizard.steps.wallet"),
+    summary: t("wizard.steps.summary"),
+  };
+  const stepNames = steps.map((k) => stepLabels[k]);
 
-  return (
-    <Card className="space-y-5">
-      <div>
-        <h2 className="font-semibold">{t("wizard.title")}</h2>
-        <p className="mt-0.5 text-xs text-muted">
+  const title = existingPortfolio ? t("wizard.titleSaveExisting") : t("wizard.title");
+
+  const existingSummary = existingPortfolio && {
+    wallets: existingPortfolio.wallets.length,
+    transactions: existingPortfolio.wallets
+      .flatMap((w) => w.accounts)
+      .reduce((n, a) => n + a.transactions.length, 0),
+  };
+
+  const body = (
+    <>
+      {!asModal && (
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            {t("wizard.stepOf", { current: step, total: TOTAL_STEPS })}
+          </p>
+        </div>
+      )}
+      {asModal && (
+        <p className="text-xs text-muted">
           {t("wizard.stepOf", { current: step, total: TOTAL_STEPS })}
         </p>
-      </div>
+      )}
 
       {/* Stepper */}
       <ol className="flex items-center">
@@ -147,8 +193,8 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
         })}
       </ol>
 
-      {/* Step 1: location */}
-      {step === 1 && (
+      {/* Step: location */}
+      {currentStepKey === "location" && (
         <div className="space-y-3">
           <p className="text-xs leading-relaxed text-muted">
             {fileMode === "fsa"
@@ -176,8 +222,8 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
         </div>
       )}
 
-      {/* Step 2: password */}
-      {step === 2 && (
+      {/* Step: password */}
+      {currentStepKey === "password" && (
         <div className="space-y-3">
           <p className="text-xs leading-relaxed text-muted">{t("wizard.passwordIntro")}</p>
           {!noEncryption && (
@@ -233,8 +279,8 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
         </div>
       )}
 
-      {/* Step 3: first wallet + account */}
-      {step === 3 && (
+      {/* Step: first wallet + account (new file only) */}
+      {currentStepKey === "wallet" && (
         <div className="space-y-3">
           <p className="text-xs leading-relaxed text-muted">{t("wizard.walletIntro")}</p>
           <div className="grid grid-cols-2 gap-3">
@@ -272,10 +318,12 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
         </div>
       )}
 
-      {/* Step 4: summary */}
-      {step === 4 && (
+      {/* Step: summary */}
+      {currentStepKey === "summary" && (
         <div className="space-y-3">
-          <p className="text-xs leading-relaxed text-muted">{t("wizard.summaryIntro")}</p>
+          <p className="text-xs leading-relaxed text-muted">
+            {existingPortfolio ? t("wizard.summaryIntroExisting") : t("wizard.summaryIntro")}
+          </p>
           <dl className="space-y-2 rounded-lg border border-border-c bg-surface-2/50 p-3 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-muted">{t("wizard.summaryLocation")}</dt>
@@ -291,19 +339,33 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
                   : `🔒 ${t("wizard.summaryEncrypted")}`}
               </dd>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted">{t("wizard.summaryWallet")}</dt>
-              <dd>
-                {walletName.trim()}{" "}
-                <span className="text-xs text-muted">
-                  ({t(`wallets.types.${walletType}`)})
-                </span>
-              </dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted">{t("wizard.summaryAccount")}</dt>
-              <dd>{accountName.trim()}</dd>
-            </div>
+            {existingSummary ? (
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted">{t("wizard.summaryExistingData")}</dt>
+                <dd>
+                  {t("wizard.summaryExistingDataValue", {
+                    wallets: existingSummary.wallets,
+                    transactions: existingSummary.transactions,
+                  })}
+                </dd>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">{t("wizard.summaryWallet")}</dt>
+                  <dd>
+                    {walletName.trim()}{" "}
+                    <span className="text-xs text-muted">
+                      ({t(`wallets.types.${walletType}`)})
+                    </span>
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">{t("wizard.summaryAccount")}</dt>
+                  <dd>{accountName.trim()}</dd>
+                </div>
+              </>
+            )}
           </dl>
         </div>
       )}
@@ -330,6 +392,15 @@ export default function NewFileWizard({ onCancel }: { onCancel: () => void }) {
           </Button>
         )}
       </div>
-    </Card>
+    </>
   );
+
+  if (asModal) {
+    return (
+      <Modal title={title} onClose={onCancel}>
+        <div className="space-y-5">{body}</div>
+      </Modal>
+    );
+  }
+  return <Card className="space-y-5">{body}</Card>;
 }

@@ -1,11 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import { Decimal, dec, ZERO } from "@/lib/decimal";
+import {
+  Decimal,
+  btcString,
+  dec,
+  fiatString,
+  formatBtc,
+  ZERO,
+} from "@/lib/decimal";
 import { allocateFifo, computeFifo } from "@/lib/fifo";
 import { fetchSpotPrice } from "@/lib/binance";
+import {
+  isValidBitcoinAddress,
+  isValidTxid,
+  normalizeBitcoinAddress,
+  normalizeTxid,
+} from "@/lib/bitcoin";
 import {
   flattenLedger,
   type LedgerEntry,
@@ -14,6 +27,7 @@ import {
   type TransactionType,
 } from "@/lib/types";
 import { Button, Field, Modal, inputCls } from "./ui";
+import NumberInput, { decimalPlaceholder } from "./NumberInput";
 
 const EXTERNAL = "__external__";
 
@@ -41,7 +55,8 @@ export default function TransactionForm({
   sellLot?: SellLotTarget | null;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
@@ -81,6 +96,8 @@ export default function TransactionForm({
   const [date, setDate] = useState(
     toLocalInput(existing?.date ?? new Date().toISOString()),
   );
+  // Canonical decimal strings — NumberInput renders them with the locale's
+  // decimal separator and full precision (BTC 8 places, fiat at least 2).
   const [amount, setAmount] = useState(
     existing?.amountBtc ?? sellLot?.maxAmountBtc ?? "",
   );
@@ -89,6 +106,9 @@ export default function TransactionForm({
   const [feeBtc, setFeeBtc] = useState(existing?.feeBtc ?? "");
   const [feeFiat, setFeeFiat] = useState(existing?.feeFiatEur ?? "");
   const [note, setNote] = useState(existing?.note ?? "");
+  // On-chain data, transfers only (CLAUDE.md §3.2).
+  const [txid, setTxid] = useState(existing?.txid ?? "");
+  const [address, setAddress] = useState(existing?.address ?? "");
   const [accountId, setAccountId] = useState(
     existing?.accountId ?? sellLot?.accountId ?? accounts[0]?.id ?? "",
   );
@@ -104,10 +124,7 @@ export default function TransactionForm({
         setPrice((prev) => (prev === "" ? rounded : prev));
         setTotal((prev) =>
           prev === ""
-            ? dec(rounded)
-                .mul(dec(sellLot.maxAmountBtc))
-                .toDecimalPlaces(2)
-                .toString()
+            ? fiatString(dec(rounded).mul(dec(sellLot.maxAmountBtc)).toDecimalPlaces(2))
             : prev,
         );
       })
@@ -164,6 +181,21 @@ export default function TransactionForm({
 
   const needsPrice = formType === "buy" || formType === "sell" || formType === "spend";
 
+  // On-chain fields exist for transfers only; they are stored normalized
+  // (trimmed, txid lower case, all-uppercase bech32 folded to lower case).
+  const normalizedTxid = normalizeTxid(txid);
+  const normalizedAddress = normalizeBitcoinAddress(address);
+  const txidInvalid = normalizedTxid !== "" && !isValidTxid(normalizedTxid);
+  const addressInvalid =
+    normalizedAddress !== "" && !isValidBitcoinAddress(normalizedAddress);
+  const onChainFields =
+    formType === "transfer"
+      ? {
+          ...(normalizedTxid !== "" ? { txid: normalizedTxid } : {}),
+          ...(normalizedAddress !== "" ? { address: normalizedAddress } : {}),
+        }
+      : {};
+
   // Price ↔ total stay in sync: editing one derives the other from the amount,
   // and the derived value remains freely editable afterwards.
   function changeAmount(v: string) {
@@ -171,23 +203,23 @@ export default function TransactionForm({
     const a = dec(v);
     if (!a.gt(0)) return;
     if (price.trim() !== "") {
-      setTotal(dec(price).mul(a).toDecimalPlaces(2).toString());
+      setTotal(fiatString(dec(price).mul(a).toDecimalPlaces(2)));
     } else if (total.trim() !== "") {
-      setPrice(dec(total).div(a).toDecimalPlaces(2).toString());
+      setPrice(fiatString(dec(total).div(a).toDecimalPlaces(2)));
     }
   }
   function changePrice(v: string) {
     setPrice(v);
     const a = dec(amount);
     if (v.trim() !== "" && a.gt(0)) {
-      setTotal(dec(v).mul(a).toDecimalPlaces(2).toString());
+      setTotal(fiatString(dec(v).mul(a).toDecimalPlaces(2)));
     }
   }
   function changeTotal(v: string) {
     setTotal(v);
     const a = dec(amount);
     if (v.trim() !== "" && a.gt(0)) {
-      setPrice(dec(v).div(a).toDecimalPlaces(2).toString());
+      setPrice(fiatString(dec(v).div(a).toDecimalPlaces(2)));
     }
   }
 
@@ -209,13 +241,24 @@ export default function TransactionForm({
       setError(t("tx.lotExceeds", { max: sellLot.maxAmountBtc }));
       return;
     }
+    if (txidInvalid) {
+      setError(t("tx.txidInvalid"));
+      return;
+    }
+    if (addressInvalid) {
+      setError(t("tx.addressInvalid"));
+      return;
+    }
     const iso = new Date(date).toISOString();
     const base = {
       date: iso,
-      amountBtc: dec(amount).toString(),
-      feeBtc: feeBtc.trim() === "" ? undefined : dec(feeBtc).toString(),
-      feeFiatEur: feeFiat.trim() === "" ? undefined : dec(feeFiat).toString(),
+      amountBtc: btcString(amount),
+      feeBtc: feeBtc.trim() === "" ? undefined : btcString(feeBtc),
+      feeFiatEur: feeFiat.trim() === "" ? undefined : fiatString(feeFiat),
       note: note.trim(),
+      // Empty for anything but a transfer — both legs of one transfer share
+      // the same on-chain transaction and output address.
+      ...onChainFields,
     };
 
     if (formType !== "transfer") {
@@ -241,8 +284,8 @@ export default function TransactionForm({
         ...base,
         id: existing?.id ?? crypto.randomUUID(),
         type: formType as TransactionType,
-        pricePerBtcEur: priceD.toString(),
-        totalFiatEur: totalD.toString(),
+        pricePerBtcEur: fiatString(priceD),
+        totalFiatEur: fiatString(totalD),
         ...(lotAllocations && lotAllocations.length > 0 ? { lotAllocations } : {}),
       };
       if (existing) updateTransaction(existing.id, tx, accountId);
@@ -257,14 +300,18 @@ export default function TransactionForm({
       return;
     }
     const transferAmount = dec(amount);
+    // What actually leaves the source account: the transferred amount plus the
+    // network fee on top (CLAUDE.md §3.2).
+    const transferLeaving = transferAmount.plus(dec(feeBtc));
     // Lot assignment for the out-leg, fixed at creation time like for sells.
-    // Rule: an internal transfer_out's allocations must cover amountBtc
-    // exactly (no unassigned remainder). Returns null when validation failed.
+    // Rule: an internal transfer_out's allocations must cover amountBtc +
+    // feeBtc exactly (no unassigned remainder). Returns null on failure.
     const resolveOutAllocations = (): LotAllocation[] | undefined | null => {
       if (
         existing?.type === "transfer_out" &&
         existing.lotAllocations?.length &&
         dec(existing.amountBtc).eq(transferAmount) &&
+        dec(existing.feeBtc).eq(dec(feeBtc)) &&
         existing.accountId === fromAccount &&
         transferLotId === initialTransferLotId
       ) {
@@ -276,17 +323,17 @@ export default function TransactionForm({
         const available = sourceLots
           .filter((l) => l.txId === transferLotId)
           .reduce((s, l) => s.plus(l.remainingBtc), ZERO);
-        if (transferAmount.gt(available)) {
+        if (transferLeaving.gt(available)) {
           setError(t("tx.lotExceeds", { max: available.toString() }));
           return null;
         }
         return [
-          { lotTransactionId: transferLotId, amountBtc: transferAmount.toString() },
+          { lotTransactionId: transferLotId, amountBtc: transferLeaving.toString() },
         ];
       }
-      const alloc = allocateFifo(sourceLots, transferAmount);
+      const alloc = allocateFifo(sourceLots, transferLeaving);
       const covered = alloc.reduce((s, x) => s.plus(dec(x.amountBtc)), ZERO);
-      if (covered.eq(transferAmount)) return alloc;
+      if (covered.eq(transferLeaving)) return alloc;
       if (toAccount === EXTERNAL) return undefined; // legacy dynamic FIFO
       setError(t("tx.insufficientLots", { available: covered.toString() }));
       return null;
@@ -353,8 +400,8 @@ export default function TransactionForm({
     if (toAccount !== EXTERNAL) {
       addTransaction(toAccount, {
         ...base,
-        // The receiving side gets the net amount after the network fee.
-        amountBtc: dec(amount).minus(dec(feeBtc)).toString(),
+        // The receiving side gets exactly the transferred amount — the network
+        // fee was charged on top of it in the source account.
         feeBtc: undefined,
         id: crypto.randomUUID(),
         type: "transfer_in",
@@ -458,8 +505,8 @@ export default function TransactionForm({
                     <option value="">{t("tx.lotAuto")}</option>
                     {transferLotOptions.map((o) => (
                       <option key={o.txId} value={o.txId}>
-                        {o.acquiredDate.slice(0, 10)} · {o.remaining.toString()}{" "}
-                        BTC
+                        {formatDate(o.acquiredDate, loc)} ·{" "}
+                        {formatBtc(o.remaining, loc)} BTC
                       </option>
                     ))}
                   </select>
@@ -470,12 +517,10 @@ export default function TransactionForm({
 
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("tx.amountBtc")}>
-            <input
-              className={inputCls}
-              inputMode="decimal"
-              placeholder="0.00000000"
+            <NumberInput
+              placeholder={decimalPlaceholder(loc, 8)}
               value={amount}
-              onChange={(e) => changeAmount(e.target.value)}
+              onChange={changeAmount}
             />
             {sellLot && (
               <span className="mt-1 block text-xs text-muted">
@@ -485,12 +530,11 @@ export default function TransactionForm({
           </Field>
           {needsPrice && (
             <Field label={t("tx.priceEur")}>
-              <input
-                className={inputCls}
-                inputMode="decimal"
-                placeholder="0.00"
+              <NumberInput
+                kind="fiat"
+                placeholder={decimalPlaceholder(loc, 2)}
                 value={price ?? ""}
-                onChange={(e) => changePrice(e.target.value)}
+                onChange={changePrice}
               />
             </Field>
           )}
@@ -499,37 +543,84 @@ export default function TransactionForm({
         {needsPrice && (
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("tx.totalEur")}>
-              <input
-                className={inputCls}
-                inputMode="decimal"
-                placeholder="0.00"
+              <NumberInput
+                kind="fiat"
+                placeholder={decimalPlaceholder(loc, 2)}
                 value={total ?? ""}
-                onChange={(e) => changeTotal(e.target.value)}
+                onChange={changeTotal}
               />
             </Field>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label={`${t("tx.feeBtc")} (${t("common.optional")})`}>
-            <input
-              className={inputCls}
-              inputMode="decimal"
-              placeholder="0"
-              value={feeBtc}
-              onChange={(e) => setFeeBtc(e.target.value)}
-            />
-          </Field>
+          <div>
+            <Field label={`${t("tx.feeBtc")} (${t("common.optional")})`}>
+              <NumberInput
+                placeholder={decimalPlaceholder(loc, 8)}
+                value={feeBtc}
+                onChange={setFeeBtc}
+              />
+            </Field>
+            {formType === "transfer" && dec(feeBtc).gt(0) && (
+              <p className="mt-1 text-xs text-muted">{t("tx.transferFeeOnTopHint")}</p>
+            )}
+          </div>
           <Field label={`${t("tx.feeEur")} (${t("common.optional")})`}>
-            <input
-              className={inputCls}
-              inputMode="decimal"
-              placeholder="0"
+            <NumberInput
+              kind="fiat"
+              placeholder={decimalPlaceholder(loc, 2)}
               value={feeFiat}
-              onChange={(e) => setFeeFiat(e.target.value)}
+              onChange={setFeeFiat}
             />
           </Field>
         </div>
+
+        {formType === "transfer" && (
+          <fieldset className="space-y-3 rounded-lg border border-border-c/60 p-3">
+            <legend className="px-1 text-xs text-muted">
+              {t("tx.onChainSection")}
+            </legend>
+            <p className="text-xs leading-relaxed text-muted">
+              {t("tx.onChainHint")}
+            </p>
+            {/* Hints and errors sit outside <Field>, which wraps its children
+                in the <label> — text inside would end up in the field's
+                accessible name. */}
+            <div>
+              <Field label={t("tx.txid")}>
+                <input
+                  className={txidInvalid ? `${inputCls} border-loss!` : inputCls}
+                  spellCheck={false}
+                  placeholder={t("tx.txidPlaceholder")}
+                  aria-invalid={txidInvalid}
+                  value={txid}
+                  onChange={(e) => setTxid(e.target.value)}
+                />
+              </Field>
+              {txidInvalid && (
+                <p className="mt-1 text-xs text-loss">{t("tx.txidInvalid")}</p>
+              )}
+            </div>
+            <div>
+              <Field label={t("tx.address")}>
+                <input
+                  className={addressInvalid ? `${inputCls} border-loss!` : inputCls}
+                  spellCheck={false}
+                  placeholder={t("tx.addressPlaceholder")}
+                  aria-invalid={addressInvalid}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                />
+              </Field>
+              <p
+                className={`mt-1 text-xs ${addressInvalid ? "text-loss" : "text-muted"}`}
+              >
+                {addressInvalid ? t("tx.addressInvalid") : t("tx.addressHint")}
+              </p>
+            </div>
+          </fieldset>
+        )}
 
         <Field label={`${t("tx.note")} (${t("common.optional")})`}>
           <input

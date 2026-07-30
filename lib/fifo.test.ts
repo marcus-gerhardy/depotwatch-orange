@@ -38,7 +38,7 @@ describe("computeFifo", () => {
       ],
       365,
     );
-    expect(r.totalBtc.toString()).toBe("1.5");
+    expect(r.openLotsBtc.toString()).toBe("1.5");
     expect(r.openLots).toHaveLength(2);
     expect(r.openCostBasisEur.toString()).toBe("70000");
     // (40000 + 30000) / 1.5
@@ -138,7 +138,7 @@ describe("computeFifo", () => {
       ],
       365,
     );
-    expect(r.totalBtc.toString()).toBe("0.9999");
+    expect(r.openLotsBtc.toString()).toBe("0.9999");
   });
 
   it("external transfer_in creates a lot with unknown basis", () => {
@@ -146,7 +146,7 @@ describe("computeFifo", () => {
       [entry("transfer_in", "2024-01-01T00:00:00Z", "0.5", null)],
       365,
     );
-    expect(r.totalBtc.toString()).toBe("0.5");
+    expect(r.openLotsBtc.toString()).toBe("0.5");
     expect(r.openLots[0].costPerBtcEur).toBeNull();
     expect(r.avgCostPerBtcEur).toBeNull();
   });
@@ -161,7 +161,7 @@ describe("computeFifo", () => {
     );
     expect(r.disposals[0].type).toBe("spend");
     expect(r.disposals[0].taxableGainEur.toString()).toBe("1000");
-    expect(r.totalBtc.toString()).toBe("0.9");
+    expect(r.openLotsBtc.toString()).toBe("0.9");
   });
 
   it("fiat fees adjust cost basis (buy) and proceeds (sell)", () => {
@@ -189,7 +189,7 @@ describe("computeFifo", () => {
       365,
     );
     expect(r.disposals[0].uncoveredBtc.toString()).toBe("0.5");
-    expect(r.totalBtc.toString()).toBe("0");
+    expect(r.openLotsBtc.toString()).toBe("0");
   });
 
   it("uses exact decimal arithmetic (no float drift)", () => {
@@ -198,7 +198,7 @@ describe("computeFifo", () => {
       entries.push(entry("buy", `2024-01-0${(i % 9) + 1}T00:00:00Z`, "0.1", "30000"));
     }
     const r = computeFifo(entries, 365);
-    expect(r.totalBtc.toString()).toBe("1"); // 0.1 * 10 === 1 exactly
+    expect(r.openLotsBtc.toString()).toBe("1"); // 0.1 * 10 === 1 exactly
   });
 
   it("persisted lotAllocations beat FIFO order (targeted lot sale)", () => {
@@ -307,7 +307,188 @@ describe("computeFifo", () => {
     expect(lot.accountId).toBe("a2");
     expect(lot.acquiredDate).toBe("2023-01-01T00:00:00Z");
     expect(lot.costPerBtcEur!.toString()).toBe("20000");
-    expect(r.totalBtc.toString()).toBe("1");
+    expect(r.openLotsBtc.toString()).toBe("1");
+  });
+
+  describe("fullyTransferredLots", () => {
+    it("marks a lot fully closed by a single internal transfer", () => {
+      const buy = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+      const out = entry("transfer_out", "2024-01-15T00:00:00Z", "1", null, {
+        counterpartyAccountId: "a2",
+        transferGroupId: "g1",
+        lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "1" }],
+      });
+      const r = computeFifo(
+        [
+          buy,
+          out,
+          entry("transfer_in", "2024-01-15T00:00:00Z", "1", null, {
+            counterpartyAccountId: "a1",
+            transferGroupId: "g1",
+            accountId: "a2",
+            accountName: "Cold",
+          }),
+        ],
+        365,
+      );
+      const info = r.fullyTransferredLots.get(buy.id);
+      expect(info).toBeDefined();
+      expect(info!.amountBtc.toString()).toBe("1");
+      expect(info!.transfers).toHaveLength(1);
+      expect(info!.transfers[0]).toMatchObject({
+        transferOutTxId: out.id,
+        transferGroupId: "g1",
+        counterpartyAccountId: "a2",
+        date: "2024-01-15T00:00:00Z",
+      });
+      expect(info!.transfers[0].amountBtc.toString()).toBe("1");
+    });
+
+    it("does not mark a lot with a remaining balance (partial transfer)", () => {
+      const buy = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+      const r = computeFifo(
+        [
+          buy,
+          entry("transfer_out", "2024-01-15T00:00:00Z", "0.4", null, {
+            counterpartyAccountId: "a2",
+            transferGroupId: "g1",
+            lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.4" }],
+          }),
+          entry("transfer_in", "2024-01-15T00:00:00Z", "0.4", null, {
+            counterpartyAccountId: "a1",
+            transferGroupId: "g1",
+            accountId: "a2",
+            accountName: "Cold",
+          }),
+        ],
+        365,
+      );
+      expect(r.fullyTransferredLots.has(buy.id)).toBe(false);
+      expect(r.openLots.find((l) => l.txId === buy.id)?.remainingBtc.toString()).toBe(
+        "0.6",
+      );
+    });
+
+    it("sums several separate transfers that together close the lot", () => {
+      const buy = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+      const r = computeFifo(
+        [
+          buy,
+          entry("transfer_out", "2024-01-15T00:00:00Z", "0.4", null, {
+            counterpartyAccountId: "a2",
+            transferGroupId: "g1",
+            lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.4" }],
+          }),
+          entry("transfer_in", "2024-01-15T00:00:00Z", "0.4", null, {
+            counterpartyAccountId: "a1",
+            transferGroupId: "g1",
+            accountId: "a2",
+            accountName: "Cold",
+          }),
+          entry("transfer_out", "2024-03-01T00:00:00Z", "0.6", null, {
+            counterpartyAccountId: "a3",
+            transferGroupId: "g2",
+            lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.6" }],
+          }),
+          entry("transfer_in", "2024-03-01T00:00:00Z", "0.6", null, {
+            counterpartyAccountId: "a1",
+            transferGroupId: "g2",
+            accountId: "a3",
+            accountName: "Savings",
+          }),
+        ],
+        365,
+      );
+      const info = r.fullyTransferredLots.get(buy.id);
+      expect(info).toBeDefined();
+      expect(info!.amountBtc.toString()).toBe("1");
+      expect(info!.transfers).toHaveLength(2);
+    });
+
+    it("does not mark a lot closed by a mix of transfer and sale", () => {
+      const buy = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+      const r = computeFifo(
+        [
+          buy,
+          entry("transfer_out", "2024-01-15T00:00:00Z", "0.4", null, {
+            counterpartyAccountId: "a2",
+            transferGroupId: "g1",
+            lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.4" }],
+          }),
+          entry("transfer_in", "2024-01-15T00:00:00Z", "0.4", null, {
+            counterpartyAccountId: "a1",
+            transferGroupId: "g1",
+            accountId: "a2",
+            accountName: "Cold",
+          }),
+          entry("sell", "2024-02-01T00:00:00Z", "0.6", "70000", {
+            lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.6" }],
+          }),
+        ],
+        365,
+      );
+      expect(r.fullyTransferredLots.has(buy.id)).toBe(false);
+    });
+
+    it("aggregates a bundled (multi-origin) transfer_in lot before judging closure", () => {
+      const buy1 = entry("buy", "2023-01-01T00:00:00Z", "0.4", "20000");
+      const buy2 = entry("buy", "2024-06-01T00:00:00Z", "0.6", "60000");
+      const bundledOut = entry("transfer_out", "2024-07-01T00:00:00Z", "1", null, {
+        counterpartyAccountId: "a2",
+        transferGroupId: "g1",
+        lotAllocations: [
+          { lotTransactionId: buy1.id, amountBtc: "0.4" },
+          { lotTransactionId: buy2.id, amountBtc: "0.6" },
+        ],
+      });
+      const bundledIn = entry("transfer_in", "2024-07-01T00:00:00Z", "1", null, {
+        counterpartyAccountId: "a1",
+        transferGroupId: "g1",
+        accountId: "a2",
+        accountName: "Cold",
+      });
+      // The bundled lot (one txId, two origin parts) is then fully moved onward.
+      const secondOut = entry("transfer_out", "2024-08-01T00:00:00Z", "1", null, {
+        counterpartyAccountId: "a3",
+        transferGroupId: "g2",
+        lotAllocations: [{ lotTransactionId: bundledIn.id, amountBtc: "1" }],
+        accountId: "a2",
+        accountName: "Cold",
+      });
+      const r = computeFifo(
+        [
+          buy1,
+          buy2,
+          bundledOut,
+          bundledIn,
+          secondOut,
+          entry("transfer_in", "2024-08-01T00:00:00Z", "1", null, {
+            counterpartyAccountId: "a2",
+            transferGroupId: "g2",
+            accountId: "a3",
+            accountName: "Savings",
+          }),
+        ],
+        365,
+      );
+      // The origin buys were themselves fully moved into the bundle transfer.
+      expect(r.fullyTransferredLots.get(buy1.id)?.transfers[0].transferOutTxId).toBe(
+        bundledOut.id,
+      );
+      expect(r.fullyTransferredLots.get(buy2.id)?.transfers[0].transferOutTxId).toBe(
+        bundledOut.id,
+      );
+      // The re-created bundled lot (one txId, two origin parts) was then fully
+      // moved onward by a single further transfer.
+      const info = r.fullyTransferredLots.get(bundledIn.id);
+      expect(info).toBeDefined();
+      expect(info!.amountBtc.toString()).toBe("1");
+      // One leg per origin part consumed (0.4 + 0.6), both from the same transfer.
+      expect(info!.transfers).toHaveLength(2);
+      expect(info!.transfers.every((t) => t.transferOutTxId === secondOut.id)).toBe(
+        true,
+      );
+    });
   });
 
   it("batched transfer moves several lots at once, each keeping its identity", () => {
@@ -413,7 +594,7 @@ describe("computeFifo", () => {
       ],
       365,
     );
-    expect(r.totalBtc.toString()).toBe("0.9999");
+    expect(r.openLotsBtc.toString()).toBe("0.9999");
     expect(r.openLots[0].acquiredDate).toBe("2024-01-01T00:00:00Z");
     expect(r.openLots[0].costPerBtcEur!.toString()).toBe("40000");
   });
@@ -468,7 +649,7 @@ describe("computeFifo", () => {
       ],
       365,
     );
-    expect(r.totalBtc.toString()).toBe("0.8");
+    expect(r.openLotsBtc.toString()).toBe("0.8");
     const known = r.openLots.find((l) => l.costPerBtcEur !== null)!;
     const unknown = r.openLots.find((l) => l.costPerBtcEur === null)!;
     expect(known.acquiredDate).toBe("2024-01-01T00:00:00Z");

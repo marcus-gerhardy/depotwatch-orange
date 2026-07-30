@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useI18n, intlLocale } from "@/lib/i18n";
+import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import Dashboard from "./Dashboard";
 import TransactionsView from "./TransactionsView";
 import WalletsView from "./WalletsView";
 import TaxView from "./TaxView";
 import WatchlistView from "./WatchlistView";
 import SettingsView from "./SettingsView";
+import NewFileWizard from "./NewFileWizard";
 import { Button } from "./ui";
 
 type Tab = "dashboard" | "transactions" | "wallets" | "tax" | "watchlist" | "settings";
@@ -24,7 +26,7 @@ function FileIndicator() {
 
   const statusText = dirty || saving ? t("nav.unsavedChanges") : t("nav.saved");
   const savedText = lastSavedAt
-    ? t("nav.lastSavedAt", { time: new Date(lastSavedAt).toLocaleString(loc) })
+    ? t("nav.lastSavedAt", { time: formatDateTime(lastSavedAt, loc) })
     : t("nav.notYetSaved");
   // Browsers never expose the real path — the tooltip shows name, encryption
   // status, save state, and last save time.
@@ -68,12 +70,25 @@ export default function AppShell() {
   const togglePrivacyMode = useAppStore((s) => s.togglePrivacyMode);
   const saveNow = useAppStore((s) => s.saveNow);
   const closePortfolio = useAppStore((s) => s.closePortfolio);
+  const needsFileSetup = useAppStore((s) => s.needsFileSetup);
+  const portfolio = useAppStore((s) => s.portfolio);
+
+  // Demo data has no real destination yet — offer the location+password step
+  // the first time an edit would otherwise trigger a save. Derived (not an
+  // effect): auto-prompts once dirty, unless the user dismissed it or is
+  // opening it manually via the button.
+  const [fileSetupDismissed, setFileSetupDismissed] = useState(false);
+  const [fileSetupOpenedManually, setFileSetupOpenedManually] = useState(false);
+  const showFileSetup =
+    fileSetupOpenedManually || (needsFileSetup && dirty && !fileSetupDismissed);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "dashboard", label: t("nav.dashboard") },
     { id: "transactions", label: t("nav.transactions") },
     { id: "wallets", label: t("wallets.title") },
-    { id: "tax", label: t("nav.tax") },
+    ...(TAX_FEATURES_ENABLED
+      ? [{ id: "tax" as const, label: t("nav.tax") }]
+      : []),
     { id: "watchlist", label: t("nav.watchlist") },
     { id: "settings", label: t("nav.settings") },
   ];
@@ -110,7 +125,15 @@ export default function AppShell() {
               >
                 {privacyMode ? "🙈" : "👁"}
               </button>
-              {fileMode === "fallback" && (
+              {needsFileSetup && (
+                <Button
+                  variant="primary"
+                  onClick={() => setFileSetupOpenedManually(true)}
+                >
+                  🧪 {t("nav.setUpFile")}
+                </Button>
+              )}
+              {!needsFileSetup && fileMode === "fallback" && (
                 <Button
                   variant={dirty ? "primary" : "default"}
                   onClick={() => saveNow()}
@@ -122,7 +145,17 @@ export default function AppShell() {
               <button
                 title={t("nav.closeFile")}
                 onClick={() => {
-                  if (!dirty || fileMode === "fsa" || confirm(t("nav.closeFileConfirm")))
+                  // Autosave silently can't persist demo data (no real file
+                  // yet), so it always needs the confirmation fallback mode gets.
+                  const unsavedRisk = dirty && (fileMode !== "fsa" || needsFileSetup);
+                  if (
+                    !unsavedRisk ||
+                    confirm(
+                      needsFileSetup
+                        ? t("nav.closeFileConfirmDemo")
+                        : t("nav.closeFileConfirm"),
+                    )
+                  )
                     closePortfolio();
                 }}
                 className="flex items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm text-muted transition-colors hover:border-loss/40 hover:bg-loss/10 hover:text-loss"
@@ -181,10 +214,22 @@ export default function AppShell() {
         )}
         {tab === "transactions" && <TransactionsView initialFilter={txFilter} />}
         {tab === "wallets" && <WalletsView />}
-        {tab === "tax" && <TaxView />}
+        {TAX_FEATURES_ENABLED && tab === "tax" && <TaxView />}
         {tab === "watchlist" && <WatchlistView />}
         {tab === "settings" && <SettingsView />}
       </main>
+
+      {showFileSetup && portfolio && (
+        <NewFileWizard
+          asModal
+          existingPortfolio={portfolio}
+          onCancel={() => {
+            setFileSetupOpenedManually(false);
+            setFileSetupDismissed(true);
+          }}
+          onCreated={() => setFileSetupOpenedManually(false)}
+        />
+      )}
     </div>
   );
 }

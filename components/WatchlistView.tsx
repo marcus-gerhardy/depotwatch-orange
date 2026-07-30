@@ -20,7 +20,7 @@ import {
   type AddressAnalysis,
   type FindingSeverity,
 } from "@/lib/security";
-import { formatBtc } from "@/lib/decimal";
+import { formatBtc, formatInt } from "@/lib/decimal";
 import { dec } from "@/lib/decimal";
 import { Amount, Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
 
@@ -309,7 +309,9 @@ function WatchedEntryCard({
           </div>
           <div>
             <div className="text-xs text-muted">{t("watchlist.feeRate")}</div>
-            <span className="font-mono">{economyFee ?? "—"} sat/vB</span>
+            <span className="font-mono">
+              {economyFee === null ? "—" : formatInt(economyFee, loc)} sat/vB
+            </span>
           </div>
         </div>
       )}
@@ -370,7 +372,7 @@ function WatchedEntryCard({
                       )}
                     </td>
                     <td className="py-1.5 pr-3 text-right font-mono">
-                      <Amount>{u.value.toLocaleString(loc)} sat</Amount>
+                      <Amount>{formatInt(u.value, loc)} sat</Amount>
                     </td>
                     <td className="py-1.5 pr-3">
                       {uLabel?.label}

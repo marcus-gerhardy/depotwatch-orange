@@ -2,7 +2,7 @@
 
 // Small shared UI primitives, dark-theme styled.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAppStore } from "@/lib/store";
 
 export function Card({
@@ -36,13 +36,16 @@ export function Button({
   type = "button",
   disabled,
   className = "",
+  title,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
-  variant?: "default" | "primary" | "danger" | "ghost";
+  variant?: "default" | "primary" | "danger" | "dangerSolid" | "ghost";
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
+  /** Tooltip, e.g. to explain an action without spending a paragraph on it. */
+  title?: string;
 }) {
   const styles = {
     default:
@@ -51,6 +54,7 @@ export function Button({
       "bg-accent text-black font-semibold hover:bg-accent-dim",
     danger:
       "border border-loss/50 text-loss hover:bg-loss/10",
+    dangerSolid: "bg-loss text-white font-semibold hover:bg-loss/90",
     ghost: "text-muted hover:text-foreground",
   }[variant];
   return (
@@ -58,6 +62,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`rounded-lg px-3 py-1.5 text-sm transition-colors disabled:opacity-40 disabled:pointer-events-none ${styles} ${className}`}
     >
       {children}
@@ -67,6 +72,62 @@ export function Button({
 
 export const inputCls =
   "w-full rounded-lg border border-border-c bg-surface-2 px-3 py-1.5 text-sm text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none";
+
+/**
+ * Toggle-switch look for on/off checkboxes (bulk-select rows, CSV import row
+ * include) — still a real <input type="checkbox"> for semantics/keyboard
+ * support, just visually hidden and replaced by a styled track+thumb driven by
+ * :checked.
+ */
+export function Switch({
+  checked,
+  onChange,
+  disabled,
+  label,
+  indeterminate,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  label: string;
+  indeterminate?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (inputRef.current) inputRef.current.indeterminate = !!indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <label
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full ${
+        disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"
+      }`}
+    >
+      <input
+        ref={inputRef}
+        type="checkbox"
+        className="peer sr-only"
+        checked={checked}
+        disabled={disabled}
+        aria-label={label}
+        title={label}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span
+        className={`absolute inset-0 rounded-full border transition-colors ${
+          checked || indeterminate
+            ? "border-accent bg-accent/70"
+            : "border-border-c bg-surface-2"
+        }`}
+      />
+      <span
+        className={`absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+          checked ? "translate-x-4" : indeterminate ? "translate-x-2" : "translate-x-0"
+        }`}
+      />
+    </label>
+  );
+}
 
 export function Field({
   label,

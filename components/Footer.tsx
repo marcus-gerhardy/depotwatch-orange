@@ -4,14 +4,13 @@
 // it also works outside the I18nProvider (e.g. on the legal pages).
 
 import Link from "next/link";
-import { makeTranslator } from "@/lib/i18n";
-import { useAppStore } from "@/lib/store";
+import { useAppLocale } from "@/lib/i18n";
+import { staticPagePath } from "@/lib/routes";
 
 const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
 
 export default function Footer() {
-  const locale = useAppStore((s) => s.portfolio?.settings.locale ?? "de");
-  const t = makeTranslator(locale);
+  const { t, locale } = useAppLocale();
 
   const linkCls = "hover:text-accent transition-colors";
 
@@ -38,10 +37,10 @@ export default function Footer() {
           >
             {t("footer.github")} ↗
           </a>
-          <Link href="/impressum" className={linkCls}>
+          <Link href={staticPagePath("imprint", locale)} className={linkCls}>
             {t("footer.imprint")}
           </Link>
-          <Link href="/datenschutz" className={linkCls}>
+          <Link href={staticPagePath("privacy", locale)} className={linkCls}>
             {t("footer.privacy")}
           </Link>
         </nav>

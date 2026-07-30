@@ -10,7 +10,8 @@ code. See [CLAUDE.md](./CLAUDE.md) for the full specification (German).
   sells, transfers, and spends (decimal-exact via `decimal.js`)
 - **Dashboard** with live BTC price (Binance API), EUR/USD toggle, unrealized
   and realized P/L, and a portfolio value chart (Binance klines)
-- **German tax module**: pure FIFO engine (`lib/fifo.ts`, unit-tested) with
+- **German tax module** *(stage 2 — hidden behind `TAX_FEATURES_ENABLED` in
+  `lib/features.ts`)*: pure FIFO engine (`lib/fifo.ts`, unit-tested) with
   taxable vs. tax-free classification (>1 year holding period, §23 EStG) and a
   per-lot countdown to tax freedom
 - **Address watchlist** (watch-only, separate from the ledger): live balance /

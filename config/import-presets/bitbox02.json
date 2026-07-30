@@ -1,0 +1,22 @@
+{
+  "name": "BitBox02 (BitBoxApp Export)",
+  "delimiter": ",",
+  "decimalSeparator": ".",
+  "encoding": "utf-8",
+  "dateFormat": "iso",
+  "timeFormat": "datetime",
+  "mapping": {
+    "type": "Type",
+    "date": "Timestamp",
+    "time": "Timestamp",
+    "amountBtc": "Amount",
+    "feeBtc": "Fee",
+    "note": "Note"
+  },
+  "amountUnit": "sats",
+  "feeUnit": "sats",
+  "typeValueMapping": {
+    "received": "transfer_in",
+    "sent": "transfer_out"
+  }
+}

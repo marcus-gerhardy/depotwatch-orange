@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { I18nProvider } from "@/lib/i18n";
+import { I18nProvider, useAppLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import StartScreen from "@/components/StartScreen";
 import AppShell from "@/components/AppShell";
@@ -24,7 +24,9 @@ export default function Home() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty, fileMode]);
 
-  const locale = portfolio?.settings.locale ?? "de";
+  // The open portfolio's language is mirrored into the device preference on
+  // open (see store.openPortfolio), so this covers both cases.
+  const { locale } = useAppLocale();
 
   return (
     <I18nProvider locale={locale}>
