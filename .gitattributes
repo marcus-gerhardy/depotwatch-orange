@@ -1,0 +1,13 @@
+# The repository stores text with LF, regardless of each machine's
+# core.autocrlf setting — otherwise a checkout on Windows rewrites every line
+# ending and a whole file shows up as changed without a single edit.
+* text=auto eol=lf
+
+# Detected as text on some machines, but a diff of it says nothing useful.
+package-lock.json -diff
+
+# Binary, never touch the bytes.
+*.ico binary
+*.png binary
+*.jpg binary
+*.woff2 binary
