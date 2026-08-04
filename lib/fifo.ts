@@ -99,6 +99,15 @@ export interface FifoResult {
   openLotsBtc: Decimal;
   /** Cost basis of open lots with known basis. */
   openCostBasisEur: Decimal;
+  /**
+   * BTC that `openCostBasisEur` actually covers — open lots with a known cost
+   * per BTC. Lots without one (an external transfer_in with no price, a buy
+   * with no EUR figure) are open and part of the holding, but contribute no
+   * cost. Anything comparing the cost basis against a market value has to use
+   * this quantity, never the portfolio holding: valuing the whole holding
+   * against a partial cost basis reports the uncovered coins as pure profit.
+   */
+  openBasisBtc: Decimal;
   /** Average cost per BTC over open lots with known basis. */
   avgCostPerBtcEur: Decimal | null;
   realizedGainEur: Decimal;
@@ -494,6 +503,7 @@ export function computeFifo(
     disposals,
     openLotsBtc,
     openCostBasisEur: openCost,
+    openBasisBtc: knownBasisBtc,
     avgCostPerBtcEur: knownBasisBtc.gt(0) ? openCost.div(knownBasisBtc) : null,
     realizedGainEur: realized,
     realizedTaxableGainEur: realizedTaxable,

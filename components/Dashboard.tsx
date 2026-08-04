@@ -1,219 +1,268 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useI18n, intlLocale } from "@/lib/i18n";
+// Configurable widget dashboard.
+//
+// The dashboard itself knows no widget by name: it manages placements (which
+// widget sits where, in grid units) and renders whatever the registry in
+// components/widgets/registry.ts offers. Adding a widget is one registry entry.
+//
+// The layout lives in the portfolio file (`uiSettings.dashboardLayout`,
+// CLAUDE.md §3.5). It is buffered in component state while editing and written
+// back exactly once, when the user leaves edit mode or navigates away — so an
+// editing session costs one save instead of one per drag frame, and an
+// encrypted file is re-encrypted once instead of continuously.
+
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import { flattenLedger } from "@/lib/types";
-import { computeFifo } from "@/lib/fifo";
-import { TAX_FEATURES_ENABLED } from "@/lib/features";
-import { accountBalances, totalBalance } from "@/lib/portfolio";
-import { fetchSpotPrice } from "@/lib/binance";
-import { formatBtc, formatFiat } from "@/lib/decimal";
-import { Amount, Card, PnlValue, SectionTitle } from "./ui";
-import PortfolioChart from "./PortfolioChart";
+import { formatBtc } from "@/lib/decimal";
+import {
+  DASHBOARD_COLS,
+  DASHBOARD_MARGIN,
+  DASHBOARD_ROW_HEIGHT,
+  dashboardFor,
+  defaultDashboard,
+  freeRects,
+  layoutBottom,
+  nextInstanceId,
+  placeAt,
+  type WidgetPlacement,
+} from "@/lib/dashboardLayout";
+import { Button } from "./ui";
+import {
+  DashboardDataProvider,
+  useDashboardData,
+  type TxJumpFilter,
+} from "./widgets/context";
+import { WIDGET_IDS, type WidgetDefinition } from "./widgets/registry";
+import WidgetHost from "./widgets/WidgetHost";
+import WidgetPicker from "./widgets/WidgetPicker";
 
-export default function Dashboard({
-  onSelectAccount,
-}: {
-  /** Jump to the transactions view filtered to this wallet/account. */
-  onSelectAccount?: (walletId: string, accountId: string) => void;
-}) {
-  const { t, locale } = useI18n();
-  const loc = intlLocale(locale);
-  const portfolio = useAppStore((s) => s.portfolio)!;
-  const currency = portfolio.settings.currencyDisplay;
+// The grid measures the DOM and drives drag/resize, so there is nothing to
+// prerender — and the static export must not try.
+const DashboardGrid = dynamic(() => import("./DashboardGrid"), { ssr: false });
 
-  const [priceEur, setPriceEur] = useState<number | null>(null);
-  const [priceUsd, setPriceUsd] = useState<number | null>(null);
-  const [priceError, setPriceError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [eur, usd] = await Promise.all([
-          fetchSpotPrice("EUR"),
-          fetchSpotPrice("USD"),
-        ]);
-        if (!cancelled) {
-          setPriceEur(eur);
-          setPriceUsd(usd);
-          setPriceError(false);
-        }
-      } catch {
-        if (!cancelled) setPriceError(true);
-      }
-    }
-    load();
-    const id = setInterval(load, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
-
-  const entries = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
-  const fifo = useMemo(
-    () => computeFifo(entries, portfolio.settings.holdingPeriodDays),
-    [entries, portfolio.settings.holdingPeriodDays],
+/** Two layouts are the same when every widget sits in the same place. */
+function sameLayout(a: WidgetPlacement[], b: WidgetPlacement[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((p, i) => {
+      const q = b[i];
+      return (
+        p.i === q.i &&
+        p.widgetId === q.widgetId &&
+        p.x === q.x &&
+        p.y === q.y &&
+        p.w === q.w &&
+        p.h === q.h
+      );
+    })
   );
-  const balances = useMemo(() => accountBalances(entries), [entries]);
+}
 
-  // Ledger costs are EUR; convert for USD display via the BTC cross rate.
-  const eurToDisplay =
-    currency === "EUR" ? 1 : priceEur && priceUsd ? priceUsd / priceEur : null;
-  const displayPrice = currency === "EUR" ? priceEur : priceUsd;
+/** Below this width the dashboard drops to a single column and edit mode is off. */
+const WIDE_BREAKPOINT = 768;
 
-  // The holding comes from the ledger (buys + transfer_ins − sells −
-  // transfer_outs − spends), so it always matches the wallet breakdown below
-  // and the transaction table. The FIFO engine's open-lot sum can be higher
-  // when a disposal has no lot to consume (see fifo.openLotsBtc) — the
-  // difference is surfaced as a hint instead of silently changing the balance.
-  const balanceBtc = useMemo(() => totalBalance(entries), [entries]);
-  const totalBtc = balanceBtc.toNumber();
-  const totalValue = displayPrice !== null ? totalBtc * displayPrice : null;
-  const openCostEur = fifo.openCostBasisEur.toNumber();
-  const unrealizedEur =
-    priceEur !== null ? totalBtc * priceEur - openCostEur : null;
+function useIsWideViewport(): boolean {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(`(min-width: ${WIDE_BREAKPOINT}px)`);
+    const apply = () => setWide(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  return wide;
+}
+
+/** Portfolio-level warnings; they belong to the whole ledger, not to a widget. */
+function LedgerWarnings() {
+  const { t, loc, balanceBtc, breakdown, fifo } = useDashboardData();
   const uncoveredBtc = fifo.openLotsBtc.minus(balanceBtc);
 
-  const fmtDisplay = (vEur: number | null) =>
-    vEur === null || eurToDisplay === null
-      ? "—"
-      : formatFiat(vEur * eurToDisplay, currency, loc);
-
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card>
-          <div className="text-xs text-muted">{t("dashboard.totalValue")}</div>
-          <div className="mt-1 text-xl font-bold">
-            <Amount>
-              {totalValue !== null
-                ? formatFiat(totalValue, currency, loc)
-                : "—"}
-            </Amount>
-          </div>
-          <div className="mt-1 text-xs text-muted">
-            <Amount>{formatBtc(balanceBtc, loc)} BTC</Amount>
-          </div>
-        </Card>
-        <Card>
-          <div className="text-xs text-muted">{t("dashboard.price")}</div>
-          <div className="mt-1 text-xl font-bold text-accent">
-            {displayPrice !== null
-              ? formatFiat(displayPrice, currency, loc)
-              : priceError
-                ? t("dashboard.priceUnavailable")
-                : "…"}
-          </div>
-          <div className="mt-1 text-xs text-muted">
-            {t("dashboard.avgCost")}:{" "}
-            <Amount>
-              {fifo.avgCostPerBtcEur
-                ? fmtDisplay(fifo.avgCostPerBtcEur.toNumber())
-                : "—"}
-            </Amount>
-          </div>
-        </Card>
-        <Card>
-          <div className="text-xs text-muted">{t("dashboard.unrealizedPnl")}</div>
-          <div className="mt-1 text-xl font-bold">
-            <PnlValue value={unrealizedEur ?? 0}>
-              {fmtDisplay(unrealizedEur)}
-            </PnlValue>
-          </div>
-          <div className="mt-1 text-xs text-muted">
-            {t("dashboard.costBasis")}: <Amount>{fmtDisplay(openCostEur)}</Amount>
-          </div>
-        </Card>
-        <Card>
-          <div className="text-xs text-muted">{t("dashboard.realizedPnl")}</div>
-          <div className="mt-1 text-xl font-bold">
-            <PnlValue value={fifo.realizedGainEur.toNumber()}>
-              {fmtDisplay(fifo.realizedGainEur.toNumber())}
-            </PnlValue>
-          </div>
-          {TAX_FEATURES_ENABLED && (
-            <div className="mt-1 flex gap-3 text-xs text-muted">
-              <span>
-                {t("tax.taxFreeGain")}:{" "}
-                <Amount>
-                  {fmtDisplay(fifo.realizedTaxFreeGainEur.toNumber())}
-                </Amount>
-              </span>
-            </div>
-          )}
-        </Card>
-      </div>
-
+    <>
       {balanceBtc.lt(0) && (
         <p className="rounded-lg border border-loss/40 bg-loss/5 p-3 text-xs text-loss">
           ⚠ {t("dashboard.negativeBalanceHint")}
         </p>
       )}
-      {uncoveredBtc.gt("0.00000001") && (
-        <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
-          ⚠{" "}
-          {t("dashboard.uncoveredHint", {
-            amount: formatBtc(uncoveredBtc, loc),
-          })}
+      {breakdown.invalid.length > 0 && (
+        <p className="rounded-lg border border-loss/40 bg-loss/5 p-3 text-xs text-loss">
+          ⚠ {t("dashboard.invalidAmountHint", { count: breakdown.invalid.length })}
         </p>
       )}
+      {uncoveredBtc.gt("0.00000001") && (
+        <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
+          ⚠ {t("dashboard.uncoveredHint", { amount: formatBtc(uncoveredBtc, loc) })}
+        </p>
+      )}
+    </>
+  );
+}
 
-      <Card>
-        <SectionTitle>{t("dashboard.chartTitle")}</SectionTitle>
-        <PortfolioChart entries={entries} />
-      </Card>
+/** Single-column fallback for narrow viewports (and for the prerendered HTML). */
+function WidgetStack({ widgets }: { widgets: WidgetPlacement[] }) {
+  const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x);
+  return (
+    <div className="space-y-3">
+      {ordered.map((w) => (
+        <div
+          key={w.i}
+          // Keep the proportions the user configured: a tile's grid height
+          // still decides how tall it is, so charts stay charts.
+          style={{ height: w.h * DASHBOARD_ROW_HEIGHT + (w.h - 1) * DASHBOARD_MARGIN[1] }}
+        >
+          <WidgetHost placement={w} editing={false} onRemove={() => {}} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
-      {balances.length > 0 && (
-        <Card>
-          <SectionTitle>{t("dashboard.byWallet")}</SectionTitle>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border-c text-left text-xs text-muted">
-                  <th className="py-2 pr-4 font-normal">{t("dashboard.wallet")}</th>
-                  <th className="py-2 pr-4 font-normal">{t("dashboard.account")}</th>
-                  <th className="py-2 pr-4 text-right font-normal">
-                    {t("dashboard.balance")} (BTC)
-                  </th>
-                  <th className="py-2 text-right font-normal">
-                    {t("dashboard.value")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {balances.map((b) => (
-                  <tr
-                    key={b.accountId}
-                    className="cursor-pointer border-b border-border-c/50 hover:bg-surface-2/50"
-                    title={t("dashboard.showTransactions")}
-                    onClick={() => onSelectAccount?.(b.walletId, b.accountId)}
-                  >
-                    <td className="py-2 pr-4">{b.walletName}</td>
-                    <td className="py-2 pr-4 text-muted">{b.accountName}</td>
-                    <td className="py-2 pr-4 text-right font-mono">
-                      <Amount>{formatBtc(b.btc, loc)}</Amount>
-                    </td>
-                    <td className="py-2 text-right font-mono">
-                      <Amount>
-                        {displayPrice !== null
-                          ? formatFiat(
-                              b.btc.toNumber() * displayPrice,
-                              currency,
-                              loc,
-                            )
-                          : "—"}
-                      </Amount>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+function DashboardBody() {
+  const { t } = useI18n();
+  const wide = useIsWideViewport();
+  const storedLayout = useAppStore((s) => s.portfolio?.uiSettings?.dashboardLayout);
+  const saveDashboardLayout = useAppStore((s) => s.saveDashboardLayout);
+
+  // The file's layout seeds the state; from there the state is the working
+  // copy until it is committed back (see commit below).
+  const [widgets, setWidgets] = useState<WidgetPlacement[]>(() =>
+    dashboardFor({ dashboardLayout: storedLayout }, WIDGET_IDS),
+  );
+  const [editing, setEditing] = useState(false);
+  /** Cell the picker will place into; null while the picker is closed. */
+  const [pickerCell, setPickerCell] = useState<{ x: number; y: number } | null>(null);
+
+  // What the session started from. Committing is compared against this rather
+  // than against the file: a file written before uiSettings existed renders the
+  // default layout, and merely looking at it must not write that default back.
+  const baseline = useRef(widgets);
+  // The committer is kept in an effect, not written during render: the unmount
+  // cleanup below needs the last state, and a ref may only be touched outside
+  // rendering.
+  const commitRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    commitRef.current = () => {
+      if (sameLayout(widgets, baseline.current)) return;
+      baseline.current = widgets;
+      saveDashboardLayout(widgets);
+    };
+  }, [widgets, saveDashboardLayout]);
+  // Leaving the dashboard (tab switch, closing the file) also ends the editing
+  // session, so the working copy is committed there as well.
+  useEffect(() => () => commitRef.current(), []);
+
+  function toggleEditing() {
+    if (editing) commitRef.current(); // one write per editing session
+    setEditing(!editing);
+  }
+
+  const removeWidget = useCallback(
+    (instanceId: string) =>
+      setWidgets((prev) => prev.filter((w) => w.i !== instanceId)),
+    [],
+  );
+
+  function addWidget(def: WidgetDefinition, cell: { x: number; y: number }) {
+    setWidgets((prev) => [
+      ...prev,
+      {
+        i: nextInstanceId(prev, def.id),
+        widgetId: def.id,
+        ...placeAt(cell, def.defaultSize, DASHBOARD_COLS),
+      },
+    ]);
+    setPickerCell(null);
+  }
+
+  /** "Add widget" from the header: first gap that fits, else below everything. */
+  function openPickerAtFirstGap() {
+    const gap = freeRects(widgets).find((r) => r.w >= 3 && r.h >= 3);
+    setPickerCell(gap ? { x: gap.x, y: gap.y } : { x: 0, y: layoutBottom(widgets) });
+  }
+
+  function resetLayout() {
+    if (!confirm(t("dashboard.widgets.resetConfirm"))) return;
+    setWidgets(defaultDashboard());
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {editing && (
+          <>
+            <Button onClick={openPickerAtFirstGap}>
+              + {t("dashboard.widgets.addWidget")}
+            </Button>
+            <Button variant="danger" onClick={resetLayout}>
+              {t("dashboard.widgets.resetLayout")}
+            </Button>
+          </>
+        )}
+        {wide && (
+          <Button
+            variant={editing ? "primary" : "default"}
+            onClick={toggleEditing}
+            title={t("dashboard.widgets.editHint")}
+          >
+            {editing ? `✓ ${t("dashboard.widgets.doneEditing")}` : `⚙ ${t("common.edit")}`}
+          </Button>
+        )}
+      </div>
+
+      <LedgerWarnings />
+
+      {widgets.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border-c p-8 text-center text-sm text-muted">
+          <p>{t("dashboard.widgets.emptyDashboard")}</p>
+          <Button
+            className="mt-3"
+            variant="primary"
+            onClick={() => {
+              setEditing(true);
+              setPickerCell({ x: 0, y: 0 });
+            }}
+          >
+            + {t("dashboard.widgets.addWidget")}
+          </Button>
+        </div>
+      ) : wide ? (
+        <DashboardGrid
+          widgets={widgets}
+          editing={editing}
+          onLayoutChange={setWidgets}
+          onRemove={removeWidget}
+          onAddAt={(cell) => setPickerCell(cell)}
+        />
+      ) : (
+        <WidgetStack widgets={widgets} />
+      )}
+
+      {pickerCell && (
+        <WidgetPicker
+          placedIds={new Set(widgets.map((w) => w.widgetId))}
+          onClose={() => setPickerCell(null)}
+          onPick={(def) => addWidget(def, pickerCell)}
+        />
       )}
     </div>
+  );
+}
+
+export default function Dashboard({
+  onOpenTransactions,
+}: {
+  /** Jump to the transaction table with a filter applied (wallet or issue). */
+  onOpenTransactions?: (filter: TxJumpFilter) => void;
+}) {
+  const noop = useCallback(() => {}, []);
+  return (
+    <DashboardDataProvider openTransactions={onOpenTransactions ?? noop}>
+      <DashboardBody />
+    </DashboardDataProvider>
   );
 }

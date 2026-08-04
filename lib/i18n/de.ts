@@ -169,24 +169,29 @@ const de = {
     setUpFile: "Testdaten speichern",
   },
   dashboard: {
-    totalValue: "Gesamtwert",
     holdings: "Bestand",
     price: "BTC-Kurs",
     priceUnavailable: "Kurs nicht verfügbar",
-    unrealizedPnl: "Unrealisierter G/V",
     realizedPnl: "Realisierter G/V",
     avgCost: "Ø Einstandspreis",
     costBasis: "Einstandswert",
-    byWallet: "Aufschlüsselung nach Wallet / Konto",
     wallet: "Wallet",
     account: "Konto",
-    balance: "Bestand",
-    value: "Wert",
-    chartTitle: "Wertverlauf",
     chartPortfolio: "Portfoliowert",
     chartBtcPrice: "BTC-Kurs",
     uncoveredHint:
       "Für {amount} BTC aus Verkäufen, Ausgaben oder Abgängen fehlen die zugehörigen Käufe im Portfolio (z. B. bei einem CSV-Export, der erst mitten in der Historie beginnt). Der Bestand oben stimmt, aber Einstandswert, Ø Einstandspreis und unrealisierter G/V sind unvollständig.",
+    breakdownIntro:
+      "Jede Zeile enthält die BTC-Gebühren ihrer Transaktionen bereits: ein Kauf zählt Menge minus Gebühr, Verkauf, Ausgabe und Transfer-Ausgang zählen Menge plus Gebühr (siehe Gebührenkonvention). Ein Transfer zwischen eigenen Konten kostet also genau die Netzwerkgebühr.",
+    breakdownBuys: "Käufe",
+    breakdownTransferIns: "Transfers (Eingang)",
+    breakdownSells: "Verkäufe",
+    breakdownTransferOuts: "Transfers (Ausgang)",
+    breakdownSpends: "Ausgaben",
+    breakdownFees: "davon BTC-Gebühren",
+    breakdownTotal: "Bestand",
+    invalidAmountHint:
+      "{count} Transaktion(en) haben eine Menge oder BTC-Gebühr, die keine Zahl ist. Solche Werte zählen als 0 und verfälschen den Bestand.",
     negativeBalanceHint:
       "Der Gesamtbestand ist negativ: Es wurden mehr Verkäufe, Ausgaben und Abgänge erfasst als Käufe und Zugänge. Bitte die Transaktionen prüfen.",
     chartCompare: "Mit BTC-Kurs vergleichen",
@@ -195,6 +200,160 @@ const de = {
     range90: "90 T",
     range365: "1 J",
     rangeAll: "Alles",
+    widgets: {
+      pickerTitle: "Widget hinzufügen",
+      pickerIntro:
+        "Wähle ein Widget für den freien Platz. Die Kennzeichnung zeigt, woher ein Widget seine Daten bezieht.",
+      alreadyPlaced: "bereits platziert",
+      addWidget: "Widget",
+      addHere: "Widget an dieser Stelle hinzufügen",
+      remove: "Widget entfernen",
+      crashed: "Dieses Widget konnte nicht dargestellt werden.",
+      resetLayout: "Layout zurücksetzen",
+      resetConfirm:
+        "Layout auf den Auslieferungszustand zurücksetzen? Deine Anordnung geht dabei verloren.",
+      doneEditing: "Fertig",
+      editHint:
+        "Bearbeiten aktivieren, um Widgets zu verschieben, in der Größe zu ändern, hinzuzufügen oder zu entfernen.",
+      emptyDashboard: "Dein Dashboard ist leer.",
+      sources: {
+        ledger: "nur lokale Daten",
+        price: "Kurs (Binance)",
+        priceHistory: "Kurshistorie (Binance)",
+        explorer: "Explorer",
+      },
+      change24h: "24 Std.",
+      change7d: "7 Tage",
+      change30d: "30 Tage",
+      unrealizedAgainstCost: "unrealisiert gegenüber Einstandskosten",
+      pnlCoveredBtc: "Davon bewertet",
+      pnlWithoutBasisHint:
+        "{amount} BTC deines Bestands haben keinen Einstandswert, etwa Zugänge von außen ohne Kurs. Diese Menge steckt weder im Einstandswert noch im Gewinn, sonst würde ihr voller Kurswert als Gewinn erscheinen.",
+      spotPriceSource: "Aktueller Kurs (Binance)",
+      sats: "Sats im Bestand",
+      nextMilestone: "Nächster Meilenstein",
+      satsToGo: "Noch {amount} Sats",
+      wholecoinerReached: "Wholecoiner erreicht",
+      ofOneBtc: "{percent} von einem ganzen Bitcoin",
+      milestone001: "0,01 BTC",
+      milestone01: "0,1 BTC",
+      milestone05: "0,5 BTC",
+      milestoneWholecoiner: "1 BTC (Wholecoiner)",
+      avgCostUnknown:
+        "Ohne Einstandskurs oder aktuellen Kurs lässt sich der Abstand nicht berechnen.",
+      distance: "Abstand",
+      onExchanges: "auf Börsen",
+      selfCustody: "Eigenverwahrung",
+      exchangeWarning:
+        "Bitcoin auf einer Börse gehört dir nur als Forderung. Für den langfristigen Bestand ist Eigenverwahrung sicherer.",
+      custodyEmpty: "Noch kein Bestand vorhanden.",
+      taxFreeNow: "Aktuell steuerfrei verfügbar",
+      allTaxFree: "Der gesamte Bestand ist steuerfrei.",
+      taxFreeFrom: "Steuerfrei ab",
+      daysLeft: "Tage",
+      holdingPeriodEmpty: "Keine offenen Lots vorhanden.",
+      dataQualityClean: "Keine offenen Punkte gefunden.",
+      showAffected: "Betroffene Transaktionen anzeigen",
+      issues: {
+        unlinkedTransfer: "Transfers ohne Gegenstück",
+        missingTxid: "Transfers ohne Txid",
+        missingEurValue: "Transaktionen ohne EUR-Bewertung",
+      },
+      entries: "Käufe",
+      exits: "Verkäufe",
+      dcaEmpty: "Noch keine Käufe erfasst.",
+      avgPerMonth: "Durchschnitt pro Monat",
+      buyCount: "Käufe",
+      avgInterval: "Rhythmus",
+      everyNDays: "alle {days} Tage",
+      totalInvested: "Investiert",
+      cumulativeBtc: "Kumuliert",
+      explorerUnavailable:
+        "Die Explorer-Quelle ({endpoint}) ist nicht erreichbar.",
+      feeFastest: "Nächster Block",
+      feeHalfHour: "Halbe Stunde",
+      feeHour: "Eine Stunde",
+      feeEconomy: "Günstig",
+      daysValue: "{days} Tage",
+      untilHalving: "bis zum nächsten Halving",
+      blockHeight: "Blockhöhe",
+      blocksToGo: "Verbleibende Blöcke",
+      halvingBlock: "Halving bei Block",
+      halvingEstimateHint:
+        "Schätzung auf Basis von zehn Minuten pro Block. Die tatsächliche Dauer hängt von der Hashrate ab.",
+      portfolioValue: {
+        title: "Portfoliowert",
+        description:
+          "Gesamtwert in der Anzeigewährung, mit Veränderung über 24 Stunden, 7 und 30 Tage.",
+      },
+      pnl: {
+        title: "Gewinn / Verlust",
+        description:
+          "Unrealisiert gegenüber den Einstandskosten, realisierte Gewinne separat.",
+      },
+      btcPrice: {
+        title: "BTC-Kurs",
+        description: "Aktueller Kurs im Vergleich zu deinem Einstandskurs.",
+      },
+      holdingPeriod: {
+        title: "Haltefrist",
+        description:
+          "Welche Lots steuerfrei sind, welche wann folgen, und wie viel BTC aktuell steuerfrei verfügbar ist.",
+      },
+      satsStack: {
+        title: "Sats-Stack",
+        description: "Bestand in Sats mit Fortschritt zum nächsten Meilenstein.",
+      },
+      avgCost: {
+        title: "Einstandspreis",
+        description:
+          "Durchschnittlicher Einstandskurs gegenüber dem aktuellen Kurs, mit sichtbarem Abstand.",
+      },
+      custody: {
+        title: "Verwahrung",
+        description:
+          "Anteil auf Börsen gegenüber Eigenverwahrung, der Börsenanteil als Warnwert.",
+      },
+      priceEntries: {
+        title: "Kursverlauf mit Ein- und Ausstiegen",
+        description:
+          "BTC-Kursverlauf, in dem deine Käufe und Verkäufe als Marker eingezeichnet sind.",
+      },
+      networkFees: {
+        title: "Netzwerkgebühren",
+        description:
+          "Aktuelle Gebührensätze in sat/vB über die eingestellte Explorer-Quelle.",
+      },
+      halving: {
+        title: "Halving-Countdown",
+        description:
+          "Blockhöhe, verbleibende Blöcke sowie geschätzte Tage bis zum nächsten Halving.",
+      },
+      dataQuality: {
+        title: "Datenqualität",
+        description:
+          "Offene Punkte im Bestand, jeweils mit Sprung in die gefilterte Transaktionsübersicht.",
+      },
+      dca: {
+        title: "DCA-Überblick",
+        description:
+          "Kaufrhythmus, Durchschnittsbetrag pro Monat sowie die kumulierte Menge über die Zeit.",
+      },
+      portfolioChart: {
+        title: "Wertverlauf",
+        description:
+          "Entwicklung des Portfoliowerts über die Zeit, optional im Vergleich zum BTC-Kurs.",
+      },
+      walletBreakdown: {
+        title: "Wallets und Konten",
+        description: "Bestand je Wallet-Konto, ein Klick öffnet die Transaktionen.",
+      },
+      holdingComposition: {
+        title: "Zusammensetzung des Bestands",
+        description:
+          "Aus welchen Käufen, Verkäufen, Transfers sowie Gebühren sich der Bestand ergibt.",
+      },
+    },
   },
   wallets: {
     title: "Wallets & Konten",
@@ -243,6 +402,18 @@ const de = {
     feeBtc: "Gebühr (BTC)",
     feeEur: "Gebühr (EUR)",
     valueEur: "Wert (EUR)",
+    originalSection: "In anderer Währung abgewickelt",
+    originalHint:
+      "Nur zur Dokumentation, z. B. ein BTC-Kauf gegen USDT. Für Berechnungen und für steuerliche Zwecke ist ausschließlich der EUR-Gegenwert zum Transaktionszeitpunkt maßgeblich.",
+    originalCurrency: "Originalwährung",
+    originalCurrencyPlaceholder: "z. B. USDT",
+    originalAmount: "Betrag (Originalwährung)",
+    originalPrice: "Kurs pro BTC (Originalwährung)",
+    eurValuationRun: "EUR-Wert aus historischem Kurs ermitteln",
+    eurValuationDerived:
+      "EUR-Wert automatisch aus dem historischen Binance-Kurs ermittelt",
+    eurValuationNeedsAmount: "Dafür werden Datum und Menge benötigt.",
+    eurValuationUnavailable: "Für diesen Zeitpunkt ist kein Kurs verfügbar.",
     note: "Notiz",
     onChainSection: "On-Chain-Daten (optional)",
     onChainHint:
@@ -267,6 +438,7 @@ const de = {
     deleteClearsAllocations:
       "Bei {count} Transaktion(en) wird die Lot-Zuordnung gelöst; sie greifen künftig automatisch auf die ältesten verfügbaren Lots zu (FIFO).",
     filterAll: "Alle",
+    filterIssue: "Datenqualität",
     filterFrom: "Von",
     filterTo: "Bis",
     onlyTaxFree: "Nur steuerfreie Positionen anzeigen",
@@ -274,8 +446,6 @@ const de = {
     sellLotTitle: "Lot verkaufen",
     lotMax: "Restbestand dieses Lots: {max} BTC",
     lotExceeds: "Menge übersteigt den Restbestand des Lots ({max} BTC).",
-    lotSelection: "Lot-Auswahl",
-    lotAuto: "Automatisch (FIFO, älteste zuerst)",
     insufficientLots:
       "Die offenen Lots im Quellkonto decken die Menge nicht (verfügbar: {available} BTC).",
     rowsPerPage: "Zeilen pro Seite",
@@ -442,6 +612,9 @@ const de = {
       totalFiatEur: "Betrag (EUR)",
       feeBtc: "Gebühr (BTC)",
       feeFiatEur: "Gebühr (EUR)",
+      originalCurrency: "Originalwährung",
+      originalAmount: "Betrag (Originalwährung)",
+      originalPricePerBtc: "Kurs pro BTC (Originalwährung)",
       txid: "Transaktions-ID (txid)",
       address: "Bitcoin-Adresse",
       note: "Notiz",
@@ -457,10 +630,36 @@ const de = {
       "unix-s": "Unix-Timestamp (Sekunden)",
       "unix-ms": "Unix-Timestamp (Millisekunden)",
     },
-    feeModes: {
-      deducted: "Gebühr ist von der Menge bereits abgezogen",
-      included: "Gebühr ist in der Menge noch enthalten",
+    btcFeeModeQuestion: {
+      in: "Käufe: ist die Gebühr von der BTC-Menge bereits abgezogen?",
+      out: "Verkäufe/Ausgänge: ist die Gebühr von der BTC-Menge bereits abgezogen?",
     },
+    btcFeeModes: {
+      deducted: "Ja, bereits abgezogen",
+      notDeducted: "Nein, noch nicht abgezogen",
+    },
+    fiatFeeModeQuestion: "Ist diese Gebühr im EUR-Betrag bereits enthalten?",
+    fiatFeeModes: {
+      gross: "Ja, im Betrag enthalten (Bruttobetrag)",
+      net: "Nein, kommt zusätzlich hinzu (Nettobetrag)",
+    },
+    amountFeeAdded: "Menge laut Datei {file} plus Gebühr {fee} (siehe Gebühren-Einstellung)",
+    amountFeeRemoved:
+      "Menge laut Datei {file} abzüglich Gebühr {fee} (siehe Gebühren-Einstellung)",
+    effectiveEur: "Anschaffung / Erlös (EUR)",
+    effectiveEurCostHint:
+      "EUR-Gesamtbetrag, der als Anschaffungskosten angesetzt wird (Betrag plus EUR-Gebühr).",
+    effectiveEurProceedsHint:
+      "EUR-Erlös, der angesetzt wird (Betrag abzüglich EUR-Gebühr).",
+    effectiveEurRate: "Kurs {rate} EUR/BTC",
+    eurValuationIntro:
+      "{count} Zeile(n) haben keinen EUR-Wert, etwa weil in einer anderen Währung abgerechnet wurde. Der EUR-Gegenwert kann aus dem historischen Binance-Kurs des Transaktionstags ermittelt werden und bleibt danach überschreibbar.",
+    eurValuationRun: "Fehlende EUR-Werte ermitteln",
+    eurValuationProgress: "{done} von {total} …",
+    eurValuationDone: "{count} Zeile(n) bewertet",
+    eurValuationFailed: "({count} ohne Kurs)",
+    eurMissingHint: "EUR-Wert fehlt, kann aus dem historischen Kurs ermittelt werden",
+    eurDerivedHint: "EUR-Wert aus dem historischen Binance-Kurs ermittelt",
     timeFormat: "Zeitformat",
     timeFormatChoose: "Zeitformat wählen",
     timeFormats: {
@@ -489,6 +688,7 @@ const de = {
       invalidType: "Ungültiger oder fehlender Typ",
       invalidDate: "Ungültiges Datum",
       invalidTime: "Ungültige Uhrzeit",
+      invalidOriginal: "Betrag oder Kurs in der Originalwährung ist keine Zahl",
       invalidAmount: "Menge fehlt oder ist nicht größer als 0",
       missingPrice: "Kurs oder Betrag (EUR) wird für Kauf/Verkauf/Ausgabe benötigt",
       invalidPrice: "Ungültiger Kurs",

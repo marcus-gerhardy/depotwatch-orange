@@ -14,6 +14,11 @@ import {
   detectEncoding,
   distinctColumnValues,
   guessMapping,
+  needsEurValuation,
+  normalizeCurrencyCode,
+  normalizeDateCell,
+  normalizeTimeCell,
+  parseImportDateTime,
   normalizeDate,
   normalizeNumber,
   normalizeType,
@@ -21,12 +26,17 @@ import {
   parseDateWithFormat,
   parseTimeWithFormat,
   detectTimeFormat,
+  btcAmountAdjustment,
+  effectiveEurTotal,
   rowToTransaction,
   validateRow,
   type ImportRowValues,
   type RowFilter,
   type RowFilterRule,
 } from "./csvImport";
+import { balanceDelta } from "./portfolio";
+import { ZERO } from "./decimal";
+import type { Transaction } from "./types";
 
 describe("parseCsv", () => {
   it("parses simple rows", () => {
@@ -366,9 +376,13 @@ const validValues: ImportRowValues = {
   totalFiatEur: "",
   feeBtc: "",
   feeFiatEur: "1.5",
+  originalCurrency: "",
+  originalAmount: "",
+  originalPricePerBtc: "",
   txid: "",
   address: "",
   note: "test",
+  eurValuationSource: "manual",
 };
 
 describe("validateRow", () => {
@@ -534,7 +548,7 @@ describe("buildImportRows: sign and precision", () => {
       },
       ".",
       // Amount as the ledger stores it, i.e. without the fee (see fee modes).
-      { feeMode: "deducted" },
+      { feeBtcModeOut: "deducted" },
     );
     expect(rows[0].values.amountBtc).toBe("0.50000000");
     expect(rows[0].values.totalFiatEur).toBe("1500.00");
@@ -579,9 +593,9 @@ describe("date and time as two fields", () => {
     amountBtc: "Menge",
   };
 
-  it("keeps the date as it is, normalizes the time, combines them on import", () => {
-    const built = buildImportRows(rows, headers, mapping, ".");
-    expect(built.map((r) => r.values.date)).toEqual(["05.01.2024", "06.01.2024"]);
+  it("normalizes date and time, then combines them on import", () => {
+    const built = buildImportRows(rows, headers, mapping, ".", { dateFormat: "de" });
+    expect(built.map((r) => r.values.date)).toEqual(["2024-01-05", "2024-01-06"]);
     expect(built.map((r) => r.values.time)).toEqual(["14:30:00", "09:15:00"]);
 
     const formats = { dateFormat: "de", timeFormat: "hms" } as const;
@@ -599,8 +613,8 @@ describe("date and time as two fields", () => {
       { type: "Type", date: "Zeitpunkt", time: "Zeitpunkt", amountBtc: "Menge" },
       ".",
     );
-    expect(built[0].values.date).toBe("05.01.2024 14:30");
-    // The time column shows the clock time, not the whole timestamp again.
+    // One column carrying both is split into a readable date and time.
+    expect(built[0].values.date).toBe("2024-01-05");
     expect(built[0].values.time).toBe("14:30:00");
     const formats = { dateFormat: "de", timeFormat: "datetime" } as const;
     expect(validateRow(built[0].values, formats)).toEqual([]);
@@ -654,7 +668,9 @@ describe("date and time as two fields", () => {
   });
 
   it("takes the date alone when no time column is mapped", () => {
-    const built = buildImportRows(rows, headers, { ...mapping, time: undefined }, ".");
+    const built = buildImportRows(rows, headers, { ...mapping, time: undefined }, ".", {
+      dateFormat: "de",
+    });
     expect(built[0].values.time).toBe("");
     expect(rowToTransaction(built[0].values, { dateFormat: "de" }).date).toBe(
       new Date(2024, 0, 5).toISOString(),
@@ -726,6 +742,220 @@ describe("time parsing", () => {
   });
 });
 
+describe("original currency (settled in another currency)", () => {
+  const headers = ["Type", "Date", "Time", "Amount", "Quote asset", "Quote amount"];
+  const mapping = {
+    type: "Type",
+    date: "Date",
+    time: "Time",
+    amountBtc: "Amount",
+    originalCurrency: "Quote asset",
+    originalAmount: "Quote amount",
+  };
+
+  it("maps and normalizes the documentary fields", () => {
+    const row = buildImportRows(
+      [["buy", "2024-01-05", "12:00", "0.1", " usdt ", "3200.00"]],
+      headers,
+      mapping,
+      ".",
+    )[0].values;
+    expect(row.originalCurrency).toBe("USDT");
+    expect(row.originalAmount).toBe("3200.00");
+    // No EUR value in the file, so the row still asks for one.
+    expect(row.pricePerBtcEur).toBe("");
+    expect(validateRow(row, { dateFormat: "iso" })).toContain("missingPrice");
+  });
+
+  it("keeps a pair's quote side as the currency", () => {
+    expect(normalizeCurrencyCode("BTC/USDT")).toBe("USDT");
+    expect(normalizeCurrencyCode("btc-usd")).toBe("USD");
+    expect(normalizeCurrencyCode(" usdt ")).toBe("USDT");
+    expect(normalizeCurrencyCode("")).toBe("");
+  });
+
+  it("flags a non-numeric original amount", () => {
+    const row = buildImportRows(
+      [["buy", "2024-01-05", "12:00", "0.1", "USDT", "about 3200"]],
+      headers,
+      mapping,
+      ".",
+    )[0].values;
+    expect(validateRow(row, { dateFormat: "iso" })).toContain("invalidOriginal");
+  });
+
+  it("carries the fields into the transaction but never into the EUR figures", () => {
+    const row = buildImportRows(
+      [["buy", "2024-01-05", "12:00", "0.1", "USDT", "3200.00"]],
+      [...headers, "Price EUR"],
+      { ...mapping, pricePerBtcEur: "Price EUR" },
+      ".",
+    )[0].values;
+    const tx = rowToTransaction(
+      { ...row, pricePerBtcEur: "30000.00" },
+      { dateFormat: "iso" },
+    );
+    expect(tx.originalCurrency).toBe("USDT");
+    expect(tx.originalAmount).toBe("3200.00");
+    // The EUR figures stay the ones that drive every calculation.
+    expect(tx.pricePerBtcEur).toBe("30000.00");
+    expect(tx.totalFiatEur).toBe("3000");
+    expect(tx.eurValuationSource).toBeUndefined();
+  });
+
+  it("records a derived EUR value as such", () => {
+    const values = buildImportRows(
+      [["buy", "2024-01-05", "12:00", "0.1", "USDT", "3200.00"]],
+      headers,
+      mapping,
+      ".",
+    )[0].values;
+    const tx = rowToTransaction(
+      {
+        ...values,
+        pricePerBtcEur: "30000.00",
+        totalFiatEur: "3000.00",
+        eurValuationSource: "binance-klines",
+      },
+      { dateFormat: "iso" },
+    );
+    expect(tx.eurValuationSource).toBe("binance-klines");
+  });
+});
+
+describe("needsEurValuation", () => {
+  const base = {
+    ...validValues,
+    date: "2024-01-05",
+    time: "12:00:00",
+    pricePerBtcEur: "",
+    totalFiatEur: "",
+  };
+  const formats = { dateFormat: "iso", timeFormat: "hms" } as const;
+
+  it("is true for a priced type with an amount and a date but no EUR value", () => {
+    expect(needsEurValuation(base, formats)).toBe(true);
+    expect(needsEurValuation({ ...base, type: "sell" }, formats)).toBe(true);
+    expect(needsEurValuation({ ...base, type: "spend" }, formats)).toBe(true);
+  });
+
+  it("is false once an EUR value is there", () => {
+    expect(needsEurValuation({ ...base, pricePerBtcEur: "30000" }, formats)).toBe(false);
+    expect(needsEurValuation({ ...base, totalFiatEur: "3000" }, formats)).toBe(false);
+  });
+
+  it("is false for transfers, and without an amount or a readable date", () => {
+    expect(needsEurValuation({ ...base, type: "transfer_in" }, formats)).toBe(false);
+    expect(needsEurValuation({ ...base, amountBtc: "0" }, formats)).toBe(false);
+    expect(needsEurValuation({ ...base, date: "nope" }, formats)).toBe(false);
+  });
+});
+
+describe("BTC amounts keep their precision", () => {
+  const headers = ["Type", "Date", "Time", "Amount", "Fee"];
+  const mapping = {
+    type: "Type",
+    date: "Date",
+    time: "Time",
+    amountBtc: "Amount",
+    feeBtc: "Fee",
+  };
+
+  it("never rounds a value that already fits into 8 decimals", () => {
+    const row = buildImportRows(
+      [["buy", "2024-07-05", "12:00", "0.00154445", ""]],
+      headers,
+      mapping,
+      ".",
+    )[0].values;
+    expect(row.amountBtc).toBe("0.00154445");
+  });
+
+  it("only the ninth decimal and beyond is rounded away", () => {
+    const row = buildImportRows(
+      [["buy", "2024-07-05", "12:00", "0.001544454", ""]],
+      headers,
+      mapping,
+      ".",
+    )[0].values;
+    expect(row.amountBtc).toBe("0.00154445");
+  });
+
+  it("explains an amount the fee mode changed", () => {
+    const row = buildImportRows(
+      [["buy", "2024-07-05", "12:00", "0.00154445", "0.00001555"]],
+      headers,
+      mapping,
+      ".",
+      { feeBtcModeIn: "deducted" },
+    )[0].values;
+    // The file's amount is the net one, so the ledger stores it plus the fee.
+    expect(row.amountBtc).toBe("0.00156000");
+    expect(btcAmountAdjustment(row, "deducted")).toEqual({
+      fileAmount: "0.00154445",
+      fee: "0.00001555",
+      added: true,
+    });
+    // With the other reading nothing is changed, and nothing is explained.
+    const asIs = buildImportRows(
+      [["buy", "2024-07-05", "12:00", "0.00154445", "0.00001555"]],
+      headers,
+      mapping,
+      ".",
+    )[0].values;
+    expect(asIs.amountBtc).toBe("0.00154445");
+    expect(btcAmountAdjustment(asIs)).toBeNull();
+  });
+});
+
+describe("ISO timestamps with a zone offset", () => {
+  const value = "2024-07-05T14:01:34+02:00";
+
+  it("is detected, split into date and time, and stays the same instant", () => {
+    expect(detectDateFormat([value, "2024-07-06T09:15:00+02:00"])).toBe("iso");
+    expect(detectTimeFormat([value])).toBe("datetime");
+
+    const row = buildImportRows(
+      [["buy", value, "0.5", "20000"]],
+      ["Type", "Zeitpunkt", "Menge", "Kurs"],
+      {
+        type: "Type",
+        date: "Zeitpunkt",
+        time: "Zeitpunkt",
+        amountBtc: "Menge",
+        pricePerBtcEur: "Kurs",
+      },
+      ".",
+      { dateFormat: "iso", timeFormat: "datetime" },
+    )[0].values;
+
+    const instant = new Date(value);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    // Shown as the local date and clock time that instant stands for …
+    expect(row.date).toBe(
+      `${instant.getFullYear()}-${pad(instant.getMonth() + 1)}-${pad(instant.getDate())}`,
+    );
+    expect(row.time).toBe(
+      `${pad(instant.getHours())}:${pad(instant.getMinutes())}:${pad(instant.getSeconds())}`,
+    );
+    // … and imported as exactly that instant again.
+    const formats = { dateFormat: "iso", timeFormat: "datetime" } as const;
+    expect(validateRow(row, formats)).toEqual([]);
+    expect(rowToTransaction(row, formats).date).toBe(instant.toISOString());
+  });
+
+  it("keeps the offset's own day, not the UTC one", () => {
+    // 00:30 on 6 July at +02:00 is still 5 July in UTC.
+    const late = "2024-07-06T00:30:00+02:00";
+    const iso = parseImportDateTime(
+      normalizeDateCell(late, "iso"),
+      normalizeTimeCell(late, "datetime"),
+      { dateFormat: "iso", timeFormat: "datetime" },
+    );
+    expect(iso).toBe(new Date(late).toISOString());
+  });
+});
+
 describe("buildImportRows: fee modes", () => {
   const headers = ["Type", "Date", "Time", "Amount", "Fee"];
   const mapping = {
@@ -735,20 +965,20 @@ describe("buildImportRows: fee modes", () => {
     amountBtc: "Amount",
     feeBtc: "Fee",
   };
-  const build = (type: string, feeMode: "included" | "deducted") =>
+  const build = (type: string, mode: "notDeducted" | "deducted") =>
     buildImportRows(
       [[type, "2024-01-05", "12:00", "0.5", "0.0001"]],
       headers,
       mapping,
       ".",
-      { feeMode },
+      { feeBtcModeIn: mode, feeBtcModeOut: mode },
     )[0].values;
 
   // The ledger stores the fee on top of the amount (CLAUDE.md §3.2): a buy
   // credits amount − fee, an outgoing type debits amount + fee. So whichever
   // convention the file uses, the coins that move stay the file's amount.
   it("subtracts the fee from an outgoing amount that still contains it", () => {
-    const row = build("withdrawal", "included");
+    const row = build("withdrawal", "notDeducted");
     expect(row.amountBtc).toBe("0.49990000");
     expect(row.feeBtc).toBe("0.00010000");
     // Debited: 0.4999 + 0.0001 = the 0.5 that left the account.
@@ -765,11 +995,11 @@ describe("buildImportRows: fee modes", () => {
   });
 
   it("leaves a buy alone when its amount still contains the fee", () => {
-    expect(build("buy", "included").amountBtc).toBe("0.50000000");
+    expect(build("buy", "notDeducted").amountBtc).toBe("0.50000000");
   });
 
   it("never changes a transfer_in, whose credit ignores the fee", () => {
-    expect(build("deposit", "included").amountBtc).toBe("0.50000000");
+    expect(build("deposit", "notDeducted").amountBtc).toBe("0.50000000");
     expect(build("deposit", "deducted").amountBtc).toBe("0.50000000");
   });
 
@@ -779,9 +1009,240 @@ describe("buildImportRows: fee modes", () => {
       headers,
       mapping,
       ".",
-      { feeMode: "included" },
+      { feeBtcModeIn: "notDeducted", feeBtcModeOut: "notDeducted" },
     )[0].values;
     expect(row.amountBtc).toBe("abc");
+  });
+});
+
+describe("BTC fee mode: what ends up in the portfolio", () => {
+  // The ledger stores a buy's amount *before* the fee and derives the holding
+  // as amount − fee (CLAUDE.md §3.2), so the stored amount and the amount the
+  // file reports are not the same number. What has to match is the balance.
+  const importedBuy = (feeBtcModeIn: "deducted" | "notDeducted") => {
+    const values = buildImportRows(
+      [["buy", "2024-07-05", "12:00", "0.000999", "0.000001", "50000"]],
+      ["Type", "Date", "Time", "Amount", "Fee", "Price"],
+      {
+        type: "Type",
+        date: "Date",
+        time: "Time",
+        amountBtc: "Amount",
+        feeBtc: "Fee",
+        pricePerBtcEur: "Price",
+      },
+      ".",
+      { feeBtcModeIn },
+    )[0].values;
+    const tx = rowToTransaction(values, { dateFormat: "iso", timeFormat: "hms" });
+    return { values, tx };
+  };
+  const holding = (tx: Transaction) =>
+    balanceDelta({
+      ...tx,
+      walletId: "w",
+      walletName: "W",
+      accountId: "a",
+      accountName: "A",
+    }).toFixed(8);
+
+  it("credits exactly the file's amount when the fee was already deducted", () => {
+    const { values, tx } = importedBuy("deducted");
+    // Stored gross, because the engine takes the fee off again …
+    expect(values.amountBtc).toBe("0.00100000");
+    // … so what the portfolio gains is the 0.000999 the file reports.
+    expect(holding(tx)).toBe("0.00099900");
+  });
+
+  it("credits the file's amount minus the fee when it is not deducted yet", () => {
+    const { values, tx } = importedBuy("notDeducted");
+    expect(values.amountBtc).toBe("0.00099900");
+    expect(holding(tx)).toBe("0.00099800");
+  });
+});
+
+describe("one file, two fee conventions (Bitget)", () => {
+  // A spot buy reports the amount with the trading fee already taken off, a
+  // withdrawal reports the total that left the account, network fee included.
+  // Buys and withdrawals cover each other exactly, so the exchange account has
+  // to end up at zero.
+  const headers = ["Type", "Date", "Time", "Amount", "Fee", "Price"];
+  const mapping = {
+    type: "Type",
+    date: "Date",
+    time: "Time",
+    amountBtc: "Amount",
+    feeBtc: "Fee",
+    pricePerBtcEur: "Price",
+  };
+  const rows = [
+    ["buy", "2024-07-01", "10:00", "0.00999000", "0.00001000", "50000"],
+    ["buy", "2024-07-02", "10:00", "0.00499500", "0.00000500", "50000"],
+    // 0.01 left the account, of which 0.0001 was the network fee.
+    ["withdrawal", "2024-07-03", "10:00", "0.01000000", "0.00010000", "50000"],
+    ["withdrawal", "2024-07-04", "10:00", "0.00498500", "0.00010000", "50000"],
+  ];
+  const holding = (options: Parameters<typeof buildImportRows>[4]) =>
+    buildImportRows(rows, headers, mapping, ".", options)
+      .map((r) => rowToTransaction(r.values, { dateFormat: "iso", timeFormat: "hms" }))
+      .reduce(
+        (sum, tx) =>
+          sum.plus(
+            balanceDelta({
+              ...tx,
+              walletId: "w",
+              walletName: "W",
+              accountId: "a",
+              accountName: "A",
+            }),
+          ),
+        ZERO,
+      )
+      .toFixed(8);
+
+  it("reaches zero when each direction is read the way the file means it", () => {
+    expect(
+      holding({ feeBtcModeIn: "deducted", feeBtcModeOut: "notDeducted" }),
+    ).toBe("0.00000000");
+  });
+
+  it("is off by exactly a fee sum when one setting is forced on both", () => {
+    // One answer for the whole file leaves the other direction wrong — the
+    // remainder is precisely the fees of that direction.
+    expect(holding({ feeBtcModeIn: "notDeducted", feeBtcModeOut: "notDeducted" })).toBe(
+      "-0.00001500",
+    );
+    expect(holding({ feeBtcModeIn: "deducted", feeBtcModeOut: "deducted" })).toBe(
+      "-0.00020000",
+    );
+  });
+});
+
+describe("buildImportRows: EUR fee mode", () => {
+  const headers = ["Type", "Date", "Time", "Amount", "Total", "Fee"];
+  const mapping = {
+    type: "Type",
+    date: "Date",
+    time: "Time",
+    amountBtc: "Amount",
+    totalFiatEur: "Total",
+    feeFiatEur: "Fee",
+  };
+  const build = (type: string, feeFiatMode: "gross" | "net") =>
+    buildImportRows(
+      [[type, "2024-01-05", "12:00", "0.5", "1000.00", "5.00"]],
+      headers,
+      mapping,
+      ".",
+      { feeFiatMode },
+    )[0].values;
+
+  // The ledger keeps totalFiatEur free of fees: the FIFO engine adds the EUR
+  // fee to a buy's acquisition cost and takes it off a sale's proceeds.
+  it("takes the fee out of a gross buy total, so the paid total stays the same", () => {
+    const row = build("buy", "gross");
+    expect(row.totalFiatEur).toBe("995.00");
+    expect(effectiveEurTotal(row)).toBe("1000.00"); // what was really paid
+    expect(row.pricePerBtcEur).toBe("1990.00"); // 995 / 0.5
+  });
+
+  it("leaves a net buy total alone and lets the fee raise the cost", () => {
+    const row = build("buy", "net");
+    expect(row.totalFiatEur).toBe("1000.00");
+    expect(effectiveEurTotal(row)).toBe("1005.00");
+    expect(row.pricePerBtcEur).toBe("2000.00");
+  });
+
+  it("adds the fee to a gross sale total, so the payout stays the same", () => {
+    const row = build("sell", "gross");
+    expect(row.totalFiatEur).toBe("1005.00");
+    expect(effectiveEurTotal(row)).toBe("1000.00"); // what was really received
+  });
+
+  it("leaves a net sale total alone", () => {
+    const row = build("sell", "net");
+    expect(row.totalFiatEur).toBe("1000.00");
+    expect(effectiveEurTotal(row)).toBe("995.00");
+  });
+
+  it("never touches a transfer", () => {
+    expect(build("deposit", "gross").totalFiatEur).toBe("1000.00");
+    expect(effectiveEurTotal(build("deposit", "gross"))).toBeNull();
+  });
+
+  it("keeps a total that is not a number", () => {
+    const row = buildImportRows(
+      [["buy", "2024-01-05", "12:00", "0.5", "about 1000", "5.00"]],
+      headers,
+      mapping,
+      ".",
+      { feeFiatMode: "gross" },
+    )[0].values;
+    expect(row.totalFiatEur).toBe("about 1000");
+    expect(effectiveEurTotal(row)).toBeNull();
+  });
+});
+
+describe("buildImportRows: price, total and amount stay consistent", () => {
+  const headers = ["Type", "Date", "Time", "Amount", "Total", "Price", "Fee"];
+
+  it("derives the price from the total the fee mode produced", () => {
+    // A file's own price column refers to the gross figures; the stored price
+    // has to match the stored total and amount.
+    const row = buildImportRows(
+      [["buy", "2024-01-05", "12:00", "0.5", "1000.00", "2000.00", "5.00"]],
+      headers,
+      {
+        type: "Type",
+        date: "Date",
+        time: "Time",
+        amountBtc: "Amount",
+        totalFiatEur: "Total",
+        pricePerBtcEur: "Price",
+        feeFiatEur: "Fee",
+      },
+      ".",
+      { feeFiatMode: "gross" },
+    )[0].values;
+    expect(row.totalFiatEur).toBe("995.00");
+    expect(row.pricePerBtcEur).toBe("1990.00");
+  });
+
+  it("derives the total from the price when the file has no total column", () => {
+    const row = buildImportRows(
+      [["buy", "2024-01-05", "12:00", "0.5", "2000.00"]],
+      ["Type", "Date", "Time", "Amount", "Price"],
+      {
+        type: "Type",
+        date: "Date",
+        time: "Time",
+        amountBtc: "Amount",
+        pricePerBtcEur: "Price",
+      },
+      ".",
+    )[0].values;
+    expect(row.totalFiatEur).toBe("1000.00");
+    expect(row.pricePerBtcEur).toBe("2000.00");
+  });
+
+  it("uses the BTC-fee-adjusted amount for the price", () => {
+    // 0.5 sent of which 0.1 was the network fee → 0.4 reach the other side.
+    const row = buildImportRows(
+      [["withdrawal", "2024-01-05", "12:00", "0.5", "1000.00", "0.1"]],
+      ["Type", "Date", "Time", "Amount", "Total", "FeeBtc"],
+      {
+        type: "Type",
+        date: "Date",
+        time: "Time",
+        amountBtc: "Amount",
+        totalFiatEur: "Total",
+        feeBtc: "FeeBtc",
+      },
+      ".",
+      { feeBtcModeOut: "notDeducted" },
+    )[0].values;
+    expect(row.amountBtc).toBe("0.40000000");
+    expect(row.pricePerBtcEur).toBe("2500.00"); // 1000 / 0.4
   });
 });
 
@@ -1080,9 +1541,13 @@ describe("on-chain fields (txid/address)", () => {
       totalFiatEur: "",
       feeBtc: "",
       feeFiatEur: "",
+      originalCurrency: "",
+      originalAmount: "",
+      originalPricePerBtc: "",
       txid: "nope",
       address: "also-nope",
       note: "",
+      eurValuationSource: "manual",
     };
     expect(validateRow(values)).toEqual(["invalidTxid", "invalidAddress"]);
     expect(validateRow({ ...values, txid: "", address: "" })).toEqual([]);
@@ -1098,9 +1563,13 @@ describe("on-chain fields (txid/address)", () => {
       totalFiatEur: "",
       feeBtc: "",
       feeFiatEur: "",
+      originalCurrency: "",
+      originalAmount: "",
+      originalPricePerBtc: "",
       txid: TXID,
       address: ADDRESS,
       note: "",
+      eurValuationSource: "manual",
     };
     const transfer = rowToTransaction(base);
     expect(transfer.txid).toBe(TXID);

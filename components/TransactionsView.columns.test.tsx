@@ -108,6 +108,55 @@ describe("TransactionsView: column layout changes", () => {
   });
 });
 
+describe("TransactionsView: column persistence", () => {
+  it("takes the visible columns from the portfolio file", () => {
+    const p = seedPortfolio();
+    p.uiSettings = { transactionColumns: ["date", "amount", "txid"] };
+    useAppStore.setState({ portfolio: p });
+
+    render(<TransactionsView />);
+    expect(screen.getByText("tx.txid")).toBeTruthy();
+    expect(screen.queryByText("tx.price")).toBeNull();
+  });
+
+  it("adopts a choice an older app version left in localStorage", () => {
+    localStorage.setItem(
+      "depotwatch.txColumns.v6",
+      JSON.stringify(["date", "amount", "address"]),
+    );
+    render(<TransactionsView />);
+    expect(screen.getByText("tx.address")).toBeTruthy();
+    expect(screen.queryByText("tx.price")).toBeNull();
+    // Adopting a device leftover must not mark the file as changed.
+    expect(useAppStore.getState().dirty).toBe(false);
+  });
+
+  it("writes the choice back once, when the picker closes", () => {
+    render(<TransactionsView />);
+    fireEvent.click(screen.getByRole("button", { name: "tx.columns" }));
+
+    fireEvent.click(screen.getByLabelText("tx.txid"));
+    fireEvent.click(screen.getByLabelText("tx.address"));
+    // Two clicks, still nothing written.
+    expect(useAppStore.getState().portfolio?.uiSettings).toBeUndefined();
+    expect(useAppStore.getState().dirty).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "tx.columns" }));
+    const stored = useAppStore.getState().portfolio?.uiSettings?.transactionColumns;
+    expect(stored).toContain("txid");
+    expect(stored).toContain("address");
+    expect(useAppStore.getState().dirty).toBe(true);
+  });
+
+  it("leaves the file untouched when the picker is opened and closed again", () => {
+    const { unmount } = render(<TransactionsView />);
+    fireEvent.click(screen.getByRole("button", { name: "tx.columns" }));
+    fireEvent.click(screen.getByRole("button", { name: "tx.columns" }));
+    unmount();
+    expect(useAppStore.getState().dirty).toBe(false);
+  });
+});
+
 describe("TransactionsView: value formatting", () => {
   it("shows BTC with 8 decimals and fiat without a currency symbol", () => {
     render(<TransactionsView />);

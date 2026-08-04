@@ -172,24 +172,29 @@ const en: typeof de = {
     setUpFile: "Save demo data",
   },
   dashboard: {
-    totalValue: "Total value",
     holdings: "Holdings",
     price: "BTC price",
     priceUnavailable: "Price unavailable",
-    unrealizedPnl: "Unrealized P/L",
     realizedPnl: "Realized P/L",
     avgCost: "Avg. cost basis",
     costBasis: "Cost basis",
-    byWallet: "Breakdown by wallet / account",
     wallet: "Wallet",
     account: "Account",
-    balance: "Balance",
-    value: "Value",
-    chartTitle: "Value over time",
     chartPortfolio: "Portfolio value",
     chartBtcPrice: "BTC price",
     uncoveredHint:
       "{amount} BTC of your sells, spends, or outgoing transfers have no matching purchase in the portfolio (e.g. a CSV export that starts mid-history). The holding above is correct, but cost basis, average cost, and unrealized P/L are incomplete.",
+    breakdownIntro:
+      "Every line already carries the BTC fees of its transactions: a buy counts amount minus fee, while sell, spend and outgoing transfer count amount plus fee (see the fee convention). A transfer between your own accounts therefore costs exactly the network fee.",
+    breakdownBuys: "Buys",
+    breakdownTransferIns: "Transfers in",
+    breakdownSells: "Sells",
+    breakdownTransferOuts: "Transfers out",
+    breakdownSpends: "Spends",
+    breakdownFees: "of which BTC fees",
+    breakdownTotal: "Holding",
+    invalidAmountHint:
+      "{count} transaction(s) have an amount or BTC fee that is not a number. Such values count as 0 and distort the holding.",
     negativeBalanceHint:
       "The total holding is negative: more sells, spends, and outgoing transfers are recorded than buys and incoming transfers. Please check the transactions.",
     chartCompare: "Compare with BTC price",
@@ -198,6 +203,158 @@ const en: typeof de = {
     range90: "90 d",
     range365: "1 y",
     rangeAll: "All",
+    widgets: {
+      pickerTitle: "Add widget",
+      pickerIntro:
+        "Pick a widget for the free slot. The tags show where a widget gets its data from.",
+      alreadyPlaced: "already placed",
+      addWidget: "Widget",
+      addHere: "Add a widget here",
+      remove: "Remove widget",
+      crashed: "This widget could not be rendered.",
+      resetLayout: "Reset layout",
+      resetConfirm:
+        "Reset the layout to the default dashboard? Your arrangement will be lost.",
+      doneEditing: "Done",
+      editHint:
+        "Turn on editing to move, resize, add or remove widgets.",
+      emptyDashboard: "Your dashboard is empty.",
+      sources: {
+        ledger: "local only",
+        price: "price (Binance)",
+        priceHistory: "price history (Binance)",
+        explorer: "explorer",
+      },
+      change24h: "24 h",
+      change7d: "7 days",
+      change30d: "30 days",
+      unrealizedAgainstCost: "unrealized against cost basis",
+      pnlCoveredBtc: "Of which valued",
+      pnlWithoutBasisHint:
+        "{amount} BTC of your holding have no cost basis, for example receives from outside without a price. That amount is part of neither the cost basis nor the gain, because its full market value would otherwise show up as profit.",
+      spotPriceSource: "Spot price (Binance)",
+      sats: "Sats held",
+      nextMilestone: "Next milestone",
+      satsToGo: "{amount} sats to go",
+      wholecoinerReached: "Wholecoiner reached",
+      ofOneBtc: "{percent} of a whole bitcoin",
+      milestone001: "0.01 BTC",
+      milestone01: "0.1 BTC",
+      milestone05: "0.5 BTC",
+      milestoneWholecoiner: "1 BTC (wholecoiner)",
+      avgCostUnknown:
+        "Without a cost basis or a current price the distance cannot be computed.",
+      distance: "Distance",
+      onExchanges: "on exchanges",
+      selfCustody: "Self custody",
+      exchangeWarning:
+        "Bitcoin on an exchange is only a claim against that exchange. For long-term holdings, self custody is safer.",
+      custodyEmpty: "No holdings yet.",
+      taxFreeNow: "Tax-free right now",
+      allTaxFree: "The entire holding is tax-free.",
+      taxFreeFrom: "Tax-free from",
+      daysLeft: "Days",
+      holdingPeriodEmpty: "No open lots.",
+      dataQualityClean: "No open issues found.",
+      showAffected: "Show the affected transactions",
+      issues: {
+        unlinkedTransfer: "Transfers without a counterpart",
+        missingTxid: "Transfers without a txid",
+        missingEurValue: "Transactions without a EUR value",
+      },
+      entries: "Buys",
+      exits: "Sells",
+      dcaEmpty: "No buys recorded yet.",
+      avgPerMonth: "Average per month",
+      buyCount: "Buys",
+      avgInterval: "Rhythm",
+      everyNDays: "every {days} days",
+      totalInvested: "Invested",
+      cumulativeBtc: "Cumulative",
+      explorerUnavailable: "The explorer source ({endpoint}) cannot be reached.",
+      feeFastest: "Next block",
+      feeHalfHour: "Half an hour",
+      feeHour: "One hour",
+      feeEconomy: "Economy",
+      daysValue: "{days} days",
+      untilHalving: "until the next halving",
+      blockHeight: "Block height",
+      blocksToGo: "Blocks to go",
+      halvingBlock: "Halving at block",
+      halvingEstimateHint:
+        "Estimated from ten minutes per block. The real duration depends on the hash rate.",
+      portfolioValue: {
+        title: "Portfolio value",
+        description:
+          "Total value in the display currency, with the change over 24 hours, 7 and 30 days.",
+      },
+      pnl: {
+        title: "Profit / loss",
+        description: "Unrealized against cost basis, realized gains separately.",
+      },
+      btcPrice: {
+        title: "BTC price",
+        description: "Current price compared with your average cost basis.",
+      },
+      holdingPeriod: {
+        title: "Holding period",
+        description:
+          "Which lots are tax-free, when the others follow, and how much BTC is tax-free right now.",
+      },
+      satsStack: {
+        title: "Sats stack",
+        description: "Holding in sats with progress towards the next milestone.",
+      },
+      avgCost: {
+        title: "Cost basis",
+        description:
+          "Average cost basis against the current price, with the distance visualized.",
+      },
+      custody: {
+        title: "Custody",
+        description:
+          "Share held on exchanges versus self custody, the exchange share as a warning metric.",
+      },
+      priceEntries: {
+        title: "Price with your entries and exits",
+        description:
+          "BTC price history with your own buys and sells drawn in as markers.",
+      },
+      networkFees: {
+        title: "Network fees",
+        description:
+          "Current fee rates in sat/vB via the configured explorer source.",
+      },
+      halving: {
+        title: "Halving countdown",
+        description:
+          "Block height, remaining blocks and the estimated days until the next halving.",
+      },
+      dataQuality: {
+        title: "Data quality",
+        description:
+          "Open issues in your ledger, each jumping into the filtered transaction table.",
+      },
+      dca: {
+        title: "DCA overview",
+        description:
+          "Buying rhythm, average amount per month and the cumulative stack over time.",
+      },
+      portfolioChart: {
+        title: "Value over time",
+        description:
+          "How the portfolio value developed, optionally compared with the BTC price.",
+      },
+      walletBreakdown: {
+        title: "Wallets and accounts",
+        description: "Balance per wallet account; a click opens its transactions.",
+      },
+      holdingComposition: {
+        title: "How the holding is made up",
+        description:
+          "Which buys, sells, transfers and fees the current holding results from.",
+      },
+    },
   },
   wallets: {
     title: "Wallets & accounts",
@@ -246,6 +403,18 @@ const en: typeof de = {
     feeBtc: "Fee (BTC)",
     feeEur: "Fee (EUR)",
     valueEur: "Value (EUR)",
+    originalSection: "Settled in another currency",
+    originalHint:
+      "Documentation only, e.g. a BTC buy against USDT. Calculations and tax figures always use the EUR value at the time of the transaction.",
+    originalCurrency: "Original currency",
+    originalCurrencyPlaceholder: "e.g. USDT",
+    originalAmount: "Amount (original currency)",
+    originalPrice: "Price per BTC (original currency)",
+    eurValuationRun: "Derive EUR value from historical price",
+    eurValuationDerived:
+      "EUR value derived automatically from the historical Binance price",
+    eurValuationNeedsAmount: "This needs a date and an amount.",
+    eurValuationUnavailable: "No price available for that point in time.",
     note: "Note",
     onChainSection: "On-chain data (optional)",
     onChainHint:
@@ -270,6 +439,7 @@ const en: typeof de = {
     deleteClearsAllocations:
       "{count} transaction(s) have their lot allocation released; they will fall back to the oldest available lots (FIFO).",
     filterAll: "All",
+    filterIssue: "Data quality",
     filterFrom: "From",
     filterTo: "To",
     onlyTaxFree: "Show only tax-free positions",
@@ -277,8 +447,6 @@ const en: typeof de = {
     sellLotTitle: "Sell lot",
     lotMax: "Remaining in this lot: {max} BTC",
     lotExceeds: "Amount exceeds the lot's remaining balance ({max} BTC).",
-    lotSelection: "Lot selection",
-    lotAuto: "Automatic (FIFO, oldest first)",
     insufficientLots:
       "The open lots in the source account don't cover the amount (available: {available} BTC).",
     rowsPerPage: "Rows per page",
@@ -443,6 +611,9 @@ const en: typeof de = {
       totalFiatEur: "Total (EUR)",
       feeBtc: "Fee (BTC)",
       feeFiatEur: "Fee (EUR)",
+      originalCurrency: "Original currency",
+      originalAmount: "Amount (original currency)",
+      originalPricePerBtc: "Price per BTC (original currency)",
       txid: "Transaction ID (txid)",
       address: "Bitcoin address",
       note: "Note",
@@ -458,10 +629,34 @@ const en: typeof de = {
       "unix-s": "Unix timestamp (seconds)",
       "unix-ms": "Unix timestamp (milliseconds)",
     },
-    feeModes: {
-      deducted: "Fee is already deducted from the amount",
-      included: "Fee is still part of the amount",
+    btcFeeModeQuestion: {
+      in: "Buys: is the fee already deducted from the BTC amount?",
+      out: "Sells and outgoing transfers: is the fee already deducted?",
     },
+    btcFeeModes: {
+      deducted: "Yes, already deducted",
+      notDeducted: "No, not deducted yet",
+    },
+    fiatFeeModeQuestion: "Is this fee already part of the EUR amount?",
+    fiatFeeModes: {
+      gross: "Yes, included in the amount (gross)",
+      net: "No, it comes on top (net)",
+    },
+    amountFeeAdded: "Amount in the file {file} plus fee {fee} (see the fee setting)",
+    amountFeeRemoved: "Amount in the file {file} minus fee {fee} (see the fee setting)",
+    effectiveEur: "Cost / proceeds (EUR)",
+    effectiveEurCostHint:
+      "EUR total booked as acquisition cost (amount plus the EUR fee).",
+    effectiveEurProceedsHint: "EUR proceeds booked (amount minus the EUR fee).",
+    effectiveEurRate: "Rate {rate} EUR/BTC",
+    eurValuationIntro:
+      "{count} row(s) have no EUR value, e.g. because they were settled in another currency. The EUR value can be derived from the historical Binance price of the transaction day and stays editable afterwards.",
+    eurValuationRun: "Derive missing EUR values",
+    eurValuationProgress: "{done} of {total} …",
+    eurValuationDone: "{count} row(s) valued",
+    eurValuationFailed: "({count} without a price)",
+    eurMissingHint: "EUR value missing, can be derived from the historical price",
+    eurDerivedHint: "EUR value derived from the historical Binance price",
     timeFormat: "Time format",
     timeFormatChoose: "Choose time format",
     timeFormats: {
@@ -489,6 +684,7 @@ const en: typeof de = {
       invalidType: "Invalid or missing type",
       invalidDate: "Invalid date",
       invalidTime: "Invalid time",
+      invalidOriginal: "Amount or price in the original currency is not a number",
       invalidAmount: "Amount missing or not greater than 0",
       missingPrice: "Price or total (EUR) is required for buy/sell/spend",
       invalidPrice: "Invalid price",

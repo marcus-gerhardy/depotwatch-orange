@@ -12,7 +12,8 @@ import type {
   CsvEncoding,
   CsvTimeFormat,
   DecimalSeparator,
-  FeeMode,
+  BtcFeeMode,
+  FiatFeeMode,
   RowFilter,
   RowFilterMatch,
 } from "./csvImport";
@@ -33,8 +34,12 @@ export interface ImportPresetConfig {
   dateFormat?: CsvDateFormat;
   /** Format of the mapped time column, when the export has one. */
   timeFormat?: CsvTimeFormat;
-  /** Whether the amount column already has the BTC fee taken out. */
-  feeMode?: FeeMode;
+  /** Buys: is the BTC fee already out of the amount? */
+  feeBtcModeIn?: BtcFeeMode;
+  /** Sells, spends, outgoing transfers: same question. */
+  feeBtcModeOut?: BtcFeeMode;
+  /** Is the EUR fee already part of the EUR amount? */
+  feeFiatMode?: FiatFeeMode;
   amountUnit?: AmountUnit;
   feeUnit?: AmountUnit;
   typeValueMapping?: Record<string, TransactionType>;
@@ -66,7 +71,11 @@ interface RawPresetJson {
   mapping: Record<string, string>;
   dateFormat?: string;
   timeFormat?: string;
-  feeMode?: string;
+  feeBtcModeIn?: string;
+  feeBtcModeOut?: string;
+  /** Pre-split single setting, still read from older user presets. */
+  feeBtcMode?: string;
+  feeFiatMode?: string;
   amountUnit?: string;
   feeUnit?: string;
   fixedType?: string;
@@ -101,7 +110,9 @@ function toSystemPreset(id: string, raw: RawPresetJson): SystemImportPreset {
     mapping: raw.mapping as ColumnMapping,
     dateFormat: raw.dateFormat as CsvDateFormat | undefined,
     timeFormat: raw.timeFormat as CsvTimeFormat | undefined,
-    feeMode: raw.feeMode as FeeMode | undefined,
+    feeBtcModeIn: (raw.feeBtcModeIn ?? raw.feeBtcMode) as BtcFeeMode | undefined,
+    feeBtcModeOut: (raw.feeBtcModeOut ?? raw.feeBtcMode) as BtcFeeMode | undefined,
+    feeFiatMode: raw.feeFiatMode as FiatFeeMode | undefined,
     amountUnit: raw.amountUnit as AmountUnit | undefined,
     feeUnit: raw.feeUnit as AmountUnit | undefined,
     fixedType: raw.fixedType as TransactionType | undefined,

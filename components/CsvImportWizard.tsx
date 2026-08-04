@@ -8,14 +8,16 @@
 // All parsing happens in the browser; the CSV never touches a server (spec §2).
 
 import { useCallback, useMemo, useState } from "react";
+import { createEurValuator } from "@/lib/valuation";
 import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import type { TransactionType, WalletType } from "@/lib/types";
-import { dec, formatBtc, ZERO } from "@/lib/decimal";
+import { dec, formatBtc, formatFiatPlain, ZERO } from "@/lib/decimal";
 import {
   buildImportRows,
   DATE_FORMATS,
-  FEE_MODES,
+  BTC_FEE_MODES,
+  FIAT_FEE_MODES,
   TIME_FORMATS,
   EMPTY_ROW_FILTER,
   filterRows,
@@ -29,6 +31,11 @@ import {
   distinctColumnValues,
   guessMapping,
   detectTimeFormat,
+  btcAmountAdjustment,
+  effectiveEurTotal,
+  needsEurValuation,
+  normalizeDateCell,
+  normalizeTimeCell,
   MAPPING_FIELDS,
   parseImportDateTime,
   normalizeType,
@@ -40,7 +47,8 @@ import {
   type ColumnMapping,
   type CsvDateFormat,
   type CsvTimeFormat,
-  type FeeMode,
+  type BtcFeeMode,
+  type FiatFeeMode,
   type DateTimeFormats,
   type CsvDelimiter,
   type CsvEncoding,
@@ -83,6 +91,7 @@ const ERROR_FIELDS: Record<RowErrorCode, MappingField[]> = {
   invalidPrice: ["pricePerBtcEur"],
   invalidTotal: ["totalFiatEur"],
   invalidFee: ["feeBtc", "feeFiatEur"],
+  invalidOriginal: ["originalAmount", "originalPricePerBtc"],
   invalidTxid: ["txid"],
   invalidAddress: ["address"],
 };
@@ -161,8 +170,13 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
   const [timeFormatChoice, setTimeFormatChoice] = useState<CsvTimeFormat | "">("");
   const [amountUnit, setAmountUnit] = useState<AmountUnit>("btc");
   const [feeUnit, setFeeUnit] = useState<AmountUnit>("btc");
-  /** Does the file's amount column already have the BTC fee taken out? */
-  const [feeMode, setFeeMode] = useState<FeeMode>("included");
+  // Is the mapped BTC fee already out of the mapped BTC amount? Asked per
+  // direction: one file often reports buys net of the fee and withdrawals with
+  // the fee still inside (see BtcFeeMode).
+  const [feeBtcModeIn, setFeeBtcModeIn] = useState<BtcFeeMode>("notDeducted");
+  const [feeBtcModeOut, setFeeBtcModeOut] = useState<BtcFeeMode>("notDeducted");
+  /** Is the mapped EUR fee already part of the mapped EUR amount? */
+  const [feeFiatMode, setFeeFiatMode] = useState<FiatFeeMode>("net");
 
   // Step "typeValues": explicit overrides on top of auto-detected synonyms
   const [typeValueMapping, setTypeValueMapping] = useState<
@@ -173,6 +187,13 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
   const [rows, setRows] = useState<ImportRow[]>([]);
   /** false = columns nothing was mapped to are hidden (they are all empty). */
   const [showAllColumns, setShowAllColumns] = useState(false);
+  /** Bulk EUR valuation: null = idle, otherwise progress over affected rows. */
+  const [valuation, setValuation] = useState<{
+    done: number;
+    total: number;
+    failed: number;
+    running: boolean;
+  } | null>(null);
   const [imported, setImported] = useState<number | null>(null);
   const [newPresetName, setNewPresetName] = useState("");
   const [presetSavedNotice, setPresetSavedNotice] = useState<string | null>(null);
@@ -258,7 +279,9 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     setTimeFormatChoice(preset.timeFormat ?? "");
     setAmountUnit(preset.amountUnit ?? "btc");
     setFeeUnit(preset.feeUnit ?? "btc");
-    setFeeMode(preset.feeMode ?? "included");
+    setFeeBtcModeIn(preset.feeBtcModeIn ?? "notDeducted");
+    setFeeBtcModeOut(preset.feeBtcModeOut ?? "notDeducted");
+    setFeeFiatMode(preset.feeFiatMode ?? "net");
     setTypeValueMapping(preset.typeValueMapping ?? {});
     setRowFilter(preset.rowFilter ?? EMPTY_ROW_FILTER);
   }
@@ -278,7 +301,9 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       setMapping(guessMapping(hdrs, rows));
       setAmountUnit("btc");
       setFeeUnit("btc");
-      setFeeMode("included");
+      setFeeBtcModeIn("notDeducted");
+      setFeeBtcModeOut("notDeducted");
+      setFeeFiatMode("net");
       setTypeValueMapping({});
       setRowFilter(EMPTY_ROW_FILTER);
       setSelectedPreset(MANUAL);
@@ -398,7 +423,8 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       mapping,
       amountUnit,
       feeUnit,
-      ...(mapping.feeBtc !== undefined ? { feeMode } : {}),
+      ...(mapping.feeBtc !== undefined ? { feeBtcModeIn, feeBtcModeOut } : {}),
+      ...(mapping.feeFiatEur !== undefined ? { feeFiatMode } : {}),
       ...(typeMode === "fixed" ? { fixedType } : {}),
       ...(effectiveDateFormat !== null ? { dateFormat: effectiveDateFormat } : {}),
       ...(mapping.time !== undefined && effectiveTimeFormat !== null
@@ -421,9 +447,20 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
   }
 
   function setRowValue(rowId: string, field: MappingField, value: string) {
+    // Typing an EUR value over a derived one makes it a documented figure again.
+    const manual = field === "pricePerBtcEur" || field === "totalFiatEur";
     setRows((rs) =>
       rs.map((r) =>
-        r.id === rowId ? { ...r, values: { ...r.values, [field]: value } } : r,
+        r.id === rowId
+          ? {
+              ...r,
+              values: {
+                ...r.values,
+                [field]: value,
+                ...(manual ? { eurValuationSource: "manual" as const } : {}),
+              },
+            }
+          : r,
       ),
     );
   }
@@ -505,8 +542,11 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       setRows(
         buildImportRows(dataRows, headers, mapping, decimalSep, {
           fixedType: typeMode === "fixed" ? fixedType : undefined,
+          dateFormat: effectiveDateFormat ?? undefined,
           timeFormat: effectiveTimeFormat ?? undefined,
-          feeMode,
+          feeBtcModeIn,
+          feeBtcModeOut,
+          feeFiatMode,
           amountUnit,
           feeUnit,
           typeValueMapping: typeMode === "column" ? effectiveTypeValueMapping : undefined,
@@ -515,6 +555,58 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       );
     }
     setStep(step + 1);
+  }
+
+  /** Rows of a priced type that have no EUR value but could be valued. */
+  const rowsNeedingEur = useMemo(
+    () => rows.filter((r) => !r.excluded && needsEurValuation(r.values, formats)),
+    [rows, formats],
+  );
+
+  /**
+   * Fill the missing EUR values from the historical Binance BTC/EUR close, one
+   * distinct day per request (see createEurValuator). Explicitly triggered, and
+   * every value stays editable afterwards.
+   */
+  async function valuateMissingEur() {
+    const targets = rowsNeedingEur;
+    if (targets.length === 0) return;
+    setValuation({ done: 0, total: targets.length, failed: 0, running: true });
+    const valuate = createEurValuator();
+    let failed = 0;
+    for (const [i, row] of targets.entries()) {
+      const iso = parseImportDateTime(row.values.date, row.values.time, formats);
+      let result = null;
+      try {
+        result = iso === null ? null : await valuate(iso, row.values.amountBtc);
+      } catch {
+        result = null; // network/rate limit — the row keeps asking for a value
+      }
+      if (result === null) failed++;
+      else {
+        setRows((rs) =>
+          rs.map((r) =>
+            r.id === row.id
+              ? {
+                  ...r,
+                  values: {
+                    ...r.values,
+                    pricePerBtcEur: result.pricePerBtcEur,
+                    totalFiatEur: result.totalFiatEur,
+                    eurValuationSource: "binance-klines",
+                  },
+                }
+              : r,
+          ),
+        );
+      }
+      setValuation({
+        done: i + 1,
+        total: targets.length,
+        failed,
+        running: i + 1 < targets.length,
+      });
+    }
   }
 
   function doImport() {
@@ -582,6 +674,8 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     pricePerBtcEur: "fiat",
     totalFiatEur: "fiat",
     feeFiatEur: "fiat",
+    originalAmount: "fiat",
+    originalPricePerBtc: "fiat",
   };
   const COLUMN_LABEL: Record<MappingField, string> = {
     type: t("tx.type"),
@@ -592,6 +686,9 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     totalFiatEur: t("tx.totalEur"),
     feeBtc: t("tx.feeBtc"),
     feeFiatEur: t("tx.feeEur"),
+    originalCurrency: t("tx.originalCurrency"),
+    originalAmount: t("tx.originalAmount"),
+    originalPricePerBtc: t("tx.originalPrice"),
     txid: t("tx.txid"),
     address: t("tx.address"),
     note: t("tx.note"),
@@ -610,6 +707,16 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     (f) => showAllColumns || populatedFields.has(f),
   );
   const hiddenColumnCount = MAPPING_FIELDS.length - populatedFields.size;
+
+  /**
+   * Extra, read-only preview column: what the ledger books once the EUR fee
+   * mode is applied, so the chosen interpretation stays checkable per row.
+   */
+  const effectiveEurByRow = useMemo(
+    () => new Map(rows.map((r) => [r.id, effectiveEurTotal(r.values)])),
+    [rows],
+  );
+  const showEffectiveEur = [...effectiveEurByRow.values()].some((v) => v !== null);
 
   /**
    * Column width from the widest value in it (plus the header and, for numeric
@@ -635,7 +742,20 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, locale]);
 
-  /** Date and time cells keep the file's own values — say how they are read. */
+  /**
+   * A BTC amount the fee mode changed is spelled out, so it never looks like
+   * the import silently rounded the file's value.
+   */
+  const amountTitle = (row: ImportRow): string | undefined => {
+    const adj = btcAmountAdjustment(row.values, feeBtcModeIn, feeBtcModeOut);
+    if (adj === null) return undefined;
+    return t(adj.added ? "csvImport.amountFeeAdded" : "csvImport.amountFeeRemoved", {
+      file: formatBtc(adj.fileAmount, loc),
+      fee: formatBtc(adj.fee, loc),
+    });
+  };
+
+  /** Date and time cells are normalized — say which moment they add up to. */
   const dateTitle = (row: ImportRow): string | undefined => {
     const iso = parseImportDateTime(row.values.date, row.values.time, formats);
     return iso === null
@@ -1014,13 +1134,22 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                 const required = REQUIRED_FIELDS.includes(field);
                 const header = mapping[field];
                 const colIdx = header !== undefined ? headers.indexOf(header) : -1;
-                const sample =
-                  colIdx >= 0 ? (filteredDataRows[0]?.[colIdx] ?? "").trim() : "";
                 const isType = field === "type";
                 const isDate = field === "date";
                 const isTime = field === "time";
+                const rawSample =
+                  colIdx >= 0 ? (filteredDataRows[0]?.[colIdx] ?? "").trim() : "";
+                // The example shows what this field takes from the column, not
+                // the whole cell: one column feeding date and time contributes
+                // its date to the one and its clock time to the other.
+                const sample = isDate
+                  ? normalizeDateCell(rawSample, effectiveDateFormat ?? undefined)
+                  : isTime
+                    ? normalizeTimeCell(rawSample, effectiveTimeFormat ?? undefined)
+                    : rawSample;
                 const isAmount = field === "amountBtc";
-                const isFee = field === "feeBtc";
+                const isFeeBtc = field === "feeBtc";
+                const isFeeFiat = field === "feeFiatEur";
                 const columnSelect = (extraCls = "", title?: string) => (
                   <select
                     className={`${inputCls} ${extraCls}`}
@@ -1079,20 +1208,48 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                           </label>
                         </span>
                       )}
-                      {/* Exports differ in whether the amount column already has
-                          the BTC fee taken out; the import converts either one
-                          to the ledger convention (CLAUDE.md §3.2). */}
-                      {isFee && colIdx >= 0 && (
+                      {/* Exports disagree on whether a fee is already part of
+                          the amount it belongs to. Asked right at the mapped fee
+                          column — and only there — because the answer decides
+                          what the ledger books (CLAUDE.md §3.2). */}
+                      {isFeeBtc &&
+                        colIdx >= 0 &&
+                        (
+                          [
+                            ["in", feeBtcModeIn, setFeeBtcModeIn],
+                            ["out", feeBtcModeOut, setFeeBtcModeOut],
+                          ] as const
+                        ).map(([direction, value, set]) => (
+                          <span
+                            key={direction}
+                            className="mt-1.5 flex flex-col gap-1 text-xs text-muted"
+                          >
+                            <span>{t(`csvImport.btcFeeModeQuestion.${direction}`)}</span>
+                            {BTC_FEE_MODES.map((mode) => (
+                              <label key={mode} className="flex items-center gap-1.5">
+                                <input
+                                  type="radio"
+                                  name={`feeBtcMode-${direction}`}
+                                  checked={value === mode}
+                                  onChange={() => set(mode)}
+                                />
+                                {t(`csvImport.btcFeeModes.${mode}`)}
+                              </label>
+                            ))}
+                          </span>
+                        ))}
+                      {isFeeFiat && colIdx >= 0 && (
                         <span className="mt-1.5 flex flex-col gap-1 text-xs text-muted">
-                          {FEE_MODES.map((mode) => (
+                          <span>{t("csvImport.fiatFeeModeQuestion")}</span>
+                          {FIAT_FEE_MODES.map((mode) => (
                             <label key={mode} className="flex items-center gap-1.5">
                               <input
                                 type="radio"
-                                name="feeMode"
-                                checked={feeMode === mode}
-                                onChange={() => setFeeMode(mode)}
+                                name="feeFiatMode"
+                                checked={feeFiatMode === mode}
+                                onChange={() => setFeeFiatMode(mode)}
                               />
-                              {t(`csvImport.feeModes.${mode}`)}
+                              {t(`csvImport.fiatFeeModes.${mode}`)}
                             </label>
                           ))}
                         </span>
@@ -1117,7 +1274,7 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                           {t("csvImport.typeFixedHint")}
                         </span>
                       </>
-                    ) : isAmount || isFee ? (
+                    ) : isAmount || isFeeBtc ? (
                       colIdx >= 0 ? (
                         // Column-select and unit-select each fill one grid cell
                         // (50/50, like the date row); the sample value moves to
@@ -1284,6 +1441,55 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
               </span>
             </div>
 
+            {/* Rows settled in another currency carry no EUR figure; EUR is the
+                valuation currency for everything, so offer to derive it from the
+                historical BTC/EUR close (CLAUDE.md §3.2). */}
+            {(rowsNeedingEur.length > 0 || valuation !== null) && (
+              <div className="space-y-2 rounded-lg border border-border-c/60 bg-surface-2/40 p-3">
+                <p className="text-xs leading-relaxed text-muted">
+                  {t("csvImport.eurValuationIntro", { count: rowsNeedingEur.length })}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={valuateMissingEur}
+                    disabled={valuation?.running || rowsNeedingEur.length === 0}
+                  >
+                    {t("csvImport.eurValuationRun")}
+                  </Button>
+                  {valuation !== null && (
+                    <span className="text-xs text-muted" role="status">
+                      {valuation.running
+                        ? t("csvImport.eurValuationProgress", {
+                            done: valuation.done,
+                            total: valuation.total,
+                          })
+                        : t("csvImport.eurValuationDone", {
+                            count: valuation.total - valuation.failed,
+                          })}
+                      {!valuation.running && valuation.failed > 0 && (
+                        <span className="ml-1 text-loss">
+                          {t("csvImport.eurValuationFailed", { count: valuation.failed })}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {valuation?.running && (
+                    <span
+                      className="h-1.5 w-32 overflow-hidden rounded-full bg-surface-2"
+                      aria-hidden
+                    >
+                      <span
+                        className="block h-full rounded-full bg-accent transition-all"
+                        style={{
+                          width: `${Math.round((valuation.done / valuation.total) * 100)}%`,
+                        }}
+                      />
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 text-xs text-muted">
               <Switch
                 checked={showAllColumns}
@@ -1312,12 +1518,18 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                         {COLUMN_LABEL[field]}
                       </th>
                     ))}
+                    {showEffectiveEur && (
+                      <th className="px-2 py-2 text-left font-normal">
+                        {t("csvImport.effectiveEur")}
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => {
                     const errors = rowErrors.get(row.id)!;
                     const typeInvalid = normalizeType(row.values.type) === null;
+                    const effectiveEur = effectiveEurByRow.get(row.id) ?? null;
                     return (
                       <tr
                         key={row.id}
@@ -1338,7 +1550,26 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                             label={t("csvImport.includeRow", { line: row.line })}
                           />
                         </td>
-                        <td className="px-2 py-2 text-xs text-muted">{row.line}</td>
+                        <td className="px-2 py-2 text-xs whitespace-nowrap text-muted">
+                          {row.line}
+                          {/* Which rows the EUR valuation is about: still
+                              missing one, or derived from a historical close. */}
+                          {needsEurValuation(row.values, formats) ? (
+                            <span
+                              className="ml-1 cursor-default text-accent"
+                              title={t("csvImport.eurMissingHint")}
+                            >
+                              €?
+                            </span>
+                          ) : row.values.eurValuationSource === "binance-klines" ? (
+                            <span
+                              className="ml-1 cursor-default"
+                              title={t("csvImport.eurDerivedHint")}
+                            >
+                              ≈
+                            </span>
+                          ) : null}
+                        </td>
                         {previewFields.map((field) => (
                           <td key={field} className="px-2 py-1.5">
                             {field === "type" ? (
@@ -1387,11 +1618,42 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                                 title:
                                   field === "date" || field === "time"
                                     ? dateTitle(row)
-                                    : undefined,
+                                    : field === "amountBtc"
+                                      ? amountTitle(row)
+                                      : undefined,
                               })
                             )}
                           </td>
                         ))}
+                        {showEffectiveEur && (
+                          <td className="px-2 py-1.5 text-right font-mono text-xs whitespace-nowrap">
+                            {effectiveEur === null ? (
+                              <span className="text-muted">—</span>
+                            ) : (
+                              <>
+                                <span
+                                  title={
+                                    normalizeType(row.values.type) === "buy"
+                                      ? t("csvImport.effectiveEurCostHint")
+                                      : t("csvImport.effectiveEurProceedsHint")
+                                  }
+                                >
+                                  {formatFiatPlain(effectiveEur, loc)}
+                                </span>
+                                {row.values.pricePerBtcEur !== "" && (
+                                  <span className="block text-[11px] text-muted">
+                                    {t("csvImport.effectiveEurRate", {
+                                      rate: formatFiatPlain(
+                                        row.values.pricePerBtcEur,
+                                        loc,
+                                      ),
+                                    })}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

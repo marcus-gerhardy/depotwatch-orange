@@ -23,6 +23,9 @@ export interface LotAllocation {
   amountBtc: string;
 }
 
+/** Provenance of a transaction's EUR value, so estimates stay recognizable. */
+export type EurValuationSource = "manual" | "binance-klines";
+
 export interface Transaction {
   id: string;
   type: TransactionType;
@@ -73,6 +76,24 @@ export interface Transaction {
    * the separate address watchlist (CLAUDE.md §3.1/§3.3).
    */
   address?: string;
+  /**
+   * Settled in another currency or asset than EUR (e.g. a BTC buy against USDT
+   * on Bitget): the currency/asset code, the amount paid/received in it, and
+   * the price per BTC in it.
+   *
+   * Documentation only (CLAUDE.md §3.2). EUR stays the one valuation currency:
+   * every calculation — FIFO, holding periods, P&L, dashboard — reads
+   * `pricePerBtcEur`/`totalFiatEur` and never these fields.
+   */
+  originalCurrency?: string;
+  originalAmount?: string;
+  originalPricePerBtc?: string;
+  /**
+   * Where the EUR valuation came from: entered by hand or derived from the
+   * historical Binance BTC/EUR close of the transaction day. Absent means
+   * "manual" (every transaction written before this field existed).
+   */
+  eurValuationSource?: EurValuationSource;
   note: string;
 }
 
@@ -127,6 +148,33 @@ export interface AppSettings {
   autosaveDebounceMs: number;
 }
 
+/** One widget placed on the dashboard grid, in grid units (CLAUDE.md §4.1). */
+export interface DashboardWidgetPlacement {
+  /** Instance id; unique per placement and used as the grid item key. */
+  i: string;
+  /** Registry id of the widget rendered here. */
+  widgetId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * How the user arranged the interface. Part of the portfolio file rather than
+ * a device preference (CLAUDE.md §3.5), so the arrangement travels with the
+ * file instead of being tied to one browser.
+ *
+ * Every field is optional and so is `uiSettings` itself: a file written before
+ * this existed stays valid and simply falls back to the defaults.
+ */
+export interface UiSettings {
+  /** Position, size and choice of dashboard widgets. */
+  dashboardLayout?: DashboardWidgetPlacement[];
+  /** Visible transaction-table columns, in display order. */
+  transactionColumns?: string[];
+}
+
 export interface PortfolioFile {
   version: "1.0";
   settings: AppSettings;
@@ -136,6 +184,8 @@ export interface PortfolioFile {
   utxoLabels: UtxoLabel[];
   /** User-defined CSV import presets, portable with the file (see CLAUDE.md §3.4). */
   importPresets: UserImportPreset[];
+  /** Interface arrangement; absent in files written before it existed. */
+  uiSettings?: UiSettings;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -13,18 +13,12 @@ import {
 } from "recharts";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import { fetchDailyCloses, type DailyClose } from "@/lib/binance";
-import { dailyBalanceSeries } from "@/lib/portfolio";
+import { useDailyCloses } from "@/lib/marketData";
+import { dailyValueSeries } from "@/lib/portfolio";
 import type { LedgerEntry } from "@/lib/types";
 import { Button } from "./ui";
 
 type Range = 90 | 365 | 0; // 0 = all
-
-interface Point {
-  time: number;
-  value: number;
-  btcPrice: number;
-}
 
 export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) {
   const { t, locale } = useI18n();
@@ -33,45 +27,27 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
   const privacyMode = useAppStore((s) => s.privacyMode);
   const currency = portfolio.settings.currencyDisplay;
 
-  const [closes, setCloses] = useState<DailyClose[] | null>(null);
-  const [error, setError] = useState(false);
   const [range, setRange] = useState<Range>(365);
   const [compare, setCompare] = useState(false);
 
-  const balances = useMemo(() => dailyBalanceSeries(entries), [entries]);
+  // Shared, cached fetch: several widgets chart the same daily closes.
+  const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
+  const closes = useDailyCloses(currency, startTime);
 
-  useEffect(() => {
-    if (balances.length === 0) return;
-    let cancelled = false;
-    fetchDailyCloses(currency, balances[0].time)
-      .then((c) => !cancelled && (setCloses(c), setError(false)))
-      .catch(() => !cancelled && setError(true));
-    return () => {
-      cancelled = true;
-    };
-  }, [currency, balances]);
-
-  const data: Point[] = useMemo(() => {
-    if (!closes || balances.length === 0) return [];
-    const closeByDay = new Map(closes.map((c) => [c.time, c.close]));
-    const points: Point[] = [];
-    let lastClose: number | null = null;
-    for (const b of balances) {
-      const close: number | null = closeByDay.get(b.time) ?? lastClose;
-      if (close === null) continue;
-      lastClose = close;
-      points.push({
-        time: b.time,
-        value: b.btc.toNumber() * close,
-        btcPrice: close,
-      });
-    }
-    if (range === 0) return points;
-    return points.slice(-range);
-  }, [closes, balances, range]);
+  const data = useMemo(() => {
+    if (!closes.data) return [];
+    const points = dailyValueSeries(entries, closes.data).map((p) => ({
+      time: p.time,
+      value: p.value,
+      btcPrice: p.close,
+    }));
+    return range === 0 ? points : points.slice(-range);
+  }, [closes.data, entries, range]);
 
   if (entries.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted">{t("dashboard.chartEmpty")}</p>;
+    return (
+      <p className="py-8 text-center text-sm text-muted">{t("dashboard.chartEmpty")}</p>
+    );
   }
 
   // Axis ticks stay compact on purpose; the tooltip shows the full locale date.
@@ -85,7 +61,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
     }).format(v);
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {([90, 365, 0] as Range[]).map((r) => (
           <Button
@@ -109,14 +85,14 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
           {t("dashboard.chartCompare")}
         </label>
       </div>
-      {error ? (
+      {closes.error ? (
         <p className="py-8 text-center text-sm text-muted">
           {t("dashboard.priceUnavailable")}
         </p>
       ) : data.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">{t("common.loading")}</p>
       ) : (
-        <div className={`h-64 ${privacyMode ? "privacy-blur" : ""}`}>
+        <div className={`min-h-40 flex-1 ${privacyMode ? "privacy-blur" : ""}`}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
               <defs>

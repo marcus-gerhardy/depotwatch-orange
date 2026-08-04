@@ -11,6 +11,7 @@ import TaxView from "./TaxView";
 import WatchlistView from "./WatchlistView";
 import SettingsView from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
+import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
 
 type Tab = "dashboard" | "transactions" | "wallets" | "tax" | "watchlist" | "settings";
@@ -59,11 +60,8 @@ export default function AppShell() {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [menuOpen, setMenuOpen] = useState(false);
-  /** Pre-set wallet/account filter when jumping from the dashboard breakdown. */
-  const [txFilter, setTxFilter] = useState<{
-    walletId: string;
-    accountId: string;
-  } | null>(null);
+  /** Pre-set filter when jumping from a dashboard widget (wallet or issue). */
+  const [txFilter, setTxFilter] = useState<TxJumpFilter | null>(null);
   const fileMode = useAppStore((s) => s.fileMode);
   const dirty = useAppStore((s) => s.dirty);
   const privacyMode = useAppStore((s) => s.privacyMode);
@@ -206,8 +204,8 @@ export default function AppShell() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         {tab === "dashboard" && (
           <Dashboard
-            onSelectAccount={(walletId, accountId) => {
-              setTxFilter({ walletId, accountId });
+            onOpenTransactions={(filter) => {
+              setTxFilter(filter);
               setTab("transactions");
             }}
           />

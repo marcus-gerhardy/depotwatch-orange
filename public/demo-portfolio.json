@@ -195,5 +195,31 @@
         "pricePerBtcEur": "Price"
       }
     }
-  ]
+  ],
+  "uiSettings": {
+    "dashboardLayout": [
+      { "i": "portfolioValue-1", "widgetId": "portfolioValue", "x": 0, "y": 0, "w": 4, "h": 4 },
+      { "i": "pnl-1", "widgetId": "pnl", "x": 4, "y": 0, "w": 4, "h": 4 },
+      { "i": "btcPrice-1", "widgetId": "btcPrice", "x": 8, "y": 0, "w": 4, "h": 4 },
+      { "i": "portfolioChart-1", "widgetId": "portfolioChart", "x": 0, "y": 4, "w": 8, "h": 8 },
+      { "i": "satsStack-1", "widgetId": "satsStack", "x": 8, "y": 4, "w": 4, "h": 4 },
+      { "i": "avgCost-1", "widgetId": "avgCost", "x": 8, "y": 8, "w": 4, "h": 4 },
+      { "i": "priceEntries-1", "widgetId": "priceEntries", "x": 0, "y": 12, "w": 8, "h": 8 },
+      { "i": "custody-1", "widgetId": "custody", "x": 8, "y": 12, "w": 4, "h": 5 },
+      { "i": "dataQuality-1", "widgetId": "dataQuality", "x": 8, "y": 17, "w": 4, "h": 3 },
+      { "i": "walletBreakdown-1", "widgetId": "walletBreakdown", "x": 0, "y": 20, "w": 6, "h": 6 },
+      { "i": "dca-1", "widgetId": "dca", "x": 6, "y": 20, "w": 6, "h": 6 },
+      { "i": "halving-1", "widgetId": "halving", "x": 0, "y": 26, "w": 4, "h": 6 },
+      { "i": "networkFees-1", "widgetId": "networkFees", "x": 4, "y": 26, "w": 4, "h": 6 },
+      { "i": "holdingComposition-1", "widgetId": "holdingComposition", "x": 8, "y": 26, "w": 4, "h": 6 }
+    ],
+    "transactionColumns": [
+      "date",
+      "type",
+      "walletAccount",
+      "amount",
+      "price",
+      "value"
+    ]
+  }
 }

@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
+import { useI18n, intlLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import {
-  Decimal,
-  btcString,
-  dec,
-  fiatString,
-  formatBtc,
-  ZERO,
-} from "@/lib/decimal";
+import { btcString, dec, fiatString, ZERO } from "@/lib/decimal";
 import { allocateFifo, computeFifo } from "@/lib/fifo";
 import { fetchSpotPrice } from "@/lib/binance";
+import { suggestEurValuation } from "@/lib/valuation";
+import { normalizeCurrencyCode } from "@/lib/csvImport";
 import {
   isValidBitcoinAddress,
   isValidTxid,
@@ -23,6 +18,7 @@ import {
   flattenLedger,
   type LedgerEntry,
   type LotAllocation,
+  type EurValuationSource,
   type Transaction,
   type TransactionType,
 } from "@/lib/types";
@@ -106,6 +102,20 @@ export default function TransactionForm({
   const [feeBtc, setFeeBtc] = useState(existing?.feeBtc ?? "");
   const [feeFiat, setFeeFiat] = useState(existing?.feeFiatEur ?? "");
   const [note, setNote] = useState(existing?.note ?? "");
+  // Settled in another currency/asset — documentation only (CLAUDE.md §3.2).
+  const [origCurrency, setOrigCurrency] = useState(existing?.originalCurrency ?? "");
+  const [origAmount, setOrigAmount] = useState(existing?.originalAmount ?? "");
+  const [origPrice, setOrigPrice] = useState(existing?.originalPricePerBtc ?? "");
+  const [showOriginal, setShowOriginal] = useState(
+    existing?.originalCurrency !== undefined ||
+      existing?.originalAmount !== undefined ||
+      existing?.originalPricePerBtc !== undefined,
+  );
+  const [eurSource, setEurSource] = useState<EurValuationSource>(
+    existing?.eurValuationSource ?? "manual",
+  );
+  const [valuating, setValuating] = useState(false);
+  const [valuationError, setValuationError] = useState<string | null>(null);
   // On-chain data, transfers only (CLAUDE.md §3.2).
   const [txid, setTxid] = useState(existing?.txid ?? "");
   const [address, setAddress] = useState(existing?.address ?? "");
@@ -148,46 +158,31 @@ export default function TransactionForm({
         ? (existing.counterpartyAccountId ?? EXTERNAL)
         : EXTERNAL,
   );
-  // Transfer only: which source lot to move — "" = automatic FIFO (oldest
-  // first, may span several lots), otherwise the targeted lot's tx id.
-  const initialTransferLotId =
-    existing?.type === "transfer_out" && existing.lotAllocations?.length === 1
-      ? existing.lotAllocations[0].lotTransactionId
-      : "";
-  const [transferLotId, setTransferLotId] = useState(initialTransferLotId);
   const [error, setError] = useState<string | null>(null);
-
-  // Open lots of the source account, aggregated per lot transaction (a
-  // transfer_in may have re-created several lots under one id).
-  const transferLotOptions = useMemo(() => {
-    if (fromAccount === EXTERNAL) return [];
-    const byId = new Map<
-      string,
-      { txId: string; acquiredDate: string; remaining: Decimal }
-    >();
-    for (const l of openLots) {
-      if (l.accountId !== fromAccount || l.remainingBtc.lte(0)) continue;
-      const prev = byId.get(l.txId);
-      if (prev) prev.remaining = prev.remaining.plus(l.remainingBtc);
-      else
-        byId.set(l.txId, {
-          txId: l.txId,
-          acquiredDate: l.acquiredDate,
-          remaining: l.remainingBtc,
-        });
-    }
-    return [...byId.values()];
-  }, [openLots, fromAccount]);
 
   const needsPrice = formType === "buy" || formType === "sell" || formType === "spend";
 
   // On-chain fields exist for transfers only; they are stored normalized
   // (trimmed, txid lower case, all-uppercase bech32 folded to lower case).
+  const normalizedOrigCurrency = normalizeCurrencyCode(origCurrency);
   const normalizedTxid = normalizeTxid(txid);
   const normalizedAddress = normalizeBitcoinAddress(address);
   const txidInvalid = normalizedTxid !== "" && !isValidTxid(normalizedTxid);
   const addressInvalid =
     normalizedAddress !== "" && !isValidBitcoinAddress(normalizedAddress);
+  const originalFields = needsPrice
+    ? {
+        ...(normalizedOrigCurrency !== ""
+          ? { originalCurrency: normalizedOrigCurrency }
+          : {}),
+        ...(origAmount.trim() !== ""
+          ? { originalAmount: fiatString(origAmount) }
+          : {}),
+        ...(origPrice.trim() !== ""
+          ? { originalPricePerBtc: fiatString(origPrice) }
+          : {}),
+      }
+    : {};
   const onChainFields =
     formType === "transfer"
       ? {
@@ -210,6 +205,7 @@ export default function TransactionForm({
   }
   function changePrice(v: string) {
     setPrice(v);
+    setEurSource("manual");
     const a = dec(amount);
     if (v.trim() !== "" && a.gt(0)) {
       setTotal(fiatString(dec(v).mul(a).toDecimalPlaces(2)));
@@ -217,9 +213,39 @@ export default function TransactionForm({
   }
   function changeTotal(v: string) {
     setTotal(v);
+    setEurSource("manual");
     const a = dec(amount);
     if (v.trim() !== "" && a.gt(0)) {
       setPrice(fiatString(dec(v).div(a).toDecimalPlaces(2)));
+    }
+  }
+
+  /**
+   * Fill the EUR fields from the historical BTC/EUR close of the entered date.
+   * Only on this click — never in the background (rate limits, privacy) — and
+   * the result stays freely editable.
+   */
+  async function valuateFromHistory() {
+    setValuationError(null);
+    const iso = new Date(date).toISOString();
+    if (!dec(amount).gt(0) || Number.isNaN(Date.parse(iso))) {
+      setValuationError(t("tx.eurValuationNeedsAmount"));
+      return;
+    }
+    setValuating(true);
+    try {
+      const result = await suggestEurValuation(iso, amount);
+      if (result === null) {
+        setValuationError(t("tx.eurValuationUnavailable"));
+        return;
+      }
+      setPrice(result.pricePerBtcEur);
+      setTotal(result.totalFiatEur);
+      setEurSource("binance-klines");
+    } catch {
+      setValuationError(t("tx.eurValuationUnavailable"));
+    } finally {
+      setValuating(false);
     }
   }
 
@@ -259,6 +285,9 @@ export default function TransactionForm({
       // Empty for anything but a transfer — both legs of one transfer share
       // the same on-chain transaction and output address.
       ...onChainFields,
+      // Documentation of the actual settlement; every calculation stays on EUR.
+      // Offered for priced types only, so a transfer never carries them.
+      ...originalFields,
     };
 
     if (formType !== "transfer") {
@@ -286,6 +315,10 @@ export default function TransactionForm({
         type: formType as TransactionType,
         pricePerBtcEur: fiatString(priceD),
         totalFiatEur: fiatString(totalD),
+        // "manual" is the default, so only a derived value is recorded.
+        ...(eurSource === "binance-klines"
+          ? { eurValuationSource: eurSource as EurValuationSource }
+          : {}),
         ...(lotAllocations && lotAllocations.length > 0 ? { lotAllocations } : {}),
       };
       if (existing) updateTransaction(existing.id, tx, accountId);
@@ -303,34 +336,23 @@ export default function TransactionForm({
     // What actually leaves the source account: the transferred amount plus the
     // network fee on top (CLAUDE.md §3.2).
     const transferLeaving = transferAmount.plus(dec(feeBtc));
-    // Lot assignment for the out-leg, fixed at creation time like for sells.
-    // Rule: an internal transfer_out's allocations must cover amountBtc +
-    // feeBtc exactly (no unassigned remainder). Returns null on failure.
+    // Lot assignment for the out-leg, fixed at creation time like for sells:
+    // always FIFO over the source account's open lots (oldest first, may span
+    // several lots). Rule: an internal transfer_out's allocations must cover
+    // amountBtc + feeBtc exactly (no unassigned remainder). Returns null on
+    // failure.
     const resolveOutAllocations = (): LotAllocation[] | undefined | null => {
       if (
         existing?.type === "transfer_out" &&
         existing.lotAllocations?.length &&
         dec(existing.amountBtc).eq(transferAmount) &&
         dec(existing.feeBtc).eq(dec(feeBtc)) &&
-        existing.accountId === fromAccount &&
-        transferLotId === initialTransferLotId
+        existing.accountId === fromAccount
       ) {
         // Unchanged edit: keep the stored allocation.
         return existing.lotAllocations;
       }
       const sourceLots = openLots.filter((l) => l.accountId === fromAccount);
-      if (transferLotId) {
-        const available = sourceLots
-          .filter((l) => l.txId === transferLotId)
-          .reduce((s, l) => s.plus(l.remainingBtc), ZERO);
-        if (transferLeaving.gt(available)) {
-          setError(t("tx.lotExceeds", { max: available.toString() }));
-          return null;
-        }
-        return [
-          { lotTransactionId: transferLotId, amountBtc: transferLeaving.toString() },
-        ];
-      }
       const alloc = allocateFifo(sourceLots, transferLeaving);
       const covered = alloc.reduce((s, x) => s.plus(dec(x.amountBtc)), ZERO);
       if (covered.eq(transferLeaving)) return alloc;
@@ -478,41 +500,14 @@ export default function TransactionForm({
             {accountSelect(accountId, setAccountId, false)}
           </Field>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label={t("tx.fromAccount")}>
-                {accountSelect(
-                  fromAccount,
-                  (v) => {
-                    setFromAccount(v);
-                    setTransferLotId("");
-                  },
-                  true,
-                )}
-              </Field>
-              <Field label={t("tx.toAccount")}>
-                {accountSelect(toAccount, setToAccount, true)}
-              </Field>
-            </div>
-            {fromAccount !== EXTERNAL &&
-              (!existing || existing.type === "transfer_out") && (
-                <Field label={t("tx.lotSelection")}>
-                  <select
-                    className={inputCls}
-                    value={transferLotId}
-                    onChange={(e) => setTransferLotId(e.target.value)}
-                  >
-                    <option value="">{t("tx.lotAuto")}</option>
-                    {transferLotOptions.map((o) => (
-                      <option key={o.txId} value={o.txId}>
-                        {formatDate(o.acquiredDate, loc)} ·{" "}
-                        {formatBtc(o.remaining, loc)} BTC
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-          </>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("tx.fromAccount")}>
+              {accountSelect(fromAccount, setFromAccount, true)}
+            </Field>
+            <Field label={t("tx.toAccount")}>
+              {accountSelect(toAccount, setToAccount, true)}
+            </Field>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
@@ -542,14 +537,75 @@ export default function TransactionForm({
 
         {needsPrice && (
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("tx.totalEur")}>
-              <NumberInput
-                kind="fiat"
-                placeholder={decimalPlaceholder(loc, 2)}
-                value={total ?? ""}
-                onChange={changeTotal}
-              />
-            </Field>
+            <div>
+              <Field label={t("tx.totalEur")}>
+                <NumberInput
+                  kind="fiat"
+                  placeholder={decimalPlaceholder(loc, 2)}
+                  value={total ?? ""}
+                  onChange={changeTotal}
+                />
+              </Field>
+              {eurSource === "binance-klines" && (
+                <p className="mt-1 text-xs text-muted">{t("tx.eurValuationDerived")}</p>
+              )}
+            </div>
+            <div className="flex flex-col justify-end gap-1">
+              <Button onClick={valuateFromHistory} disabled={valuating}>
+                {valuating ? t("common.loading") : t("tx.eurValuationRun")}
+              </Button>
+              {valuationError && <p className="text-xs text-loss">{valuationError}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* Settled in another currency or asset (e.g. BTC against USDT on
+            Bitget): recorded for documentation, never for calculations. */}
+        {needsPrice && (
+          <div>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground"
+              aria-expanded={showOriginal}
+              onClick={() => setShowOriginal((v) => !v)}
+            >
+              <span aria-hidden>{showOriginal ? "▾" : "▸"}</span>
+              {t("tx.originalSection")}
+            </button>
+            {showOriginal && (
+              <fieldset className="mt-2 space-y-3 rounded-lg border border-border-c/60 p-3">
+                <p className="text-xs leading-relaxed text-muted">
+                  {t("tx.originalHint")}
+                </p>
+                <div className="grid grid-cols-3 gap-3">
+                  <Field label={t("tx.originalCurrency")}>
+                    <input
+                      className={inputCls}
+                      spellCheck={false}
+                      placeholder={t("tx.originalCurrencyPlaceholder")}
+                      value={origCurrency}
+                      onChange={(e) => setOrigCurrency(e.target.value)}
+                    />
+                  </Field>
+                  <Field label={t("tx.originalAmount")}>
+                    <NumberInput
+                      kind="fiat"
+                      placeholder={decimalPlaceholder(loc, 2)}
+                      value={origAmount}
+                      onChange={setOrigAmount}
+                    />
+                  </Field>
+                  <Field label={t("tx.originalPrice")}>
+                    <NumberInput
+                      kind="fiat"
+                      placeholder={decimalPlaceholder(loc, 2)}
+                      value={origPrice}
+                      onChange={setOrigPrice}
+                    />
+                  </Field>
+                </div>
+              </fieldset>
+            )}
           </div>
         )}
 

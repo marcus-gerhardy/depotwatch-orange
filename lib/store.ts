@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type {
   Account,
+  DashboardWidgetPlacement,
   Locale,
   PortfolioFile,
   Transaction,
@@ -104,6 +105,21 @@ interface AppState {
   /** Insert, or overwrite by id if it already exists. */
   saveImportPreset: (preset: UserImportPreset) => void;
   deleteImportPreset: (id: string) => void;
+
+  /**
+   * Interface arrangement (CLAUDE.md §3.5). Both setters are called with the
+   * complete new value once an editing session ends, not per interaction, and
+   * both ignore a value that equals what is already stored — committing an
+   * unchanged arrangement (e.g. when leaving the dashboard) must not dirty the
+   * file or trigger a re-encryption.
+   */
+  saveDashboardLayout: (layout: DashboardWidgetPlacement[]) => void;
+  saveTransactionColumns: (columns: string[]) => void;
+}
+
+/** Structural comparison for values that are plain JSON (see the UI settings). */
+function sameJson(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
 export function serializePortfolio(p: PortfolioFile): string {
@@ -256,7 +272,12 @@ export const useAppStore = create<AppState>((set, get) => {
   const mutate = (fn: (p: PortfolioFile) => PortfolioFile) => {
     const p = get().portfolio;
     if (!p) return;
-    set({ portfolio: fn(p), dirty: true });
+    const next = fn(p);
+    // An update that changed nothing must not mark the file dirty: the UI
+    // settings are committed wholesale when an editing session ends, which
+    // also happens when nothing was actually moved.
+    if (next === p) return;
+    set({ portfolio: next, dirty: true });
     scheduleAutosave();
   };
 
@@ -492,5 +513,19 @@ export const useAppStore = create<AppState>((set, get) => {
         ...p,
         importPresets: p.importPresets.filter((x) => x.id !== id),
       })),
+
+    saveDashboardLayout: (layout) =>
+      mutate((p) =>
+        sameJson(p.uiSettings?.dashboardLayout, layout)
+          ? p
+          : { ...p, uiSettings: { ...p.uiSettings, dashboardLayout: layout } },
+      ),
+
+    saveTransactionColumns: (columns) =>
+      mutate((p) =>
+        sameJson(p.uiSettings?.transactionColumns, columns)
+          ? p
+          : { ...p, uiSettings: { ...p.uiSettings, transactionColumns: columns } },
+      ),
   };
 });

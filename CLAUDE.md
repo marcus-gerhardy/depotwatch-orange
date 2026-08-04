@@ -77,6 +77,10 @@ Transaction schema:
   "lotAllocations": "sell/spend/transfer_out: array of { lotTransactionId, amountBtc } — references the buy/transfer_in transaction(s) (lots) this amount came from; for a transfer_out these are the source-account lots the transfer closes, and their sum must equal amountBtc exactly",
   "txid": "transfer_in/transfer_out only, optional: on-chain transaction id (64 hex chars, lower case)",
   "address": "transfer_in/transfer_out only, optional: the Bitcoin address of this leg — destination for a transfer_out, receiving address for a transfer_in",
+  "originalCurrency": "optional: currency/asset the transaction was actually settled in, e.g. \"USDT\"",
+  "originalAmount": "optional: decimal string — amount paid/received in that currency",
+  "originalPricePerBtc": "optional: decimal string — price per BTC in that currency",
+  "eurValuationSource": "optional: manual | binance-klines — where the EUR value comes from",
   "note": "string"
 }
 ```
@@ -86,6 +90,10 @@ Note: process amounts as strings/with a decimal library, not as JS `number` (avo
 Transfer legs created by the transfer dialog carry the moved lots' quantity-weighted average cost in `pricePerBtcEur` and the value of the transferred amount in `totalFiatEur`, so the transaction table shows a price and a value for transfers too. That is display data: the FIFO engine keeps deriving cost basis and acquisition dates from the moved lots (an internal transfer_in never reads the price), and a linked existing transaction keeps a price it already has.
 
 Linking an existing transaction as the out-leg (transfer dialog): the candidate matches when its `amountBtc` **plus** the network fee entered in the dialog equals the sum of the selected lots. Its amount is never rewritten — only `feeBtc` and the lot allocations are written back. Picking a candidate adopts its own `feeBtc` into the dialog when no fee was entered yet.
+
+**Settled in another currency** (`originalCurrency`, `originalAmount`, `originalPricePerBtc`): a transaction may have been settled in something other than EUR (e.g. a BTC buy against USDT on Bitget). Those three optional fields record it **for documentation only**. EUR stays the one binding valuation currency: FIFO, holding periods, P&L and the dashboard read `totalFiatEur`/`pricePerBtcEur` exclusively and never these fields — there is no per-field currency choice anywhere in the app. All four fields are optional, so files written before they existed stay valid without migration.
+
+**EUR valuation of such transactions** (`eurValuationSource`, `lib/valuation.ts`): when a buy/sell/spend has a timestamp and an amount but no EUR figure, the EUR value can be derived from the Binance BTC/EUR daily close of that day (`fetchDailyClose` in `lib/binance.ts`): `totalFiatEur = amountBtc × close`, and `eurValuationSource` is set to `"binance-klines"` so an estimated value stays distinguishable from a documented one (absent means `"manual"`). Every derived value remains freely editable, and editing it puts the source back to `"manual"`. The lookup never runs in the background or over the whole ledger at once — only on an explicit click in the transaction dialog or as one bulk action in the CSV import preview (rate limits, and every request tells a third party which days one is interested in). One request per distinct day serves all rows on it (`createEurValuator`). A day Binance has no candle for keeps asking for a manual value. The transaction table shows the original currency in an opt-in column and marks a derived EUR value with "≈".
 
 On-chain fields (`txid`, `address`): both optional and only meaningful for `transfer_in`/`transfer_out` — the form never offers them for buy/sell/spend, and the CSV import drops them for those types. `txid` is stored normalized (trimmed, lower case) and must be exactly 64 hex characters; `address` must be a syntactically valid Bitcoin address (legacy P2PKH/P2SH, bech32 SegWit v0, bech32m Taproot — checksum verified for bech32/bech32m, case rules per BIP-173), stored trimmed with an all-uppercase bech32 address folded to lower case. Because one on-chain transaction can pay several outputs, the address pins down which output this leg means. Both are **matching aids only** (pairing an out-leg with its in-leg): the security/privacy and UTXO features must keep operating exclusively on the address watchlist (§3.1/§3.3) — never derive watchlist data from the ledger or vice versa. Explorer links for these values are rendered as plain anchors the user clicks; the table must never fetch anything while rendering (a txid/address must not reach a third party unasked).
 
@@ -140,7 +148,9 @@ Import configurations for the CSV import wizard (delimiter, encoding, date forma
       "dateFormat": "optional: iso | de | mdy | dmy | ymd | unix-s | unix-ms",
       "timeFormat": "optional: hms | h12 | datetime",
       "amountUnit": "optional: btc | sats",
-      "feeMode": "optional: included | deducted",
+      "feeBtcModeIn": "optional: deducted | notDeducted (buys)",
+      "feeBtcModeOut": "optional: deducted | notDeducted (sells, spends, transfers out)",
+      "feeFiatMode": "optional: gross | net",
       "feeUnit": "optional: btc | sats",
       "typeValueMapping": { "optional, e.g. received": "transfer_in", "sent": "transfer_out" },
       "rowFilter": {
@@ -161,31 +171,83 @@ Import configurations for the CSV import wizard (delimiter, encoding, date forma
 
 **Column mapping:** the wizard proposes a mapping from the header names. Every field/column pair is scored (whole header name > all words of a phrase anywhere in the header > substring, minus per-field exclusions) and the best pairs are taken first, so `transaction_type` or `Operation Type` finds the type field while an exact `type` still beats `ordertype`, and "Amount Fiat" lands on the fiat total rather than the BTC amount. Ties go to the earlier column, i.e. the first column that says "type" wins.
 
-**Date and time:** two separate mapping fields, both mandatory, each with its own format select. An export with separate columns ("Datum" + "Uhrzeit") maps one to each; an export with a single date-time column has that column selected in *both* fields and its time read out of the value (`timeFormat: "datetime"`). The time field is optional. The date cell stays in the preview exactly as the file has it; the time cell is normalized to "HH:MM:SS" (`normalizeTimeCell`), so a column holding a whole timestamp shows just its clock time and a 12-hour value shows the 24-hour one, while an unreadable value is kept verbatim and flagged. The two are combined only when the row is validated and imported (`parseImportDateTime`): pointing both fields at the same column parses that value once, separate columns put the time cell's clock time on the date cell's calendar day (local time, as a single cell "01.02.2024 10:30" has always been read). A time that cannot be read is reported per row as `invalidTime`. A value with an explicit zone ("…T23:30:00Z") names an instant, so day *and* clock time are both read in local terms; otherwise the two halves could come from different days and move the transaction. The mapping proposal checks the data, not just the header, so "Time in force" never becomes the time column; with no time column at all it falls back to the date column, which is also what a date-only export needs (its rows then import at midnight). A row whose time cell is empty is reported as `invalidTime` rather than silently becoming 00:00.
+**Date and time:** two separate mapping fields, both mandatory, each with its own format select. An export with separate columns ("Datum" + "Uhrzeit") maps one to each; an export with a single date-time column has that column selected in *both* fields and its time read out of the value (`timeFormat: "datetime"`). The time field is optional. Both cells are normalized for the preview with their column's format: the date to "YYYY-MM-DD" (`normalizeDateCell`) and the time to "HH:MM:SS" (`normalizeTimeCell`), so whatever shape the file uses — a unix timestamp, "07/24/2026", an ISO value with a zone offset like `2024-07-05T14:01:34+02:00` — shows up as a readable date and clock time, and a column holding a whole timestamp fills both fields with its two halves. A value that cannot be read is kept verbatim and flagged. The two are combined only when the row is validated and imported (`parseImportDateTime`): pointing both fields at the same column parses that value once, separate columns put the time cell's clock time on the date cell's calendar day (local time, as a single cell "01.02.2024 10:30" has always been read). A time that cannot be read is reported per row as `invalidTime`. A value with an explicit zone ("…T23:30:00Z", "…+02:00") names an instant, so day *and* clock time are both read in local terms; otherwise the two halves could come from different days and move the transaction. A date without any time means local midnight of that day. The mapping proposal checks the data, not just the header, so "Time in force" never becomes the time column; with no time column at all it falls back to the date column, which is also what a date-only export needs (its rows then import at midnight). A row whose time cell is empty is reported as `invalidTime` rather than silently becoming 00:00.
 
-**Values on import:** an amount is stored as a magnitude, because the direction comes from the transaction type — a leading minus, as Bitvavo writes it for withdrawals, is dropped. BTC amounts and BTC fees are rounded to 8 decimals (`btcString`), the satoshi being the smallest unit the ledger stores.
+**Original currency in the import:** `originalCurrency`, `originalAmount` and `originalPricePerBtc` are mappable target fields like any other (the currency code is stored upper case, and a pair like "BTC/USDT" keeps its quote side). If no EUR column was mapped but date and amount are there, the preview offers to derive the missing EUR values for all affected rows in one action with a progress indicator; those rows are marked "€?" before and "≈" after.
 
-**Fee mode (BTC fee only):** exports disagree on whether the amount column already has the BTC fee taken out of it, so the wizard asks, next to the mapped BTC-fee column: `included` (default — the amount still contains the fee, e.g. a withdrawal row showing what left the account) or `deducted` (the amount is already net, e.g. a row showing what arrived). The import converts either one to the ledger convention of §3.2, where `feeBtc` is always on top of `amountBtc`: with `included` an outgoing amount becomes `amount − fee`, with `deducted` a buy becomes `amount + fee`. Exactly one side needs correcting per mode, and either way the coins that actually move stay the file's amount. A `transfer_in` is never touched (its credit ignores the fee, which belongs to the out-leg), and a fiat fee never changes a BTC amount. The setting is per import, so a file that mixes both conventions across row types needs two runs.
+**Values on import:** an amount is stored as a magnitude, because the direction comes from the transaction type — a leading minus, as Bitvavo writes it for withdrawals, is dropped. BTC amounts and BTC fees are rounded to 8 decimals (`btcString`), the satoshi being the smallest unit the ledger stores; a value that already fits into 8 decimals is never touched. An amount that differs from the file's because of the BTC fee mode is spelled out in the preview (`btcAmountAdjustment`), so it cannot be mistaken for a rounding artifact.
+
+**Fee modes:** exports disagree on whether a fee is already part of the amount it belongs to, so the wizard asks — right at the mapped fee column, and only when that column is mapped:
+
+- **BTC fee** (`feeBtcModeIn` / `feeBtcModeOut`, at the `feeBtc` mapping): "already deducted from the BTC amount?", asked **once per direction** — `deducted` = the amount is what was really received/sent, `notDeducted` (default) = the fee is still inside it. Two questions, because one file commonly uses both conventions: a Bitget spot buy reports the amount net of the trading fee while its withdrawals report the total that left the account. Forcing one answer on both directions leaves the other wrong by exactly its fee sum, which is what a balance that will not reach zero looks like.
+- **EUR fee** (`feeFiatMode`, at the `feeFiatEur` mapping): "already part of the EUR amount?" `gross` = the amount is the money that actually moved, fee included, `net` (default) = the fee comes on top.
+
+Both are converted to the ledger convention of §3.2, where a fee always sits *next to* the amount it belongs to: `feeBtc` on top of `amountBtc` (a buy credits amount − fee, an outgoing type debits amount + fee) and `feeFiatEur` outside `totalFiatEur` (the FIFO engine adds it to a buy's acquisition cost and takes it off a sale's proceeds). So each mode corrects exactly one direction: `notDeducted` turns an outgoing BTC amount into `amount − fee`, `deducted` turns a bought amount into `amount + fee`; `gross` turns a buy total into `total − fee` and a sale total into `total + fee`, `net` needs nothing. Either way the money and the coins that actually moved stay what the file says. A `transfer_in` is never touched (its credit ignores the fee, which belongs to the out-leg), and a fiat fee never changes a BTC amount, nor a BTC fee an EUR total.
+
+**Consistent EUR figures:** because a fee mode moves the total or the amount, `pricePerBtcEur` is always re-derived so price, total and amount tell the same story (`reconcileEurFigures`): with a total the price follows from `total ÷ amountBtc` — a price column in the file may still refer to the unadjusted figures — otherwise the total follows from `price × amountBtc`. The preview therefore shows both, plus a read-only column with what the ledger will actually book (`effectiveEurTotal`: acquisition cost `total + fee` on a buy, proceeds `total − fee` on a sale/spend) and the rate that follows from it, so the chosen interpretation stays checkable per row.
+
+All fee modes are part of the import presets (system and user), so the next import from the same provider comes pre-filled; a user preset written before the BTC question was split still applies its single answer to both directions.
 
 **Row filter:** the wizard's second step restricts the import to certain lines — any number of conditions "column is (not) one of \<values\>", joined by one AND/OR combinator. Columns and values are offered from the loaded file (values with occurrence counts), so a filter always fits the file at hand; e.g. a 21bitcoin export where only `transaction_type = trade` should be imported. A rule without selected values, or one naming a column the file does not have, is ignored rather than dropping every row. Filtered-out lines never reach the mapping/type-value/preview steps, and surviving rows keep their original CSV line number.
 
 In the wizard's first step, the user picks a preset (system presets first, marked as predefined, then their own) or "manual/no preset"; picking one pre-fills every later step, which the user can still adjust before importing. After a manual or adjusted run, the user can save the resulting configuration as a new user preset.
 
+### 3.5 Interface Settings (`uiSettings`)
+
+How the user arranged the interface travels with the portfolio file, not with the browser — the same file opened on another device shows the same dashboard and the same table columns.
+
+```json
+{
+  "uiSettings": {
+    "dashboardLayout": [
+      { "i": "portfolioValue-1", "widgetId": "portfolioValue", "x": 0, "y": 0, "w": 4, "h": 4 }
+    ],
+    "transactionColumns": ["date", "type", "walletAccount", "amount", "price", "value"]
+  }
+}
+```
+
+- `dashboardLayout`: position, size and choice of the dashboard widgets (§4.1). `i` is the instance id and the grid item key, `widgetId` the registry entry to render, `x`/`y`/`w`/`h` grid units.
+- `transactionColumns`: the visible transaction-table columns, in display order.
+
+`uiSettings` and each of its fields are **optional**: a file written before they existed stays valid and falls back to the default layout and the default column set. Entries naming a widget or column this build does not have are dropped on load, so removing a widget in an app update cannot break an existing file. An empty `dashboardLayout` is not the same as a missing one — a dashboard the user deliberately emptied stays empty.
+
+**When it is written:** once per editing session, never per interaction. The dashboard keeps its working copy in component state while edit mode is on and commits it when the user leaves edit mode or navigates away; the column picker commits when it closes. So a drag across the grid costs one save at the end instead of one per frame, and an encrypted file is re-encrypted once instead of continuously. A session that changed nothing writes nothing: the commit is compared against the arrangement the session started from, so merely opening the dashboard of an older file never writes the default back or marks the file dirty.
+
+**Migration:** both values used to be device preferences in `localStorage` (`depotwatch.dashboard.v1`, `depotwatch.txColumns.v6`). Those keys are still *read* as a fallback when the open file carries no setting of its own (`lib/legacyUiPrefs.ts`), so nothing is lost when an older file is opened. They are never written back and never deleted: the file always wins, and adopting a device value must not silently mark the file as changed.
+
 ## 4. MVP Features
 
 - **Wallet/account management:** create, rename, delete (hierarchy wallet → account).
 - **Transaction entry (manual):** buy, sell, transfer (wallet-to-wallet/account-to-account), spend (payment with BTC).
-- **Dashboard:**
-  - Total portfolio value, current price via Binance public API, switchable EUR/USD.
-  - Profit/loss (realized + unrealized), average cost basis (FIFO).
-  - Breakdown by wallet/account.
-- **Transaction table:** sortable, filterable by wallet, account, type, date range.
+- **Dashboard:** a freely configurable widget dashboard (see §4.1).
+- **Transaction table:** sortable, filterable by wallet, account, type, date range, and by data-quality issue (see §4.1, "Data quality").
 - **Value history chart:** portfolio performance over time, optional comparison against the BTC price (historical data via Binance Klines API).
 - **Tax module (Germany):** *(stage 2 — implemented but hidden behind the `TAX_FEATURES_ENABLED` flag in `lib/features.ts`; the FIFO engine keeps running, only the tax-specific UI is removed)*
   - FIFO lot assignment on sell/spend.
   - Marking tax-free (holding period > 1 year) vs. taxable.
   - Display of remaining time until tax-free status per open lot.
 - **File handling:** open/save incl. password prompt and encryption (see section 2).
+
+### 4.1 Widget Dashboard
+
+The dashboard is a grid the user arranges themselves (`react-grid-layout` v2, loaded via `next/dynamic` with `ssr: false` — it measures the DOM, so there is nothing for the static export to prerender).
+
+**Grid:** 12 columns, drag and resize enabled only in an explicit *edit mode* (`components/DashboardGrid.tsx`), so nothing moves by accident in normal use. Dragging starts from the widget header only (`WIDGET_DRAG_HANDLE`), which leaves the controls inside a widget clickable. Below 768 px the dashboard drops to a single column (`components/Dashboard.tsx` → `WidgetStack`) and edit mode is unavailable; a widget keeps its configured grid height there, so a chart stays a chart.
+
+**Free cells:** react-grid-layout knows nothing about empty space, so `freeRects()` in `lib/dashboardLayout.ts` derives it from the layout — occupied cells are marked, then each free cell grows right and down as far as it stays free, which merges a wide gap into one "+" button instead of twelve. Three spare rows are always offered below the last widget. Clicking a placeholder opens the widget picker and inserts the chosen widget at that cell in its default size.
+
+**Registry (`components/widgets/registry.ts`):** every widget is one entry — id, title/description keys, preview icon, default size, min/max size, data sources, component. Nothing in the dashboard, the grid, or the picker knows a widget by name, so a new widget is added by a single registry entry and nothing else. Min/max sizes are enforced by the grid, so a tile can never be resized into illegibility. Widget components take no props; they read the shared, once-computed portfolio figures (ledger, FIFO result, balances, live price, display-currency formatting, transaction-table navigation) from `useDashboardData()` (`components/widgets/context.tsx`).
+
+**Widgets:** portfolio value with 24h/7d/30d change, profit/loss, BTC price, holding-period timeline, sats stack with milestones, average cost basis vs. price, custody split (exchange share as a warning metric), price chart with own entries and exits, network fees, halving countdown, data quality, DCA overview, plus the value chart, the wallet/account breakdown and the holding composition. Portfolio-level warnings (negative holding, unusable amounts, uncovered disposals) are *not* widgets: they belong to the whole ledger and are always shown above the grid.
+
+**Unrealized P/L and the cost basis:** `openCostBasisEur` only covers open lots that have a known cost per BTC, so a market value compared against it must be taken over `FifoResult.openBasisBtc` — never over `portfolio.totalBalance()`. Coins whose acquisition price is unknown (an external `transfer_in` without a price, a buy with no EUR figure) are part of the holding but contribute no cost, so valuing the whole holding against a partial basis books their full market value as profit and can report a gain while the price sits below the average cost. The P/L widget therefore values `openBasisBtc` and names the BTC it left out; the same rule applies to any future figure that subtracts a cost basis from a market value.
+
+**Data quality** (`lib/dataQuality.ts`): unlinked transfer legs, transfer legs without a txid, and buy/sell/spend without any EUR figure. One predicate per issue, shared by the widget and the transaction table's issue filter, so the count and the filtered list can never disagree.
+
+**External data** (`lib/marketData.ts`): one module-level cache with per-key TTL, shared in-flight requests and a short error memo, so a re-render never becomes a request and an unreachable source never becomes a request storm. Prices come from Binance, on-chain figures exclusively from the explorer configured in `explorerSettings` (§3.3) — never a hard-wired third party. Widgets load independently, show a skeleton while loading, and catch their own errors: a per-widget `WidgetBoundary` plus a per-widget error state means one broken or unreachable tile never takes down the dashboard.
+
+**Layout persistence:** position, size and choice of widgets live in the portfolio file (`uiSettings.dashboardLayout`, §3.5) and are written once per editing session, not per drag. "Reset layout" restores `defaultDashboard()` in the working copy, which is then committed like any other change. The shipped default layout has to be a fixed point of react-grid-layout's vertical compaction — otherwise the grid would "change" it on mount and merely opening the dashboard would dirty the file; a test asserts this.
 
 ## 5. Design
 
@@ -226,7 +288,8 @@ In the wizard's first step, the user picks a preset (system presets first, marke
 - **Framework:** Next.js (App Router) + Tailwind CSS
 - **i18n:** next-intl (or comparable) for DE/EN language switching, German as default
 - **State management:** lightweight (React Context or Zustand), no Redux needed
-- **Charts:** Recharts or Chart.js
+- **Charts:** Recharts
+- **Dashboard grid:** react-grid-layout v2 (see §4.1)
 - **Price data:** Binance public API (ticker for live price, Klines for historical chart data)
 - **On-chain data:** mempool.space/Blockstream Esplora API (default) or a configurable own Electrum server; Next.js API routes optionally usable as a proxy (e.g. to avoid sending the user's IP directly to public APIs), but not strictly required since these APIs generally support CORS
 - **Encryption:** Web Crypto API (AES-GCM + PBKDF2)

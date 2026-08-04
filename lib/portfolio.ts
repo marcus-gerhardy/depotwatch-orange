@@ -39,6 +39,70 @@ export function totalBalance(entries: LedgerEntry[]): Decimal {
   return entries.reduce((sum, e) => sum.plus(balanceDelta(e)), ZERO);
 }
 
+/** A value the ledger can actually compute with (see the note in `dec`). */
+const NUMERIC = /^-?\d+(\.\d+)?$/;
+
+export interface BalanceBreakdown {
+  buys: Decimal;
+  transferIns: Decimal;
+  sells: Decimal;
+  transferOuts: Decimal;
+  spends: Decimal;
+  /** BTC fees, already contained in the five sums above. */
+  feeBtc: Decimal;
+  /** Entries whose amount or BTC fee is not a number — they count as 0. */
+  invalid: LedgerEntry[];
+  total: Decimal;
+}
+
+/**
+ * How the holding is composed, so a balance that looks wrong can be traced to
+ * the transactions it comes from: the five type sums (each already carrying its
+ * BTC fee per §3.2), what those fees add up to, and the entries whose amount is
+ * unusable. `dec` turns anything unparseable into 0, so a hand-edited file with
+ * "0,5" instead of "0.5" would silently shrink the balance — those rows are
+ * listed instead of disappearing.
+ */
+export function balanceBreakdown(entries: LedgerEntry[]): BalanceBreakdown {
+  const out: BalanceBreakdown = {
+    buys: ZERO,
+    transferIns: ZERO,
+    sells: ZERO,
+    transferOuts: ZERO,
+    spends: ZERO,
+    feeBtc: ZERO,
+    invalid: [],
+    total: ZERO,
+  };
+  for (const e of entries) {
+    const delta = balanceDelta(e);
+    switch (e.type) {
+      case "buy":
+        out.buys = out.buys.plus(delta);
+        break;
+      case "transfer_in":
+        out.transferIns = out.transferIns.plus(delta);
+        break;
+      case "sell":
+        out.sells = out.sells.plus(delta);
+        break;
+      case "transfer_out":
+        out.transferOuts = out.transferOuts.plus(delta);
+        break;
+      case "spend":
+        out.spends = out.spends.plus(delta);
+        break;
+    }
+    // A transfer_in's fee stays with the out-leg, so it is not part of any sum.
+    if (e.type !== "transfer_in") out.feeBtc = out.feeBtc.plus(dec(e.feeBtc));
+    const amountOk = NUMERIC.test(e.amountBtc.trim());
+    const feeOk = e.feeBtc === undefined || NUMERIC.test(e.feeBtc.trim());
+    if (!amountOk || !feeOk) out.invalid.push(e);
+    out.total = out.total.plus(delta);
+  }
+  return out;
+}
+
 export interface AccountBalance {
   walletId: string;
   walletName: string;
@@ -70,6 +134,42 @@ export interface DailyBalance {
   /** UTC day start, ms epoch. */
   time: number;
   btc: Decimal;
+}
+
+export interface DailyValue {
+  /** UTC day start, ms epoch. */
+  time: number;
+  btc: number;
+  /** BTC close of that day in the requested currency. */
+  close: number;
+  /** Holding valued at that day's close. */
+  value: number;
+}
+
+/**
+ * The holding valued day by day: the balance series priced with the daily
+ * close. Days the price source has no candle for carry the previous close
+ * forward, and days before the first known close are dropped — a portfolio
+ * value of 0 for lack of a price would read as "sold everything".
+ *
+ * Shared by the value chart and the change figures on the dashboard, so both
+ * always tell the same story.
+ */
+export function dailyValueSeries(
+  entries: LedgerEntry[],
+  closes: { time: number; close: number }[],
+): DailyValue[] {
+  const closeByDay = new Map(closes.map((c) => [c.time, c.close]));
+  const out: DailyValue[] = [];
+  let lastClose: number | null = null;
+  for (const b of dailyBalanceSeries(entries)) {
+    const close: number | null = closeByDay.get(b.time) ?? lastClose;
+    if (close === null) continue;
+    lastClose = close;
+    const btc = b.btc.toNumber();
+    out.push({ time: b.time, btc, close, value: btc * close });
+  }
+  return out;
 }
 
 /** Cumulative total BTC balance per UTC day, from first transaction to today. */

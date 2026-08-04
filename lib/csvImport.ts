@@ -10,7 +10,7 @@ import {
   normalizeBitcoinAddress,
   normalizeTxid,
 } from "./bitcoin";
-import type { Transaction, TransactionType } from "./types";
+import type { EurValuationSource, Transaction, TransactionType } from "./types";
 
 export type CsvDelimiter = "," | ";";
 export type DecimalSeparator = "." | ",";
@@ -18,15 +18,29 @@ export type CsvEncoding = "utf-8" | "iso-8859-1" | "iso-8859-15";
 export type AmountUnit = "btc" | "sats";
 
 /**
- * How the file's BTC amount relates to its BTC fee: exports differ in whether
- * the amount column already has the fee taken out of it ("deducted", e.g. a
- * withdrawal row showing what arrived) or still contains it ("included", e.g. a
- * withdrawal row showing what left the account). `buildImportRows` converts
- * either one to the ledger convention of CLAUDE.md §3.2.
+ * Is the mapped BTC fee already taken out of the mapped BTC amount? "deducted"
+ * means the amount is what was really received/sent, "notDeducted" that the fee
+ * is still part of it (e.g. a withdrawal row showing what left the account).
+ *
+ * Asked once per direction, because one file commonly uses both: a Bitget spot
+ * buy reports the amount with the trading fee already taken off, while its
+ * withdrawal rows report the total that left the account, fee included. One
+ * answer for the whole file would make the other direction wrong by exactly the
+ * fee sum — which is what a balance that refuses to reach zero looks like.
  */
-export const FEE_MODES = ["included", "deducted"] as const;
+export const BTC_FEE_MODES = ["deducted", "notDeducted"] as const;
 
-export type FeeMode = (typeof FEE_MODES)[number];
+export type BtcFeeMode = (typeof BTC_FEE_MODES)[number];
+
+/**
+ * Is the mapped EUR fee already part of the mapped EUR amount? "gross" means
+ * the amount is the money that actually moved, fee included; "net" that the fee
+ * comes on top of it (the common export shape: trade value and fee in separate
+ * columns).
+ */
+export const FIAT_FEE_MODES = ["gross", "net"] as const;
+
+export type FiatFeeMode = (typeof FIAT_FEE_MODES)[number];
 
 export const SATS_PER_BTC = 100_000_000;
 
@@ -186,6 +200,18 @@ const TYPE_SYNONYMS: Record<string, TransactionType> = {
   zahlung: "spend",
 };
 
+/**
+ * Currency/asset code of the original settlement, stored upper case and without
+ * surrounding noise ("usdt " → "USDT"). A pair like "BTC/USDT" keeps only the
+ * quote side, which is what was actually paid.
+ */
+export function normalizeCurrencyCode(raw: string): string {
+  const s = raw.trim().toUpperCase();
+  if (s === "") return "";
+  const parts = s.split(/[\/\-_]/).filter((p) => p !== "");
+  return (parts.length > 1 ? parts[parts.length - 1] : s).slice(0, 12);
+}
+
 /** Map a CSV type value ("Kauf", "buy", "withdrawal" …) to a TransactionType. */
 export function normalizeType(raw: string): TransactionType | null {
   return TYPE_SYNONYMS[raw.trim().toLowerCase().replace(/[\s-]+/g, "_")] ?? null;
@@ -336,26 +362,34 @@ function dayOf(
   }
   switch (dateFormat) {
     case "iso":
-      return iso && { y: iso[1], mo: iso[2], d: iso[3] };
+      if (iso) return { y: iso[1], mo: iso[2], d: iso[3] };
+      break;
     case "de":
-      return german && { y: german[3], mo: german[2], d: german[1] };
+      if (german) return { y: german[3], mo: german[2], d: german[1] };
+      break;
     case "mdy":
-      return slash && { y: slash[3], mo: slash[1], d: slash[2] };
+      if (slash) return { y: slash[3], mo: slash[1], d: slash[2] };
+      break;
     case "dmy":
-      return slash && { y: slash[3], mo: slash[2], d: slash[1] };
+      if (slash) return { y: slash[3], mo: slash[2], d: slash[1] };
+      break;
     case "ymd":
-      return ymd && { y: ymd[1], mo: ymd[2], d: ymd[3] };
+      if (ymd) return { y: ymd[1], mo: ymd[2], d: ymd[3] };
+      break;
     case "unix-s":
     case "unix-ms": {
       const parsed = parseDateWithFormat(s, dateFormat);
-      return parsed === null ? null : localParts(parsed);
+      if (parsed !== null) return localParts(parsed);
+      break;
     }
     default:
-      // No format given (e.g. a value typed into the preview): ISO or German,
-      // the same two forms normalizeDate accepts.
-      if (iso) return { y: iso[1], mo: iso[2], d: iso[3] };
-      return german && { y: german[3], mo: german[2], d: german[1] };
+      break;
   }
+  // No format given, or a value that no longer matches the column's format
+  // (the preview stores dates as "YYYY-MM-DD"): ISO or German, the same two
+  // forms normalizeDate accepts.
+  if (iso) return { y: iso[1], mo: iso[2], d: iso[3] };
+  return german && { y: german[3], mo: german[2], d: german[1] };
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +512,23 @@ export function normalizeTimeCell(raw: string, timeFormat?: CsvTimeFormat): stri
   return parsed === null ? raw.trim() : formatClockTime(parsed);
 }
 
+/**
+ * The date for a preview row: read with the column's format and written back as
+ * "YYYY-MM-DD", so the preview shows a real date instead of whatever shape the
+ * file uses (a unix timestamp, "07/24/2026", an ISO value with a zone offset).
+ * A value that cannot be read stays verbatim so the row can be fixed.
+ *
+ * The calendar day is the local one — an ISO value with an offset names an
+ * instant, and its clock time is read in local terms too (`normalizeTimeCell`),
+ * so date and time together still mean the same moment.
+ */
+export function normalizeDateCell(raw: string, dateFormat?: CsvDateFormat): string {
+  const day = dayOf(raw, dateFormat);
+  if (day === null || parseImportDate(raw, dateFormat) === null) return raw.trim();
+  const pad = (v: string) => v.padStart(2, "0");
+  return `${day.y.padStart(4, "0")}-${pad(day.mo)}-${pad(day.d)}`;
+}
+
 /** Detect the format of a time column from sample values (see detectDateFormat). */
 export function detectTimeFormat(samples: string[]): CsvTimeFormat | null {
   const vals = samples
@@ -509,17 +560,22 @@ export function parseImportDateTime(
   { dateFormat, timeFormat }: DateTimeFormats = {},
 ): string | null {
   const t = time.trim();
-  if (t === "" || t === date.trim()) return parseImportDate(date, dateFormat);
-  const parsedTime = parseImportTime(t, timeFormat);
+  // Both fields on one raw value (a hand-typed timestamp): parse it once.
+  if (t !== "" && t === date.trim()) return parseImportDate(date, dateFormat);
   const day = dayOf(date, dateFormat);
-  if (parsedTime === null || day === null) return null;
+  if (day === null) return null;
+  let clock = t === "" ? null : parseImportTime(t, timeFormat);
+  if (t !== "" && clock === null) return null;
+  // Nothing mapped to the time field: a date value that carries its own clock
+  // time keeps it, a plain date means local midnight of that day.
+  if (clock === null) clock = parseImportTime(date, "datetime") ?? { h: 0, m: 0, s: 0 };
   return fromParts(
     day.y,
     day.mo,
     day.d,
-    String(parsedTime.h),
-    String(parsedTime.m),
-    String(parsedTime.s),
+    String(clock.h),
+    String(clock.m),
+    String(clock.s),
   );
 }
 
@@ -563,6 +619,9 @@ export const MAPPING_FIELDS = [
   "totalFiatEur",
   "feeBtc",
   "feeFiatEur",
+  "originalCurrency",
+  "originalAmount",
+  "originalPricePerBtc",
   "txid",
   "address",
   "note",
@@ -771,6 +830,28 @@ const HEADER_RULES: Record<MappingField, HeaderRules> = {
     ],
     part: ["fee", "gebuhr"],
     avoid: ["btc", "bitcoin", "sats", "currency", "wahrung", "unit"],
+  },
+  originalCurrency: {
+    exact: [
+      "currency",
+      "wahrung",
+      "quote currency",
+      "quote asset",
+      "settlement currency",
+    ],
+    word: ["quote currency", "quote asset", "settlement currency", "currency code"],
+    part: ["quotecurrency", "quoteasset"],
+    avoid: ["fee", "gebuhr", "base", "amount", "menge"],
+  },
+  originalAmount: {
+    exact: ["quote amount", "amount quote", "total quote", "cost quote"],
+    word: ["quote amount", "amount quote", "total quote"],
+    avoid: ["fee", "gebuhr", "eur", "fiat", "btc", "base"],
+  },
+  originalPricePerBtc: {
+    exact: ["quote price", "price quote", "quote rate"],
+    word: ["quote price", "price quote", "quote rate"],
+    avoid: ["fee", "gebuhr", "eur", "fiat", "amount", "menge"],
   },
   txid: {
     exact: [
@@ -1093,10 +1174,23 @@ export interface ImportRowValues {
   totalFiatEur: string;
   feeBtc: string;
   feeFiatEur: string;
+  /**
+   * Settled in another currency or asset (CLAUDE.md §3.2) — documentation only,
+   * no calculation reads these.
+   */
+  originalCurrency: string;
+  originalAmount: string;
+  originalPricePerBtc: string;
   /** On-chain data, kept only for transfer rows (see rowToTransaction). */
   txid: string;
   address: string;
   note: string;
+  /**
+   * Where this row's EUR value comes from. Rows the preview valued from the
+   * historical Binance close carry "binance-klines"; editing the EUR value by
+   * hand puts it back to "manual".
+   */
+  eurValuationSource: EurValuationSource;
 }
 
 export interface ImportRow {
@@ -1113,10 +1207,16 @@ export interface BuildOptions {
    * without a type column, e.g. buy-only exchange reports).
    */
   fixedType?: TransactionType;
+  /** Format of the mapped date column, used to normalize it for the preview. */
+  dateFormat?: CsvDateFormat;
   /** Format of the mapped time column, used to normalize it for the preview. */
   timeFormat?: CsvTimeFormat;
-  /** Whether the amount column already has the BTC fee taken out (default "included"). */
-  feeMode?: FeeMode;
+  /** Buys: is the BTC fee already out of the amount (default "notDeducted")? */
+  feeBtcModeIn?: BtcFeeMode;
+  /** Sells, spends, outgoing transfers: same question (default "notDeducted"). */
+  feeBtcModeOut?: BtcFeeMode;
+  /** Is the EUR fee already part of the EUR amount (default "net")? */
+  feeFiatMode?: FiatFeeMode;
   /** Unit of the mapped amountBtc column (default "btc"). */
   amountUnit?: AmountUnit;
   /** Unit of the mapped feeBtc column (default "btc"). */
@@ -1130,6 +1230,76 @@ export interface BuildOptions {
   rowFilter?: RowFilter;
 }
 
+/**
+ * Keep price, total and amount telling the same story: with a total, the price
+ * follows from it (a price column may still refer to the figures before the fee
+ * modes were applied), otherwise the total follows from the price. Values that
+ * are not numbers are passed through untouched so the row can be flagged.
+ */
+function reconcileEurFigures(
+  price: string,
+  total: string,
+  amountBtc: string,
+): { pricePerBtcEur: string; totalFiatEur: string } {
+  const amount = dec(amountBtc);
+  if (!NUMBER.test(amountBtc) || !amount.gt(0)) {
+    return { pricePerBtcEur: price, totalFiatEur: total };
+  }
+  if (total !== "" && NUMBER.test(total)) {
+    return {
+      pricePerBtcEur: fiatString(dec(total).div(amount).toDecimalPlaces(2)),
+      totalFiatEur: total,
+    };
+  }
+  if (price !== "" && NUMBER.test(price)) {
+    return {
+      pricePerBtcEur: price,
+      totalFiatEur: fiatString(dec(price).mul(amount).toDecimalPlaces(2)),
+    };
+  }
+  return { pricePerBtcEur: price, totalFiatEur: total };
+}
+
+/**
+ * How the BTC fee mode changed this row's amount: the amount as the file has
+ * it, the fee, and whether the fee was added or taken off. Null when the mode
+ * left the amount alone — the preview uses this to explain a changed amount
+ * instead of leaving it looking like a rounding artifact.
+ */
+export function btcAmountAdjustment(
+  v: ImportRowValues,
+  feeBtcModeIn: BtcFeeMode = "notDeducted",
+  feeBtcModeOut: BtcFeeMode = "notDeducted",
+): { fileAmount: string; fee: string; added: boolean } | null {
+  const fee = v.feeBtc;
+  if (fee === "" || !NUMBER.test(fee) || !NUMBER.test(v.amountBtc)) return null;
+  const type = normalizeType(v.type);
+  const amount = dec(v.amountBtc);
+  if (type === "buy" && feeBtcModeIn === "deducted") {
+    return { fileAmount: btcString(amount.minus(fee)), fee, added: true };
+  }
+  const isOutgoing = type === "sell" || type === "spend" || type === "transfer_out";
+  if (isOutgoing && feeBtcModeOut === "notDeducted") {
+    return { fileAmount: btcString(amount.plus(fee)), fee, added: false };
+  }
+  return null;
+}
+
+/**
+ * What the ledger books for this row once the EUR fee is applied: acquisition
+ * cost on a buy (total + fee), proceeds on a sale or spend (total − fee). Null
+ * for transfers and for rows without a usable EUR total — this is the figure the
+ * preview shows so the chosen fee interpretation stays checkable.
+ */
+export function effectiveEurTotal(v: ImportRowValues): string | null {
+  const type = normalizeType(v.type);
+  if (type !== "buy" && type !== "sell" && type !== "spend") return null;
+  if (v.totalFiatEur === "" || !NUMBER.test(v.totalFiatEur)) return null;
+  const total = dec(v.totalFiatEur);
+  const fee = NUMBER.test(v.feeFiatEur) ? dec(v.feeFiatEur) : dec("");
+  return fiatString(type === "buy" ? total.plus(fee) : total.minus(fee));
+}
+
 /** Apply mapping + normalization to raw CSV rows → editable import rows. */
 export function buildImportRows(
   rows: string[][],
@@ -1138,8 +1308,11 @@ export function buildImportRows(
   decimalSep: DecimalSeparator,
   {
     fixedType,
+    dateFormat,
     timeFormat,
-    feeMode = "included",
+    feeBtcModeIn = "notDeducted",
+    feeBtcModeOut = "notDeducted",
+    feeFiatMode = "net",
     amountUnit,
     feeUnit,
     typeValueMapping,
@@ -1193,14 +1366,35 @@ export function buildImportRows(
     fee: string,
   ): string => {
     if (fee === "" || !NUMBER.test(fee) || !NUMBER.test(amount)) return amount;
-    if (type === "buy" && feeMode === "deducted") {
+    if (type === "buy" && feeBtcModeIn === "deducted") {
       return btcString(dec(amount).plus(fee));
     }
     const isOutgoing = type === "sell" || type === "spend" || type === "transfer_out";
-    if (isOutgoing && feeMode === "included") {
+    if (isOutgoing && feeBtcModeOut === "notDeducted") {
       return btcString(dec(amount).minus(fee));
     }
     return amount;
+  };
+
+  /**
+   * Same for the EUR side: `totalFiatEur` is the value of the coins without the
+   * fee, and the FIFO engine adds `feeFiatEur` to a buy's acquisition cost and
+   * takes it off a sale's proceeds. A gross column (the money that actually
+   * moved) therefore has to give the fee back on a buy and take it in on a
+   * sale; a net column is already what the ledger wants.
+   */
+  const totalForFeeMode = (
+    type: TransactionType | null,
+    total: string,
+    fee: string,
+  ): string => {
+    if (feeFiatMode !== "gross") return total;
+    if (fee === "" || !NUMBER.test(fee) || total === "" || !NUMBER.test(total)) {
+      return total;
+    }
+    if (type === "buy") return fiatString(dec(total).minus(fee));
+    if (type === "sell" || type === "spend") return fiatString(dec(total).plus(fee));
+    return total;
   };
   const resolveType = (raw: string): TransactionType | null => {
     if (typeValueMapping && raw in typeValueMapping) return typeValueMapping[raw];
@@ -1214,25 +1408,37 @@ export function buildImportRows(
     .map(({ row, line }) => {
       const type = fixedType ?? resolveType(cell(row, "type"));
       const feeBtc = num(row, "feeBtc");
+      const feeFiatEur = num(row, "feeFiatEur");
+      const amountBtc = amountForFeeMode(type, num(row, "amountBtc"), feeBtc);
+      // Price, total and amount are kept consistent with each other and with
+      // the fee modes, so the preview shows the figures the ledger will use.
+      const { pricePerBtcEur, totalFiatEur } = reconcileEurFigures(
+        num(row, "pricePerBtcEur"),
+        totalForFeeMode(type, num(row, "totalFiatEur"), feeFiatEur),
+        amountBtc,
+      );
       return {
         id: crypto.randomUUID(),
         line,
         excluded: false,
         values: {
           type: type ?? cell(row, "type"),
-          // The date stays 1:1 as the file has it and is parsed with the
-          // column's format on validate/import; the time is normalized because
-          // its column may hold a whole timestamp or a 12-hour value.
-          date: cell(row, "date"),
+          // Both are normalized with their column's format, so the preview
+          // shows a readable date and time whatever shape the file uses.
+          date: normalizeDateCell(cell(row, "date"), dateFormat),
           time: normalizeTimeCell(cell(row, "time"), timeFormat),
-          amountBtc: amountForFeeMode(type, num(row, "amountBtc"), feeBtc),
-          pricePerBtcEur: num(row, "pricePerBtcEur"),
-          totalFiatEur: num(row, "totalFiatEur"),
+          amountBtc,
+          pricePerBtcEur,
+          totalFiatEur,
           feeBtc,
-          feeFiatEur: num(row, "feeFiatEur"),
+          feeFiatEur,
+          originalCurrency: normalizeCurrencyCode(cell(row, "originalCurrency")),
+          originalAmount: num(row, "originalAmount"),
+          originalPricePerBtc: num(row, "originalPricePerBtc"),
           txid: normalizeTxid(cell(row, "txid")),
           address: normalizeBitcoinAddress(cell(row, "address")),
           note: cell(row, "note"),
+          eurValuationSource: "manual",
         },
       };
     });
@@ -1247,6 +1453,7 @@ export type RowErrorCode =
   | "invalidPrice"
   | "invalidTotal"
   | "invalidFee"
+  | "invalidOriginal"
   | "invalidTxid"
   | "invalidAddress";
 
@@ -1291,6 +1498,14 @@ export function validateRow(
   if (!nonNegativeOptional(v.feeBtc) || !nonNegativeOptional(v.feeFiatEur)) {
     errors.push("invalidFee");
   }
+  // Original-currency data is documentation, but a value that is not a number
+  // would be documentation of nothing.
+  if (
+    !nonNegativeOptional(v.originalAmount) ||
+    !nonNegativeOptional(v.originalPricePerBtc)
+  ) {
+    errors.push("invalidOriginal");
+  }
   // On-chain data is optional and only kept for transfers, but a malformed
   // value is always worth flagging — silently dropping it would be worse.
   if (v.txid !== "" && !isValidTxid(v.txid)) errors.push("invalidTxid");
@@ -1298,6 +1513,22 @@ export function validateRow(
     errors.push("invalidAddress");
   }
   return errors;
+}
+
+/**
+ * Can this row's EUR value be derived from the historical BTC/EUR close? True
+ * for a priced type that has an amount and a readable date but no EUR figure —
+ * the case of an export settled in another currency (CLAUDE.md §3.2).
+ */
+export function needsEurValuation(
+  v: ImportRowValues,
+  formats: DateTimeFormats = {},
+): boolean {
+  const type = normalizeType(v.type);
+  if (type !== "buy" && type !== "sell" && type !== "spend") return false;
+  if (v.pricePerBtcEur.trim() !== "" || v.totalFiatEur.trim() !== "") return false;
+  if (!positiveNumber(v.amountBtc)) return false;
+  return parseImportDateTime(v.date, v.time, formats) !== null;
 }
 
 /** Convert validated row values to a Transaction. Call only if validateRow is empty. */
@@ -1326,6 +1557,17 @@ export function rowToTransaction(
     totalFiatEur: total,
     feeBtc: v.feeBtc === "" ? undefined : v.feeBtc,
     feeFiatEur: v.feeFiatEur === "" ? undefined : v.feeFiatEur,
+    // Documentation of the actual settlement (CLAUDE.md §3.2); no calculation
+    // reads these, EUR stays the valuation currency.
+    ...(v.originalCurrency !== "" ? { originalCurrency: v.originalCurrency } : {}),
+    ...(v.originalAmount !== "" ? { originalAmount: v.originalAmount } : {}),
+    ...(v.originalPricePerBtc !== ""
+      ? { originalPricePerBtc: v.originalPricePerBtc }
+      : {}),
+    // "manual" is the default, so only a derived value needs recording.
+    ...(v.eurValuationSource === "binance-klines"
+      ? { eurValuationSource: v.eurValuationSource }
+      : {}),
     // On-chain data belongs to transfer legs only (CLAUDE.md §3.2) — a buy or
     // sell row that happens to carry a txid column keeps it out of the ledger.
     ...(isTransfer && v.txid !== "" ? { txid: v.txid } : {}),

@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { accountBalances, balanceDelta, totalBalance } from "./portfolio";
+import {
+  accountBalances,
+  balanceBreakdown,
+  balanceDelta,
+  totalBalance,
+} from "./portfolio";
 import { computeFifo } from "./fifo";
 import { ZERO } from "./decimal";
 import type { LedgerEntry, TransactionType } from "./types";
@@ -183,5 +188,50 @@ describe("ledger balance vs. FIFO open lots", () => {
     //   + 0.29999 − (0.1 + 0.00002)
     expect(ledger.toString()).toBe("0.64837");
     expect(computeFifo(entries, 365).openLotsBtc.toString()).toBe(ledger.toString());
+  });
+});
+
+describe("balanceBreakdown", () => {
+  it("splits the holding into the transactions it comes from", () => {
+    const b = balanceBreakdown([
+      entry("buy", "1", { feeBtc: "0.001" }),
+      entry("transfer_in", "0.5"),
+      entry("sell", "0.4", { feeBtc: "0.0001" }),
+      entry("transfer_out", "0.2", { feeBtc: "0.00002" }),
+      entry("spend", "0.1"),
+    ]);
+    // Each sum already carries its own BTC fees (CLAUDE.md §3.2).
+    expect(b.buys.toFixed(8)).toBe("0.99900000");
+    expect(b.transferIns.toFixed(8)).toBe("0.50000000");
+    expect(b.sells.toFixed(8)).toBe("-0.40010000");
+    expect(b.transferOuts.toFixed(8)).toBe("-0.20002000");
+    expect(b.spends.toFixed(8)).toBe("-0.10000000");
+    expect(b.feeBtc.toFixed(8)).toBe("0.00112000");
+    expect(b.total.toFixed(8)).toBe("0.79888000");
+    expect(b.total.toString()).toBe(
+      totalBalance([
+        entry("buy", "1", { feeBtc: "0.001" }),
+        entry("transfer_in", "0.5"),
+        entry("sell", "0.4", { feeBtc: "0.0001" }),
+        entry("transfer_out", "0.2", { feeBtc: "0.00002" }),
+        entry("spend", "0.1"),
+      ]).toString(),
+    );
+  });
+
+  it("names the entries whose amount is not a number", () => {
+    // A hand-edited file with a German decimal separator: the value cannot be
+    // computed with, counts as 0, and would otherwise vanish without a trace.
+    const bad = entry("buy", "0,5");
+    const b = balanceBreakdown([bad, entry("buy", "1"), entry("sell", "1")]);
+    expect(b.invalid.map((e) => e.id)).toEqual([bad.id]);
+    expect(b.total.toFixed(8)).toBe("0.00000000");
+  });
+
+  it("counts a BTC fee on a transfer_in nowhere, like the balance does", () => {
+    const b = balanceBreakdown([entry("transfer_in", "1", { feeBtc: "0.001" })]);
+    expect(b.transferIns.toFixed(8)).toBe("1.00000000");
+    expect(b.feeBtc.toFixed(8)).toBe("0.00000000");
+    expect(b.total.toFixed(8)).toBe("1.00000000");
   });
 });

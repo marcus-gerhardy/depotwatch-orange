@@ -49,6 +49,75 @@ textarea {
   color-scheme: dark;
 }
 
+/* Dashboard grid (react-grid-layout).
+   Its own stylesheet ships light-theme colours and a raster PNG resize handle,
+   so the handful of rules the layout actually needs are restated here in the
+   app's own theme instead of importing it. */
+.react-grid-layout {
+  position: relative;
+  transition: height 200ms ease;
+}
+.react-grid-item {
+  position: absolute;
+  transition: transform 200ms ease, width 200ms ease, height 200ms ease;
+}
+.react-grid-item.resizing,
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+}
+.react-grid-item.react-grid-placeholder {
+  z-index: 2;
+  border-radius: 0.75rem;
+  background: var(--accent);
+  opacity: 0.18;
+  transition-duration: 100ms;
+  user-select: none;
+}
+/* Resize grip: only visible while editing, and only on the hovered tile. */
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.dashboard-grid-editing .react-grid-item:hover > .react-resizable-handle {
+  opacity: 1;
+}
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.react-grid-item > .react-resizable-handle-se {
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+.react-grid-item > .react-resizable-handle-e {
+  top: 50%;
+  right: 0;
+  margin-top: -9px;
+  cursor: ew-resize;
+  transform: rotate(315deg);
+}
+.react-grid-item > .react-resizable-handle-s {
+  bottom: 0;
+  left: 50%;
+  margin-left: -9px;
+  cursor: ns-resize;
+  transform: rotate(45deg);
+}
+.react-resizable-hide > .react-resizable-handle {
+  display: none;
+}
+
 /* Tailwind v4 preflight leaves buttons with the browser-default cursor;
    every enabled clickable control should read as clickable. */
 @layer base {

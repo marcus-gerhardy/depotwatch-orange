@@ -32,6 +32,8 @@ import { computeFifo, daysUntilTaxFree, isLotTaxFree, type OpenLot } from "@/lib
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { SATS_PER_BTC, type AmountUnit } from "@/lib/csvImport";
 import { explorerAddressUrl, explorerTxUrl } from "@/lib/esplora";
+import { DATA_ISSUES, hasIssue, type DataIssue } from "@/lib/dataQuality";
+import { legacyTransactionColumns } from "@/lib/legacyUiPrefs";
 import { deletionImpact } from "@/lib/deletion";
 import { Amount, Button, Card, Field, Modal, SectionTitle, Switch, inputCls } from "./ui";
 import TransactionForm, { type SellLotTarget } from "./TransactionForm";
@@ -44,8 +46,10 @@ type ColumnKey =
   | "taxStatus"
   | "walletAccount"
   | "amount"
+  | "feeBtc"
   | "price"
   | "value"
+  | "originalCurrency"
   | "txid"
   | "address";
 
@@ -53,6 +57,17 @@ type SortKey = ColumnKey;
 
 /** On-chain columns: opt-in, and only ever filled for transfer legs. */
 const ON_CHAIN_COLUMNS: ColumnKey[] = ["txid", "address"];
+
+/**
+ * Columns that stay hidden until the user picks them: not every ledger carries
+ * a BTC fee, an original currency or on-chain data (CLAUDE.md §3.2). This only
+ * drives the default; ALL_COLUMNS below decides where they sit.
+ */
+const OPTIONAL_COLUMNS: ColumnKey[] = [
+  "feeBtc",
+  "originalCurrency",
+  ...ON_CHAIN_COLUMNS,
+];
 
 /**
  * Column order. taxStatus only exists while the tax features are enabled —
@@ -65,57 +80,58 @@ const ALL_COLUMNS: ColumnKey[] = [
   ...(TAX_FEATURES_ENABLED ? (["taxStatus"] as const) : []),
   "walletAccount",
   "amount",
+  // Opt-in, but it belongs next to the amount it was charged on.
+  "feeBtc",
   "price",
   "value",
+  "originalCurrency",
   ...ON_CHAIN_COLUMNS,
 ];
 
 const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ALL_COLUMNS.filter(
-  (k) => !ON_CHAIN_COLUMNS.includes(k),
+  (k) => !OPTIONAL_COLUMNS.includes(k),
 );
 
-const RIGHT_ALIGNED: ReadonlySet<ColumnKey> = new Set(["amount", "price", "value"]);
+const RIGHT_ALIGNED: ReadonlySet<ColumnKey> = new Set([
+  "amount",
+  "feeBtc",
+  "price",
+  "value",
+  "originalCurrency",
+]);
+
+/** Keep only keys this build actually has a column for. */
+function validColumns(stored: unknown): Set<ColumnKey> | null {
+  if (!Array.isArray(stored)) return null;
+  const valid = stored.filter((k): k is ColumnKey =>
+    (ALL_COLUMNS as string[]).includes(k as string),
+  );
+  return valid.length > 0 ? new Set(valid) : null;
+}
 
 /**
- * Device preference, not portfolio data — lives in localStorage (like CSV
- * templates). Bumped to v4 for the txid/address columns: a stored v3 list
- * would be a complete list without them, so they could never appear.
+ * Which columns to show: the open portfolio's own setting (CLAUDE.md §3.5),
+ * else the preference a previous version of the app left in localStorage, else
+ * the default. Filtering through ALL_COLUMNS also drops columns this build no
+ * longer has, e.g. the tax-status column while the tax features are off.
  */
-const COLUMNS_STORAGE_KEY = "depotwatch.txColumns.v4";
-
-function loadVisibleColumns(): Set<ColumnKey> {
-  if (typeof window === "undefined") return new Set(DEFAULT_VISIBLE_COLUMNS);
-  try {
-    const raw = localStorage.getItem(COLUMNS_STORAGE_KEY);
-    if (!raw) return new Set(DEFAULT_VISIBLE_COLUMNS);
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return new Set(DEFAULT_VISIBLE_COLUMNS);
-    const valid = parsed.filter((k): k is ColumnKey =>
-      (ALL_COLUMNS as string[]).includes(k as string),
-    );
-    return valid.length > 0 ? new Set(valid) : new Set(DEFAULT_VISIBLE_COLUMNS);
-  } catch {
-    return new Set(DEFAULT_VISIBLE_COLUMNS);
-  }
+function initialVisibleColumns(
+  stored: string[] | undefined,
+): Set<ColumnKey> {
+  return (
+    validColumns(stored) ??
+    validColumns(legacyTransactionColumns()) ??
+    new Set(DEFAULT_VISIBLE_COLUMNS)
+  );
 }
 
-function saveVisibleColumns(cols: Set<ColumnKey>) {
-  try {
-    localStorage.setItem(
-      COLUMNS_STORAGE_KEY,
-      JSON.stringify(ALL_COLUMNS.filter((k) => cols.has(k))),
-    );
-  } catch {
-    // Storage unavailable (private mode) — the choice just won't persist.
-  }
-}
-
+/** Colour by direction: everything that adds coins green, everything that removes them red. */
 const TYPE_COLORS: Record<TransactionType, string> = {
   buy: "text-gain",
+  transfer_in: "text-gain",
   sell: "text-loss",
-  transfer_in: "text-muted",
-  transfer_out: "text-muted",
-  spend: "text-warning",
+  transfer_out: "text-loss",
+  spend: "text-loss",
 };
 
 /** Compact per-type glyph for the transaction table's "Typ" column. */
@@ -1341,8 +1357,15 @@ function TransferDialog({
 export default function TransactionsView({
   initialFilter,
 }: {
-  /** Pre-set wallet/account filter (e.g. when coming from the dashboard). */
-  initialFilter?: { walletId: string; accountId: string } | null;
+  /**
+   * Pre-set filter when coming from a dashboard widget: a wallet/account, or
+   * one of the data-quality issues (see lib/dataQuality.ts).
+   */
+  initialFilter?: {
+    walletId?: string;
+    accountId?: string;
+    issue?: DataIssue;
+  } | null;
 }) {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
@@ -1355,6 +1378,10 @@ export default function TransactionsView({
     initialFilter?.accountId ?? "",
   );
   const [filterType, setFilterType] = useState("");
+  /** Data-quality filter, e.g. after clicking a count on the dashboard. */
+  const [filterIssue, setFilterIssue] = useState<DataIssue | "">(
+    initialFilter?.issue ?? "",
+  );
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("date");
@@ -1371,14 +1398,46 @@ export default function TransactionsView({
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [showMove, setShowMove] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
-  const [visibleCols, setVisibleCols] = useState<Set<ColumnKey>>(loadVisibleColumns);
+  const saveTransactionColumns = useAppStore((s) => s.saveTransactionColumns);
+  const [visibleCols, setVisibleCols] = useState<Set<ColumnKey>>(() =>
+    initialVisibleColumns(portfolio.uiSettings?.transactionColumns),
+  );
   const [showColMenu, setShowColMenu] = useState(false);
   const colMenuRef = useRef<HTMLDivElement>(null);
+
+  // The column choice is written back once per visit to the picker, not per
+  // checkbox: one save (and one re-encryption) instead of one per click. It is
+  // compared against what the session started with, not against the file — a
+  // file that carries no choice yet renders the default, and merely opening the
+  // picker must not write that default back. The committer lives in a ref so
+  // the outside-click listener and the unmount cleanup always see the current
+  // selection.
+  const columnsBaseline = useRef<string[]>(
+    ALL_COLUMNS.filter((k) => visibleCols.has(k)),
+  );
+  const commitColumns = useRef<() => void>(() => {});
+  useEffect(() => {
+    commitColumns.current = () => {
+      const next = ALL_COLUMNS.filter((k) => visibleCols.has(k));
+      if (next.join() === columnsBaseline.current.join()) return;
+      columnsBaseline.current = next;
+      saveTransactionColumns(next);
+    };
+  }, [visibleCols, saveTransactionColumns]);
+  useEffect(() => () => commitColumns.current(), []);
+
+  function closeColMenu() {
+    commitColumns.current();
+    setShowColMenu(false);
+  }
 
   useEffect(() => {
     if (!showColMenu) return;
     const onDown = (e: MouseEvent) => {
-      if (!colMenuRef.current?.contains(e.target as Node)) setShowColMenu(false);
+      if (!colMenuRef.current?.contains(e.target as Node)) {
+        commitColumns.current();
+        setShowColMenu(false);
+      }
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -1483,6 +1542,7 @@ export default function TransactionsView({
     if (filterWallet) rows = rows.filter((r) => r.walletId === filterWallet);
     if (filterAccount) rows = rows.filter((r) => r.accountId === filterAccount);
     if (filterType) rows = rows.filter((r) => r.type === filterType);
+    if (filterIssue) rows = rows.filter((r) => hasIssue(r, filterIssue));
     if (filterFrom) rows = rows.filter((r) => r.date >= filterFrom);
     if (filterTo) rows = rows.filter((r) => r.date <= `${filterTo}T23:59:59.999Z`);
     if (onlyTaxFree) {
@@ -1503,6 +1563,12 @@ export default function TransactionsView({
       switch (sortKey) {
         case "amount":
           return dec(a.amountBtc).cmp(dec(b.amountBtc)) * dir;
+        case "feeBtc":
+          // Rows without a BTC fee sort last, like every other empty value.
+          return cmpNullable(
+            a.feeBtc === undefined ? null : dec(a.feeBtc),
+            b.feeBtc === undefined ? null : dec(b.feeBtc),
+          );
         case "type":
           return a.type.localeCompare(b.type) * dir;
         case "walletAccount":
@@ -1519,6 +1585,18 @@ export default function TransactionsView({
           );
         case "value":
           return cmpNullable(rowValue(a), rowValue(b));
+        case "originalCurrency": {
+          // By code, then by amount inside one currency; rows without a code
+          // sort last like every other empty value.
+          const ca = a.originalCurrency ?? "";
+          const cb = b.originalCurrency ?? "";
+          if (ca === "" || cb === "") return ca === cb ? 0 : ca === "" ? 1 : -1;
+          if (ca !== cb) return ca.localeCompare(cb) * dir;
+          return cmpNullable(
+            a.originalAmount === undefined ? null : dec(a.originalAmount),
+            b.originalAmount === undefined ? null : dec(b.originalAmount),
+          );
+        }
         case "txid":
         case "address": {
           // Rows without the field always sort last, like other empty values.
@@ -1540,7 +1618,7 @@ export default function TransactionsView({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, filterWallet, filterAccount, filterType, filterFrom, filterTo, onlyTaxFree, lotByTxId, sortKey, sortAsc, loc]);
+  }, [all, filterWallet, filterAccount, filterType, filterIssue, filterFrom, filterTo, onlyTaxFree, lotByTxId, sortKey, sortAsc, loc]);
 
   const wallet = portfolio.wallets.find((w) => w.id === filterWallet);
 
@@ -1586,7 +1664,6 @@ export default function TransactionsView({
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
-      saveVisibleColumns(next);
       return next;
     });
   }
@@ -1603,10 +1680,14 @@ export default function TransactionsView({
         return `${t("tx.wallet")} / ${t("tx.account")}`;
       case "amount":
         return t("tx.amountBtc");
+      case "feeBtc":
+        return t("tx.feeBtc");
       case "price":
         return t("tx.priceEur");
       case "value":
         return t("tx.valueEur");
+      case "originalCurrency":
+        return t("tx.originalCurrency");
       case "txid":
         return t("tx.txid");
       case "address":
@@ -1662,7 +1743,13 @@ export default function TransactionsView({
 
   const visibleColSpan = visibleCols.size + 2; // + checkbox and actions columns
   const isFiltered = Boolean(
-    filterWallet || filterAccount || filterType || filterFrom || filterTo || onlyTaxFree,
+    filterWallet ||
+      filterAccount ||
+      filterType ||
+      filterIssue ||
+      filterFrom ||
+      filterTo ||
+      onlyTaxFree,
   );
 
   return (
@@ -1691,7 +1778,11 @@ export default function TransactionsView({
       </div>
 
       <Card>
-        <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
+        {/* Seven controls in four columns, i.e. two rows: wallet, account,
+            type and data quality on the first, the date range and the page
+            size on the second. Squeezing all seven into one row leaves each
+            select too narrow to read its own label. */}
+        <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-4">
           <select
             className={inputCls}
             value={filterWallet}
@@ -1746,6 +1837,24 @@ export default function TransactionsView({
                 </option>
               ),
             )}
+          </select>
+          <select
+            className={inputCls}
+            title={t("tx.filterIssue")}
+            value={filterIssue}
+            onChange={(e) => {
+              setFilterIssue(e.target.value as DataIssue | "");
+              setPage(1);
+            }}
+          >
+            <option value="">
+              {t("tx.filterIssue")}: {t("tx.filterAll")}
+            </option>
+            {DATA_ISSUES.map((issue) => (
+              <option key={issue} value={issue}>
+                {t(`dashboard.widgets.issues.${issue}`)}
+              </option>
+            ))}
           </select>
           <input
             type="date"
@@ -1808,7 +1917,7 @@ export default function TransactionsView({
               title={t("tx.columns")}
               aria-label={t("tx.columns")}
               aria-expanded={showColMenu}
-              onClick={() => setShowColMenu((v) => !v)}
+              onClick={() => (showColMenu ? closeColMenu() : setShowColMenu(true))}
             >
               <svg
                 aria-hidden
@@ -1895,8 +2004,10 @@ export default function TransactionsView({
                 {header("taxStatus")}
                 {header("walletAccount")}
                 {header("amount")}
+                {header("feeBtc")}
                 {header("price")}
                 {header("value")}
+                {header("originalCurrency")}
                 {header("txid")}
                 {header("address")}
                 <th className="py-2 text-right font-normal whitespace-nowrap"></th>
@@ -2018,6 +2129,15 @@ export default function TransactionsView({
                         <Amount>{formatBtc(r.amountBtc, loc)}</Amount>
                       </td>
                     )}
+                    {visibleCols.has("feeBtc") && (
+                      <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
+                        {r.feeBtc !== undefined && r.feeBtc !== "" ? (
+                          <Amount>{formatBtc(r.feeBtc, loc)}</Amount>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                    )}
                     {visibleCols.has("price") && (
                       <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
                         {r.pricePerBtcEur !== null ? (
@@ -2030,7 +2150,29 @@ export default function TransactionsView({
                     {visibleCols.has("value") && (
                       <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
                         {value !== null ? (
-                          <Amount>{formatFiatPlain(value, loc)}</Amount>
+                          <>
+                            {/* An EUR value derived from the historical close is
+                                an estimate — keep that visible (§3.2). */}
+                            {r.eurValuationSource === "binance-klines" && (
+                              <IconTooltip label={t("tx.eurValuationDerived")}>
+                                <span className="mr-0.5 cursor-default text-muted">≈</span>
+                              </IconTooltip>
+                            )}
+                            <Amount>{formatFiatPlain(value, loc)}</Amount>
+                          </>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                    )}
+                    {visibleCols.has("originalCurrency") && (
+                      <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
+                        {r.originalCurrency && r.originalAmount ? (
+                          <Amount>
+                            {`${formatFiatPlain(r.originalAmount, loc)} ${r.originalCurrency}`}
+                          </Amount>
+                        ) : r.originalCurrency ? (
+                          <span className="text-muted">{r.originalCurrency}</span>
                         ) : (
                           <span className="text-muted">—</span>
                         )}

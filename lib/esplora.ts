@@ -107,6 +107,24 @@ export function fetchAddressTxs(settings: ExplorerSettings, address: string) {
   return get<AddressTx[]>(explorerBase(settings), `/address/${address}/txs`);
 }
 
+/**
+ * Current chain tip height. Both mempool.space and Esplora serve this as a
+ * bare number in the response body, so it is read as text rather than JSON.
+ */
+export async function fetchTipHeight(
+  settings: ExplorerSettings,
+): Promise<number> {
+  const res = await fetch(`${explorerBase(settings)}/blocks/tip/height`);
+  if (!res.ok) {
+    throw new Error(`Explorer request failed (${res.status}): /blocks/tip/height`);
+  }
+  const height = Number((await res.text()).trim());
+  if (!Number.isFinite(height) || height <= 0) {
+    throw new Error("Explorer returned an unusable block height");
+  }
+  return height;
+}
+
 /** mempool.space only; falls back to Esplora's fee-estimates shape. */
 export async function fetchFeeEstimates(
   settings: ExplorerSettings,
