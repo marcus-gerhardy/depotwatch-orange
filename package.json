@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:debug": "NODE_OPTIONS=\"--max-old-space-size=8192 --heapsnapshot-near-heap-limit=1 --heap-prof\" next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
