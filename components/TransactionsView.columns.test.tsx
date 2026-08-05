@@ -54,23 +54,25 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("TransactionsView: column layout changes", () => {
-  it("hides the note column and — while the tax features are off — the tax-status column", () => {
+  it("hides the note column but shows the tax-status column", () => {
     render(<TransactionsView />);
     expect(screen.queryByText("tx.note")).toBeNull();
-    expect(screen.queryByText("tx.taxStatus")).toBeNull();
     expect(screen.queryByText("some note")).toBeNull();
+    // The tax features are on, so the status column is part of the default set.
+    expect(screen.getAllByText("tx.taxStatus").length).toBeGreaterThan(0);
   });
 
-  it("offers neither a note nor a tax-status option in the column picker", () => {
+  it("offers no note option in the column picker, but the tax-status one", () => {
     render(<TransactionsView />);
     fireEvent.click(screen.getByRole("button", { name: "tx.columns" }));
     expect(screen.queryByText("tx.note")).toBeNull();
-    expect(screen.queryByText("tx.taxStatus")).toBeNull();
+    // Header and picker entry, hence "all".
+    expect(screen.getAllByText("tx.taxStatus").length).toBeGreaterThan(1);
   });
 
-  it("does not offer the tax-free filter while the tax features are off", () => {
+  it("offers the tax-free filter", () => {
     render(<TransactionsView />);
-    expect(screen.queryByText("tx.onlyTaxFree")).toBeNull();
+    expect(screen.getByText("tx.onlyTaxFree")).toBeTruthy();
   });
 
   it("hides the on-chain columns by default but offers them in the picker", () => {

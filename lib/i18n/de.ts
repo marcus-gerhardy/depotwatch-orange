@@ -251,11 +251,14 @@ const de = {
       allTaxFree: "Der gesamte Bestand ist steuerfrei.",
       taxFreeFrom: "Steuerfrei ab",
       daysLeft: "Tage",
+      holdingPeriodUnresolved:
+        "{amount} BTC ohne auflösbare Herkunft: für sie lässt sich keine Haltefrist bestimmen.",
       holdingPeriodEmpty: "Keine offenen Lots vorhanden.",
       dataQualityClean: "Keine offenen Punkte gefunden.",
       showAffected: "Betroffene Transaktionen anzeigen",
       issues: {
         unlinkedTransfer: "Transfers ohne Gegenstück",
+        unresolvedOrigin: "Eingänge mit ungeklärter Herkunft",
         missingTxid: "Transfers ohne Txid",
         missingEurValue: "Transaktionen ohne EUR-Bewertung",
       },
@@ -471,6 +474,12 @@ const de = {
     transferSubmit: "Übertragen",
     transferIntro:
       "Bündelt die ausgewählten offenen Kauf-/Transfer-Eingang-Lots zu einem echten Transfer an ein anderes Wallet/Konto. Anders als „Wallet/Konto ändern“ entsteht dabei ein transfer_out mit Lot-Zuordnung sowie ein verknüpfter transfer_in. Die ursprünglichen Einstandsdaten und Kaufkurse der Lots bleiben für die Haltefrist-/FIFO-Berechnung erhalten.",
+    transferAssignIntro:
+      "Ordne diesem Eingang die Käufe zu, aus denen er stammt. Aus Quell-Konto und ausgewählten Lots entsteht ein verknüpfter Ausgang, und die Haltefrist rechnet danach ab dem ursprünglichen Kaufdatum.",
+    transferAssignSource: "Quell-Konto",
+    transferAssignSourcePick: "Konto wählen …",
+    transferAssignPickLot: "Lot vom {date} auswählen",
+    transferAssignNoLots: "In diesem Konto gibt es keine offenen Lots.",
     transferIneligible:
       "{count} ausgewählte Transaktion(en) sind kein Kauf/Transfer-Eingang mit Restbestand und werden ignoriert.",
     transferMultiSource:
@@ -518,6 +527,35 @@ const de = {
     transferredDate: "Datum",
     transferredAmount: "Menge",
     transferredJump: "Zur Transaktion",
+    origin: {
+      section: "Herkunft",
+      intro:
+        "Aus diesen ursprünglichen Käufen besteht dieser Eingang. Haltefrist und Einstand richten sich nach dem Original-Kaufdatum, nicht nach dem Transferdatum.",
+      show: "Herkunft anzeigen",
+      hide: "Herkunft ausblenden",
+      acquired: "Kaufdatum",
+      amount: "Anteil",
+      price: "Einstand / BTC",
+      source: "Herkunft",
+      status: "Haltefrist",
+      total: "Summe",
+      ofAmount: "von {amount} dieser Transaktion",
+      jump: "Zur Kauftransaktion",
+      unknownPrice: "Einstand unbekannt",
+      mismatch:
+        "Die Summe der Anteile weicht um {amount} BTC von der Menge dieser Transaktion ab.",
+      unresolvedAmount: "{amount} BTC ohne auflösbare Herkunft",
+      unlinked: "Herkunft nicht zugeordnet",
+      unlinkedHint:
+        "Dieser Eingang ist mit keinem Ausgang verknüpft. Ohne Verknüpfung lässt sich die Haltefrist nicht bestimmen.",
+      unresolvable:
+        "Dieser Eingang ist verknüpft, aber die Kette dahinter führt zu keinem Kauf.",
+      truncated:
+        "Die Verknüpfungskette ist fehlerhaft (Kreis oder zu tief) und wurde abgebrochen.",
+      assign: "Herkunft zuordnen",
+      badge: "Herkunft ungeklärt",
+      none: "Für diese Transaktion gibt es keine Herkunftsauflösung.",
+    },
   },
   csvImport: {
     button: "Import",
@@ -734,6 +772,8 @@ const de = {
     uncoveredWarning:
       "{amount} BTC ohne zugeordnetes Lot veräußert. Prüfe fehlende Käufe/Transfers.",
     unknownBasis: "Einstand unbekannt (externer Transfer)",
+    unresolvedOriginHint:
+      "{amount} BTC dieser Veräußerung stammen aus Lots ohne auflösbare Herkunft. Die Haltefrist stützt sich hier auf ein Eingangsdatum, nicht auf ein Kaufdatum.",
     emptyLots: "Keine offenen Lots.",
     emptyDisposals: "Noch keine Verkäufe oder Ausgaben.",
     year: "Jahr",

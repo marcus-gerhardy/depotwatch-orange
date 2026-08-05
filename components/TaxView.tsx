@@ -111,10 +111,20 @@ export default function TaxView() {
                         )}
                       </td>
                       <td className="py-2 pr-4 whitespace-nowrap">
-                        {formatDate(lot.taxFreeDate, loc)}
+                        {/* An unresolved origin leaves the arrival date as the
+                            only date there is, and that one says nothing about
+                            a holding period (CLAUDE.md §3.2). */}
+                        {lot.originUnresolved ? "?" : formatDate(lot.taxFreeDate, loc)}
                       </td>
                       <td className="py-2 pr-4 whitespace-nowrap">
-                        {free ? (
+                        {lot.originUnresolved ? (
+                          <span
+                            className="cursor-help rounded bg-warning/15 px-2 py-0.5 text-xs text-warning"
+                            title={t("tx.origin.unlinkedHint")}
+                          >
+                            {t("tx.origin.badge")}
+                          </span>
+                        ) : free ? (
                           <span className="rounded bg-gain/15 px-2 py-0.5 text-xs text-gain">
                             {t("tax.taxFreeNow")}
                           </span>
@@ -199,7 +209,25 @@ export default function TaxView() {
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {formatDate(d.date, loc)}
                       </td>
-                      <td className="py-2 pr-4">{t(`tx.types.${d.type}`)}</td>
+                      <td className="py-2 pr-4">
+                        <span className="flex items-center gap-1.5">
+                          {t(`tx.types.${d.type}`)}
+                          {/* Part of this disposal came from lots whose origin
+                              is unknown, so its taxable/tax-free split rests on
+                              an arrival date. Name it instead of totalling it
+                              in silently. */}
+                          {d.unresolvedOriginBtc.gt(0) && (
+                            <span
+                              className="cursor-help rounded bg-warning/15 px-2 py-0.5 text-[10px] whitespace-nowrap text-warning"
+                              title={t("tax.unresolvedOriginHint", {
+                                amount: formatBtc(d.unresolvedOriginBtc, loc),
+                              })}
+                            >
+                              {t("tx.origin.badge")}
+                            </span>
+                          )}
+                        </span>
+                      </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatBtc(d.amountBtc, loc)}</Amount>
                       </td>

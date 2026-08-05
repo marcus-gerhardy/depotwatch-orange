@@ -26,6 +26,40 @@ import type { LedgerEntry, LotAllocation } from "./types";
 
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * What a buy contributes as a lot: the BTC actually credited (amount net of a
+ * BTC fee, §3.2) and its cost per BTC, where the recorded total beats the
+ * price × amount approximation and a fiat fee raises the acquisition cost.
+ *
+ * Exported because `lib/provenance.ts` reports the same figure when it traces a
+ * transfer back to this buy — one rule, so the two can never disagree.
+ */
+export function buyLotBasis(e: {
+  amountBtc: string;
+  feeBtc?: string;
+  feeFiatEur?: string;
+  pricePerBtcEur: string | null;
+  totalFiatEur?: string | null;
+}): { netBtc: Decimal; costPerBtcEur: Decimal | null } {
+  const amount = dec(e.amountBtc);
+  const netBtc = amount.minus(dec(e.feeBtc));
+  const price = e.pricePerBtcEur === null ? null : dec(e.pricePerBtcEur);
+  const gross =
+    e.totalFiatEur != null ? dec(e.totalFiatEur) : price === null ? null : amount.mul(price);
+  const totalCost = gross === null ? null : gross.plus(dec(e.feeFiatEur));
+  return {
+    netBtc,
+    costPerBtcEur: totalCost === null || netBtc.lte(0) ? null : totalCost.div(netBtc),
+  };
+}
+
+/** First day a lot acquired on `acquiredDate` is tax-free (exclusive bound). */
+export function taxFreeDateOf(acquiredDate: string, holdingPeriodDays: number): Date {
+  return new Date(
+    new Date(acquiredDate).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY,
+  );
+}
+
 export interface OpenLot {
   /** Transaction that created the lot. */
   txId: string;
@@ -42,6 +76,13 @@ export interface OpenLot {
   taxFreeDate: Date;
   /** Note of the lot-creating transaction. */
   note: string;
+  /**
+   * The lot's acquisition date is the arrival of coins whose real origin could
+   * not be traced (an internal transfer_in that received more than its out-leg
+   * moved). `acquiredDate` is then an assumption, so every tax statement about
+   * this lot has to be marked rather than presented as a fact (CLAUDE.md §3.2).
+   */
+  originUnresolved?: boolean;
 }
 
 export interface DisposalPart {
@@ -51,6 +92,8 @@ export interface DisposalPart {
   costBasisEur: Decimal | null;
   holdingDays: number;
   taxFree: boolean;
+  /** The consumed lot's acquisition date is an assumption — see OpenLot. */
+  originUnresolved: boolean;
 }
 
 export interface Disposal {
@@ -68,6 +111,12 @@ export interface Disposal {
   parts: DisposalPart[];
   /** BTC disposed of beyond what open lots covered (data entry gap). */
   uncoveredBtc: Decimal;
+  /**
+   * BTC of this disposal taken from lots whose origin is unknown. Their
+   * holding period rests on an arrival date, so the tax view reports them
+   * separately instead of quietly counting them as taxable or tax-free.
+   */
+  unresolvedOriginBtc: Decimal;
   /** Note of the disposing transaction. */
   note: string;
 }
@@ -172,8 +221,7 @@ export function computeFifo(
     }
   }
 
-  const taxFreeDateFor = (acquired: string) =>
-    new Date(new Date(acquired).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY);
+  const taxFreeDateFor = (acquired: string) => taxFreeDateOf(acquired, holdingPeriodDays);
 
   function takePart(lot: OpenLot, take: Decimal, disposedDate: string): DisposalPart {
     const days = holdingDaysBetween(lot.acquiredDate, disposedDate);
@@ -186,6 +234,7 @@ export function computeFifo(
         lot.costPerBtcEur === null ? null : lot.costPerBtcEur.mul(take),
       holdingDays: days,
       taxFree: days > holdingPeriodDays,
+      originUnresolved: lot.originUnresolved === true,
     };
   }
 
@@ -278,15 +327,8 @@ export function computeFifo(
       case "buy": {
         // Net BTC received; fiat fee raises the cost basis. The actually paid
         // total (when recorded) beats the price × amount approximation.
-        const net = amount.minus(feeBtc);
+        const { netBtc: net, costPerBtcEur } = buyLotBasis(e);
         if (net.lte(0)) break;
-        const gross =
-          e.totalFiatEur != null
-            ? dec(e.totalFiatEur)
-            : price === null
-              ? null
-              : amount.mul(price);
-        const totalCost = gross === null ? null : gross.plus(dec(e.feeFiatEur));
         lots.push({
           txId: e.id,
           acquiredDate: e.date,
@@ -295,7 +337,7 @@ export function computeFifo(
           accountName: e.accountName,
           originalAmountBtc: net,
           remainingBtc: net,
-          costPerBtcEur: totalCost === null ? null : totalCost.div(net),
+          costPerBtcEur,
           taxFreeDate: taxFreeDateFor(e.date),
           note: e.note,
         });
@@ -334,7 +376,9 @@ export function computeFifo(
           }
           if (remaining.gt(0)) {
             // More arrived than the out-leg moved (data gap): the remainder
-            // starts a fresh lot with unknown basis at the arrival date.
+            // starts a fresh lot with unknown basis at the arrival date. That
+            // date is an assumption, not an acquisition — flagged so the tax
+            // views report it instead of computing a holding period from it.
             lots.push({
               txId: e.id,
               acquiredDate: e.date,
@@ -346,6 +390,7 @@ export function computeFifo(
               costPerBtcEur: null,
               taxFreeDate: taxFreeDateFor(e.date),
               note: e.note,
+              originUnresolved: true,
             });
           }
           break;
@@ -447,6 +492,10 @@ export function computeFifo(
           taxFreeGainEur: taxFreeGain,
           parts,
           uncoveredBtc: uncovered,
+          unresolvedOriginBtc: parts.reduce(
+            (s, p) => (p.originUnresolved ? s.plus(p.amountBtc) : s),
+            ZERO,
+          ),
           note: e.note,
         });
         break;
@@ -548,10 +597,18 @@ export function allocateFifo(
   return out;
 }
 
-export function daysUntilTaxFree(lot: OpenLot, now: Date = new Date()): number {
+// Both take anything carrying a taxFreeDate, so a provenance row (whose date
+// comes from `taxFreeDateOf`) is judged by exactly the same rule as an open lot.
+export function daysUntilTaxFree(
+  lot: { taxFreeDate: Date },
+  now: Date = new Date(),
+): number {
   return Math.max(0, Math.ceil((lot.taxFreeDate.getTime() - now.getTime()) / MS_PER_DAY));
 }
 
-export function isLotTaxFree(lot: OpenLot, now: Date = new Date()): boolean {
+export function isLotTaxFree(
+  lot: { taxFreeDate: Date },
+  now: Date = new Date(),
+): boolean {
   return now.getTime() >= lot.taxFreeDate.getTime();
 }

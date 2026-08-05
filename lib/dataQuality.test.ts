@@ -91,8 +91,37 @@ describe("countIssues", () => {
     ]);
     expect(counts).toEqual({
       unlinkedTransfer: 1,
+      // The linked arrival claims a group whose out-leg is missing, so its
+      // coins still trace back to nothing.
+      unresolvedOrigin: 1,
       missingTxid: 1,
       missingEurValue: 1,
     });
+  });
+
+  it("does not flag an arrival whose origin resolves", () => {
+    const counts = countIssues([
+      entry(tx({ type: "buy", id: "b", amountBtc: "1", pricePerBtcEur: "20000" })),
+      entry(
+        tx({
+          type: "transfer_out",
+          id: "o",
+          amountBtc: "1",
+          transferGroupId: "g",
+          counterpartyAccountId: "a2",
+          lotAllocations: [{ lotTransactionId: "b", amountBtc: "1" }],
+        }),
+      ),
+      entry(
+        tx({
+          type: "transfer_in",
+          id: "i",
+          amountBtc: "1",
+          transferGroupId: "g",
+          counterpartyAccountId: "a1",
+        }),
+      ),
+    ]);
+    expect(counts.unresolvedOrigin).toBe(0);
   });
 });

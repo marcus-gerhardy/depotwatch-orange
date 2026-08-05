@@ -657,6 +657,69 @@ describe("computeFifo", () => {
     // The surplus starts fresh at the arrival date with unknown basis.
     expect(unknown.acquiredDate).toBe("2024-02-01T00:00:00Z");
     expect(unknown.remainingBtc.toString()).toBe("0.3");
+    // And its date is flagged as an assumption, so no tax statement rests on it.
+    expect(unknown.originUnresolved).toBe(true);
+    expect(known.originUnresolved).toBeUndefined();
+  });
+
+  it("carries an unresolved origin into the disposal that consumes it", () => {
+    const buy = entry("buy", "2024-01-01T00:00:00Z", "0.5", "40000");
+    const r = computeFifo(
+      [
+        buy,
+        entry("transfer_out", "2024-02-01T00:00:00Z", "0.5", null, {
+          counterpartyAccountId: "a2",
+          transferGroupId: "g1",
+          lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.5" }],
+        }),
+        entry("transfer_in", "2024-02-01T00:00:00Z", "0.8", null, {
+          counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+        // Sells the whole arrival: 0.5 traced, 0.3 from the unexplained surplus.
+        entry("sell", "2024-03-01T00:00:00Z", "0.8", "60000", {
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+      ],
+      365,
+    );
+    const d = r.disposals[0];
+    expect(d.unresolvedOriginBtc.toString()).toBe("0.3");
+    expect(d.parts.filter((p) => p.originUnresolved)).toHaveLength(1);
+  });
+
+  it("never treats a transfer leg itself as a taxable disposal", () => {
+    const buy = entry("buy", "2024-01-01T00:00:00Z", "1", "40000");
+    const r = computeFifo(
+      [
+        buy,
+        entry("transfer_out", "2024-02-01T00:00:00Z", "1", "50000", {
+          feeBtc: "0.0001",
+          counterpartyAccountId: "a2",
+          transferGroupId: "g1",
+          lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "1" }],
+        }),
+        entry("transfer_in", "2024-02-01T00:00:00Z", "0.9999", "50000", {
+          counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+        // An external send is not a disposal either: coins leave, no proceeds.
+        entry("transfer_out", "2024-03-01T00:00:00Z", "0.4", null, {
+          accountId: "a2",
+          accountName: "Cold",
+        }),
+      ],
+      365,
+    );
+    // A price on a transfer leg is display data (§3.2) and must not become a gain.
+    expect(r.disposals).toHaveLength(0);
+    expect(r.realizedGainEur.toString()).toBe("0");
+    expect(r.realizedTaxableGainEur.toString()).toBe("0");
   });
 
   it("external transfer_out honors persisted lot allocations", () => {

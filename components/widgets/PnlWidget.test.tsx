@@ -87,8 +87,9 @@ describe("unrealized P/L", () => {
 
     render(<Dashboard />);
 
-    // 2 BTC × 40 000 − 80 000 = 0.
-    expect(await screen.findByText("0,00 €")).toBeTruthy();
+    // 2 BTC × 40 000 − 80 000 = 0. The widget also lists realized and
+    // tax-free gains, which are 0 here too, hence "all".
+    expect((await screen.findAllByText("0,00 €")).length).toBeGreaterThan(0);
     expect(screen.queryByText(/pnlWithoutBasisHint/)).toBeNull();
   });
 });

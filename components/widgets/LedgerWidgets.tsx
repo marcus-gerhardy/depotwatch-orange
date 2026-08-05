@@ -215,11 +215,18 @@ export function HoldingPeriodWidget() {
   const { t, loc, fifo } = useDashboardData();
   const now = new Date();
 
-  const { free, pending, upcoming } = useMemo(() => {
+  const { free, pending, unresolved, upcoming } = useMemo(() => {
     let free = ZERO;
     let pending = ZERO;
+    let unresolved = ZERO;
     const upcoming: { date: Date; btc: Decimal; days: number }[] = [];
     for (const lot of fifo.openLots) {
+      // Lots whose origin could not be traced have an arrival date, not an
+      // acquisition date — they get counted, never dated (CLAUDE.md §3.2).
+      if (lot.originUnresolved) {
+        unresolved = unresolved.plus(lot.remainingBtc);
+        continue;
+      }
       if (isLotTaxFree(lot, now)) {
         free = free.plus(lot.remainingBtc);
         continue;
@@ -233,14 +240,14 @@ export function HoldingPeriodWidget() {
       else upcoming.push({ date: lot.taxFreeDate, btc: lot.remainingBtc, days });
     }
     upcoming.sort((a, b) => a.date.getTime() - b.date.getTime());
-    return { free, pending, upcoming };
+    return { free, pending, unresolved, upcoming };
     // `now` is intentionally not a dependency: a new Date on every render would
     // recompute forever. Day-level accuracy is enough here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fifo]);
 
   const total = free.plus(pending);
-  if (!total.gt(0)) {
+  if (!total.gt(0) && !unresolved.gt(0)) {
     return <WidgetEmpty message={t("dashboard.widgets.holdingPeriodEmpty")} />;
   }
 
@@ -250,7 +257,15 @@ export function HoldingPeriodWidget() {
         <StatValue className="text-gain">{formatBtc(free, loc)}</StatValue>
         <StatLabel>{t("dashboard.widgets.taxFreeNow")}</StatLabel>
       </div>
-      <Meter value={free.div(total).toNumber()} color="bg-gain" />
+      <Meter value={total.gt(0) ? free.div(total).toNumber() : 0} color="bg-gain" />
+      {unresolved.gt(0) && (
+        <p className="text-xs text-warning">
+          ⚠{" "}
+          {t("dashboard.widgets.holdingPeriodUnresolved", {
+            amount: formatBtc(unresolved, loc),
+          })}
+        </p>
+      )}
       {upcoming.length === 0 ? (
         <p className="text-xs text-gain">
           ★ {t("dashboard.widgets.allTaxFree")}

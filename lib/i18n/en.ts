@@ -254,11 +254,14 @@ const en: typeof de = {
       allTaxFree: "The entire holding is tax-free.",
       taxFreeFrom: "Tax-free from",
       daysLeft: "Days",
+      holdingPeriodUnresolved:
+        "{amount} BTC without a traceable origin: no holding period can be determined for them.",
       holdingPeriodEmpty: "No open lots.",
       dataQualityClean: "No open issues found.",
       showAffected: "Show the affected transactions",
       issues: {
         unlinkedTransfer: "Transfers without a counterpart",
+        unresolvedOrigin: "Arrivals with unresolved origin",
         missingTxid: "Transfers without a txid",
         missingEurValue: "Transactions without a EUR value",
       },
@@ -471,6 +474,12 @@ const en: typeof de = {
     transferSubmit: "Transfer",
     transferIntro:
       "Bundles the selected open buy/transfer-in lots into one real transfer to another wallet/account. Unlike \"Change wallet/account\", this creates a transfer_out with lot allocations and a linked transfer_in. The lots' original acquisition data and cost basis are preserved for the holding-period/FIFO calculation.",
+    transferAssignIntro:
+      "Assign the buys this arrival came from. Picking the source account and its lots creates the linked outgoing leg, after which the holding period runs from the original purchase date.",
+    transferAssignSource: "Source account",
+    transferAssignSourcePick: "Choose account …",
+    transferAssignPickLot: "Select the lot from {date}",
+    transferAssignNoLots: "This account has no open lots.",
     transferIneligible:
       "{count} selected transaction(s) are not a buy/transfer-in with a remaining balance and will be ignored.",
     transferMultiSource:
@@ -517,6 +526,35 @@ const en: typeof de = {
     transferredDate: "Date",
     transferredAmount: "Amount",
     transferredJump: "Go to transaction",
+    origin: {
+      section: "Origin",
+      intro:
+        "These original buys make up this arrival. Holding period and cost basis follow the original purchase date, not the transfer date.",
+      show: "Show origin",
+      hide: "Hide origin",
+      acquired: "Purchase date",
+      amount: "Share",
+      price: "Cost / BTC",
+      source: "Origin",
+      status: "Holding period",
+      total: "Total",
+      ofAmount: "of this transaction's {amount}",
+      jump: "Go to the buy transaction",
+      unknownPrice: "Cost basis unknown",
+      mismatch:
+        "The shares add up to {amount} BTC less or more than this transaction's amount.",
+      unresolvedAmount: "{amount} BTC without a traceable origin",
+      unlinked: "Origin not assigned",
+      unlinkedHint:
+        "This arrival is not linked to any outgoing leg. Without that link the holding period cannot be determined.",
+      unresolvable:
+        "This arrival is linked, but the chain behind it does not end at a buy.",
+      truncated:
+        "The link chain is broken (circular or too deep) and the walk stopped early.",
+      assign: "Assign origin",
+      badge: "Origin unresolved",
+      none: "There is no origin to resolve for this transaction.",
+    },
   },
   csvImport: {
     button: "Import",
@@ -730,6 +768,8 @@ const en: typeof de = {
     uncoveredWarning:
       "{amount} BTC disposed without a matching lot. Check for missing buys/transfers.",
     unknownBasis: "Cost basis unknown (external transfer)",
+    unresolvedOriginHint:
+      "{amount} BTC of this disposal come from lots without a traceable origin. Their holding period rests on an arrival date, not a purchase date.",
     emptyLots: "No open lots.",
     emptyDisposals: "No sells or spends yet.",
     year: "Year",

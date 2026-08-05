@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   useI18n,
@@ -32,11 +32,17 @@ import { computeFifo, daysUntilTaxFree, isLotTaxFree, type OpenLot } from "@/lib
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { SATS_PER_BTC, type AmountUnit } from "@/lib/csvImport";
 import { explorerAddressUrl, explorerTxUrl } from "@/lib/esplora";
-import { DATA_ISSUES, hasIssue, type DataIssue } from "@/lib/dataQuality";
+import {
+  DATA_ISSUES,
+  hasIssue,
+  issueContext,
+  type DataIssue,
+} from "@/lib/dataQuality";
 import { legacyTransactionColumns } from "@/lib/legacyUiPrefs";
 import { deletionImpact } from "@/lib/deletion";
 import { Amount, Button, Card, Field, Modal, SectionTitle, Switch, inputCls } from "./ui";
 import TransactionForm, { type SellLotTarget } from "./TransactionForm";
+import ProvenanceList from "./ProvenanceList";
 import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import CsvImportWizard from "./CsvImportWizard";
 
@@ -272,9 +278,25 @@ function candidateScore(e: LedgerEntry, refDateIso: string, refAmount: Decimal):
   return dayDiff + amountDiffRatio * 30;
 }
 
+/** Marks a position whose holding period rests on nothing (CLAUDE.md §3.2). */
+function OriginUnresolvedBadge() {
+  const { t } = useI18n();
+  return (
+    <span
+      className="cursor-default rounded-full bg-warning/15 px-2 py-0.5 text-[10px] whitespace-nowrap text-warning"
+      title={t("tx.origin.unlinkedHint")}
+    >
+      {t("tx.origin.badge")}
+    </span>
+  );
+}
+
 /** Tax-status badge for a lot-creating transaction with remaining balance. */
 function TaxStatusBadge({ lot }: { lot: OpenLot }) {
   const { t } = useI18n();
+  // A lot whose origin could not be traced has an arrival date, not an
+  // acquisition date, so it gets no verdict at all.
+  if (lot.originUnresolved) return <OriginUnresolvedBadge />;
   return isLotTaxFree(lot) ? (
     <span className="rounded-full bg-gain/15 px-2 py-0.5 text-[10px] text-gain">
       {t("tax.taxFreeNow")}
@@ -727,12 +749,19 @@ function TransferDialog({
   all,
   selected,
   lotByTxId,
+  linkInEntry = null,
   onClose,
   onTransferred,
 }: {
   all: LedgerEntry[];
   selected: LedgerEntry[];
   lotByTxId: Map<string, OpenLot>;
+  /**
+   * Assignment mode: an existing arrival whose origin is unknown. The dialog
+   * then runs backwards — the in-leg is fixed and the user picks the source
+   * lots it came from, instead of starting from selected lots.
+   */
+  linkInEntry?: LedgerEntry | null;
   onClose: () => void;
   onTransferred: () => void;
 }) {
@@ -741,20 +770,34 @@ function TransferDialog({
   const portfolio = useAppStore((s) => s.portfolio)!;
   const update = useAppStore((s) => s.update);
 
+  const linkMode = linkInEntry !== null;
+  // Assignment mode picks its source account here rather than inheriting it
+  // from the table selection, which is empty in that flow.
+  const [pickedSourceAccountId, setPickedSourceAccountId] = useState("");
+  const [pickedLotIds, setPickedLotIds] = useState<ReadonlySet<string>>(new Set());
+
   // Rows of the right type, regardless of currently-remaining balance — the
   // balance itself is resolved below via effectiveLotByTxId, since a
   // not-yet-linked transfer_out in the same account may currently be
   // "holding" that balance via the FIFO engine's dynamic fallback (see there).
   const typeEligible = useMemo(
-    () => selected.filter((r) => r.type === "buy" || r.type === "transfer_in"),
-    [selected],
+    () =>
+      linkMode
+        ? all.filter(
+            (r) =>
+              r.accountId === pickedSourceAccountId &&
+              (r.type === "buy" || r.type === "transfer_in"),
+          )
+        : selected.filter((r) => r.type === "buy" || r.type === "transfer_in"),
+    [linkMode, all, pickedSourceAccountId, selected],
   );
   const sourceAccountIds = useMemo(
     () => new Set(typeEligible.map((r) => r.accountId)),
     [typeEligible],
   );
-  const multiSource = sourceAccountIds.size > 1;
-  const sourceAccountId = typeEligible[0]?.accountId;
+  // One account by construction in assignment mode — the picker offers exactly one.
+  const multiSource = !linkMode && sourceAccountIds.size > 1;
+  const sourceAccountId = linkMode ? pickedSourceAccountId : typeEligible[0]?.accountId;
 
   // Existing-transaction candidates for the out-leg: same account, matching
   // direction, and not already part of another linked transfer.
@@ -799,11 +842,16 @@ function TransferDialog({
     return map;
   }, [all, outCandidates, lotByTxId, portfolio.settings.holdingPeriodDays]);
 
-  const eligible = useMemo(
+  /** Open lots of the source account, i.e. what can be assigned at all. */
+  const lotCandidates = useMemo(
     () => typeEligible.filter((r) => effectiveLotByTxId.has(r.id)),
     [typeEligible, effectiveLotByTxId],
   );
-  const ineligibleCount = selected.length - eligible.length;
+  const eligible = useMemo(
+    () => (linkMode ? lotCandidates.filter((r) => pickedLotIds.has(r.id)) : lotCandidates),
+    [linkMode, lotCandidates, pickedLotIds],
+  );
+  const ineligibleCount = linkMode ? 0 : selected.length - eligible.length;
 
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -815,15 +863,18 @@ function TransferDialog({
   // the unit users type here. Adopting a candidate's stored fee switches the
   // selection to BTC, because that value is a BTC amount (see pickOutCandidate).
   const [feeUnit, setFeeUnit] = useState<AmountUnit>("sats");
-  const [transferDate, setTransferDate] = useState(() => toLocalInput(new Date().toISOString()));
-  const [targetWalletId, setTargetWalletId] = useState("");
-  const [targetAccountId, setTargetAccountId] = useState("");
+  const [transferDate, setTransferDate] = useState(() =>
+    toLocalInput(linkInEntry?.date ?? new Date().toISOString()),
+  );
+  // In assignment mode the target is where the arrival already sits.
+  const [targetWalletId, setTargetWalletId] = useState(linkInEntry?.walletId ?? "");
+  const [targetAccountId, setTargetAccountId] = useState(linkInEntry?.accountId ?? "");
 
   const [outMode, setOutMode] = useState<LegMode>("new");
   const [selectedOutTxId, setSelectedOutTxId] = useState("");
   const [confirmOutMismatch, setConfirmOutMismatch] = useState(false);
-  const [inMode, setInMode] = useState<LegMode>("new");
-  const [selectedInTxId, setSelectedInTxId] = useState("");
+  const [inMode, setInMode] = useState<LegMode>(linkMode ? "existing" : "new");
+  const [selectedInTxId, setSelectedInTxId] = useState(linkInEntry?.id ?? "");
   const [confirmInMismatch, setConfirmInMismatch] = useState(false);
 
   const targetWallet = portfolio.wallets.find((w) => w.id === targetWalletId);
@@ -877,18 +928,22 @@ function TransferDialog({
 
   // Existing-transaction candidates for the in-leg: same account, matching
   // direction, and not already part of another linked transfer.
-  const inCandidates = useMemo(
-    () =>
-      targetAccountId
-        ? all.filter(
-            (e) =>
-              e.accountId === targetAccountId &&
-              e.type === "transfer_in" &&
-              !e.transferGroupId,
-          )
-        : [],
-    [all, targetAccountId],
-  );
+  const inCandidates = useMemo(() => {
+    const open = targetAccountId
+      ? all.filter(
+          (e) =>
+            e.accountId === targetAccountId &&
+            e.type === "transfer_in" &&
+            !e.transferGroupId,
+        )
+      : [];
+    // The leg being assigned always belongs in its own list, including the case
+    // where it carries a stale transferGroupId whose out-leg is gone — linking
+    // it here mints a fresh group and repairs exactly that.
+    return linkInEntry && !open.some((e) => e.id === linkInEntry.id)
+      ? [linkInEntry, ...open]
+      : open;
+  }, [all, targetAccountId, linkInEntry]);
   // Candidate lists are small (a portfolio's transfer-type transactions), so
   // this is left unmemoized rather than fighting the compiler over Decimal deps.
   // Candidates are ranked against the transfer amount (lots minus the network
@@ -932,6 +987,20 @@ function TransferDialog({
 
   function setAmount(id: string, value: string) {
     setAmounts((prev) => ({ ...prev, [id]: value }));
+  }
+
+  /** Assignment mode: check a source lot, defaulting its amount to what is left. */
+  function toggleLot(id: string) {
+    setPickedLotIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else {
+        next.add(id);
+        const lot = effectiveLotByTxId.get(id);
+        if (lot) setAmount(id, btcString(lot.remainingBtc));
+      }
+      return next;
+    });
   }
 
   function pickOutCandidate(entry: LedgerEntry) {
@@ -1054,9 +1123,76 @@ function TransferDialog({
   }
 
   return (
-    <Modal title={t("tx.transferAction")} onClose={onClose} wide>
+    <Modal
+      title={linkMode ? t("tx.origin.assign") : t("tx.transferAction")}
+      onClose={onClose}
+      wide
+    >
       <div className="space-y-4">
-        <p className="text-xs leading-relaxed text-muted">{t("tx.transferIntro")}</p>
+        <p className="text-xs leading-relaxed text-muted">
+          {linkMode ? t("tx.transferAssignIntro") : t("tx.transferIntro")}
+        </p>
+
+        {linkMode && (
+          <div className="space-y-2 rounded-lg border border-border-c/60 p-3">
+            <Field label={t("tx.transferAssignSource")}>
+              <select
+                className={inputCls}
+                value={pickedSourceAccountId}
+                onChange={(e) => {
+                  setPickedSourceAccountId(e.target.value);
+                  // Lots belong to the account they were picked in.
+                  setPickedLotIds(new Set());
+                }}
+              >
+                <option value="">{t("tx.transferAssignSourcePick")}</option>
+                {portfolio.wallets.flatMap((w) =>
+                  w.accounts
+                    .filter((a) => a.id !== targetAccountId)
+                    .map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {w.name} / {a.name}
+                      </option>
+                    )),
+                )}
+              </select>
+            </Field>
+            {pickedSourceAccountId !== "" && (
+              <div className="max-h-40 space-y-1 overflow-auto">
+                {lotCandidates.length === 0 ? (
+                  <p className="text-xs text-muted">{t("tx.transferAssignNoLots")}</p>
+                ) : (
+                  lotCandidates.map((c) => {
+                    const lot = effectiveLotByTxId.get(c.id)!;
+                    const checked = pickedLotIds.has(c.id);
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 text-xs hover:bg-surface-2/60"
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-accent"
+                          aria-label={t("tx.transferAssignPickLot", {
+                            date: formatDate(c.date, loc),
+                          })}
+                          checked={checked}
+                          onChange={() => toggleLot(c.id)}
+                        />
+                        <span className="whitespace-nowrap text-muted">
+                          {formatDate(c.date, loc)}
+                        </span>
+                        <span className="ml-auto font-mono whitespace-nowrap">
+                          {formatBtc(lot.remainingBtc, loc)}
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {ineligibleCount > 0 && (
           <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
@@ -1113,10 +1249,13 @@ function TransferDialog({
         )}
 
         <div className="grid grid-cols-2 gap-2">
+          {/* Assignment mode: the target is where the arrival already is, so
+              both selects are fixed rather than an invitation to move it. */}
           <Field label={t("tx.wallet")}>
             <select
               className={inputCls}
               value={targetWalletId}
+              disabled={linkMode}
               onChange={(e) => {
                 setTargetWalletId(e.target.value);
                 setTargetAccountId("");
@@ -1135,7 +1274,7 @@ function TransferDialog({
               className={inputCls}
               value={targetAccountId}
               onChange={(e) => setTargetAccountId(e.target.value)}
-              disabled={!targetWalletId}
+              disabled={linkMode || !targetWalletId}
             >
               <option value="">—</option>
               {targetWallet?.accounts.map((a) => (
@@ -1398,6 +1537,10 @@ export default function TransactionsView({
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [showMove, setShowMove] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  /** Incoming legs whose origin list is unfolded (CLAUDE.md §3.2). */
+  const [expandedOrigins, setExpandedOrigins] = useState<ReadonlySet<string>>(new Set());
+  /** Arrival to be linked to its source lots via the transfer dialog. */
+  const [linkOriginFor, setLinkOriginFor] = useState<LedgerEntry | null>(null);
   const saveTransactionColumns = useAppStore((s) => s.saveTransactionColumns);
   const [visibleCols, setVisibleCols] = useState<Set<ColumnKey>>(() =>
     initialVisibleColumns(portfolio.uiSettings?.transactionColumns),
@@ -1482,6 +1625,10 @@ export default function TransactionsView({
 
   const all = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
 
+  // Ledger-wide data-quality facts (origin resolution walks every link), so the
+  // filter and the per-row badge read one shared computation.
+  const issueCtx = useMemo(() => issueContext(all), [all]);
+
   // Open lot per buy/transfer_in transaction (only lots with remaining > 0).
   // A transfer_in can carry several moved lots under one transaction id —
   // aggregate them: remaining is summed, and the tax-free badge only turns
@@ -1500,6 +1647,9 @@ export default function TransactionsView({
         continue;
       }
       prev.remainingBtc = prev.remainingBtc.plus(l.remainingBtc);
+      // One traceless part is enough to make the whole row's holding period a
+      // statement the data does not support.
+      if (l.originUnresolved) prev.originUnresolved = true;
       if (l.taxFreeDate.getTime() > prev.taxFreeDate.getTime()) {
         prev.taxFreeDate = l.taxFreeDate;
         prev.acquiredDate = l.acquiredDate;
@@ -1542,7 +1692,7 @@ export default function TransactionsView({
     if (filterWallet) rows = rows.filter((r) => r.walletId === filterWallet);
     if (filterAccount) rows = rows.filter((r) => r.accountId === filterAccount);
     if (filterType) rows = rows.filter((r) => r.type === filterType);
-    if (filterIssue) rows = rows.filter((r) => hasIssue(r, filterIssue));
+    if (filterIssue) rows = rows.filter((r) => hasIssue(r, filterIssue, issueCtx));
     if (filterFrom) rows = rows.filter((r) => r.date >= filterFrom);
     if (filterTo) rows = rows.filter((r) => r.date <= `${filterTo}T23:59:59.999Z`);
     if (onlyTaxFree) {
@@ -1618,7 +1768,7 @@ export default function TransactionsView({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, filterWallet, filterAccount, filterType, filterIssue, filterFrom, filterTo, onlyTaxFree, lotByTxId, sortKey, sortAsc, loc]);
+  }, [all, filterWallet, filterAccount, filterType, filterIssue, issueCtx, filterFrom, filterTo, onlyTaxFree, lotByTxId, sortKey, sortAsc, loc]);
 
   const wallet = portfolio.wallets.find((w) => w.id === filterWallet);
 
@@ -1646,6 +1796,15 @@ export default function TransactionsView({
       const next = new Set(prev);
       if (allFilteredSelected) filtered.forEach((r) => next.delete(r.id));
       else filtered.forEach((r) => next.add(r.id));
+      return next;
+    });
+  }
+
+  function toggleOrigin(id: string) {
+    setExpandedOrigins((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -1741,7 +1900,8 @@ export default function TransactionsView({
     );
   }
 
-  const visibleColSpan = visibleCols.size + 2; // + checkbox and actions columns
+  // + expander, checkbox and actions columns
+  const visibleColSpan = visibleCols.size + 3;
   const isFiltered = Boolean(
     filterWallet ||
       filterAccount ||
@@ -1990,6 +2150,8 @@ export default function TransactionsView({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-c text-xs text-muted">
+                {/* Expander for the origin sub-list; only incoming legs have one. */}
+                <th className="w-6 py-2 font-normal" aria-label={t("tx.origin.section")} />
                 <th className="py-2 pr-3 text-center font-normal">
                   <Switch
                     checked={allFilteredSelected}
@@ -2027,15 +2189,48 @@ export default function TransactionsView({
                 const lot = lotByTxId.get(r.id);
                 const transferredLegs = transferredOutByTxId.get(r.id);
                 const rowSelected = selectedIds.has(r.id);
+                // Only an arrival has an origin to unfold: everything else
+                // either is an acquisition or is explained by its own lots.
+                const expandable = r.type === "transfer_in";
+                const expanded = expandedOrigins.has(r.id);
+                const originUnresolved = hasIssue(r, "unresolvedOrigin", issueCtx);
                 return (
+                  <Fragment key={`${r.accountId}-${r.id}`}>
                   <tr
-                    key={`${r.accountId}-${r.id}`}
                     className={`cursor-pointer border-b border-border-c/50 hover:bg-surface-2/50 ${
                       rowSelected ? "bg-accent/5" : ""
-                    } ${transferredLegs ? "opacity-45" : ""}`}
+                    } ${transferredLegs ? "opacity-45" : ""} ${
+                      expanded ? "bg-surface-2/40" : ""
+                    }`}
                     title={t("tx.edit")}
                     onClick={() => openEdit(r)}
                   >
+                    <td className="py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                      {expandable && (
+                        <button
+                          className="rounded-md p-1 text-muted hover:bg-accent/10 hover:text-accent"
+                          aria-expanded={expanded}
+                          title={expanded ? t("tx.origin.hide") : t("tx.origin.show")}
+                          aria-label={expanded ? t("tx.origin.hide") : t("tx.origin.show")}
+                          onClick={() => toggleOrigin(r.id)}
+                        >
+                          <svg
+                            aria-hidden
+                            viewBox="0 0 16 16"
+                            className={`h-3.5 w-3.5 transition-transform ${
+                              expanded ? "rotate-90" : ""
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="m6 3.5 5 4.5-5 4.5" />
+                          </svg>
+                        </button>
+                      )}
+                    </td>
                     <td
                       className="py-2 pr-3 text-center"
                       onClick={(e) => e.stopPropagation()}
@@ -2079,7 +2274,9 @@ export default function TransactionsView({
                     )}
                     {visibleCols.has("taxStatus") && (
                       <td className="py-2 pr-4 whitespace-nowrap">
-                        {lot ? (
+                        {originUnresolved ? (
+                          <OriginUnresolvedBadge />
+                        ) : lot ? (
                           <TaxStatusBadge lot={lot} />
                         ) : (
                           <span className="text-muted">—</span>
@@ -2095,6 +2292,15 @@ export default function TransactionsView({
                           >
                             {r.walletName} / {r.accountName}
                           </span>
+                          {/* An arrival whose coins trace back to nothing has
+                              no determinable holding period. The tax column
+                              says so where it is shown; without it the mark
+                              would be lost, so it moves next to the account. */}
+                          {originUnresolved && !visibleCols.has("taxStatus") && (
+                            <span className="shrink-0">
+                              <OriginUnresolvedBadge />
+                            </span>
+                          )}
                           {transferredLegs && (
                             <span
                               className="shrink-0 cursor-default rounded-md p-0.5 text-muted hover:bg-accent/10 hover:text-accent"
@@ -2287,6 +2493,23 @@ export default function TransactionsView({
                       />
                     )}
                   </tr>
+                  {expandable && expanded && (
+                    <tr className="border-b border-border-c/50 bg-surface-2/40">
+                      <td />
+                      <td colSpan={visibleColSpan - 1} className="py-2 pr-4 pl-2">
+                        <div className="border-l-2 border-accent/40 pl-3">
+                          <ProvenanceList
+                            entry={r}
+                            entries={all}
+                            holdingPeriodDays={portfolio.settings.holdingPeriodDays}
+                            onJump={jumpToTransaction}
+                            onAssign={() => setLinkOriginFor(r)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>
@@ -2354,6 +2577,8 @@ export default function TransactionsView({
             setShowForm(false);
             setSellingLot(null);
           }}
+          onJumpToTransaction={jumpToTransaction}
+          onAssignOrigin={setLinkOriginFor}
         />
       )}
       {showImport && <CsvImportWizard onClose={() => setShowImport(false)} />}
@@ -2380,6 +2605,19 @@ export default function TransactionsView({
             setShowTransfer(false);
             setSelectedIds(new Set());
           }}
+        />
+      )}
+
+      {/* Same dialog, entered from an arrival with unknown origin: the in-leg
+          is fixed and the source lots are chosen inside it. */}
+      {linkOriginFor && (
+        <TransferDialog
+          all={all}
+          selected={[]}
+          lotByTxId={lotByTxId}
+          linkInEntry={linkOriginFor}
+          onClose={() => setLinkOriginFor(null)}
+          onTransferred={() => setLinkOriginFor(null)}
         />
       )}
 

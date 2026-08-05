@@ -24,6 +24,7 @@ import {
 } from "@/lib/types";
 import { Button, Field, Modal, inputCls } from "./ui";
 import NumberInput, { decimalPlaceholder } from "./NumberInput";
+import ProvenanceList from "./ProvenanceList";
 
 const EXTERNAL = "__external__";
 
@@ -46,10 +47,16 @@ export default function TransactionForm({
   existing,
   sellLot = null,
   onClose,
+  onJumpToTransaction,
+  onAssignOrigin,
 }: {
   existing: LedgerEntry | null;
   sellLot?: SellLotTarget | null;
   onClose: () => void;
+  /** Open another transaction (an origin lot); omitted when unavailable. */
+  onJumpToTransaction?: (txId: string) => void;
+  /** Hand the unlinked arrival to the assignment dialog; omitted when unavailable. */
+  onAssignOrigin?: (entry: LedgerEntry) => void;
 }) {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
@@ -71,14 +78,14 @@ export default function TransactionForm({
   const isTransferLeg =
     existing?.type === "transfer_in" || existing?.type === "transfer_out";
 
+  const allEntries = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
+
   // Open lots as of now, excluding the edited transaction's own consumption —
   // used to compute the persisted FIFO allocation for new sells/spends.
   const openLots = useMemo(() => {
-    const entries = flattenLedger(portfolio.wallets).filter(
-      (e) => e.id !== existing?.id,
-    );
+    const entries = allEntries.filter((e) => e.id !== existing?.id);
     return computeFifo(entries, portfolio.settings.holdingPeriodDays).openLots;
-  }, [portfolio, existing?.id]);
+  }, [allEntries, portfolio.settings.holdingPeriodDays, existing?.id]);
 
   const [formType, setFormType] = useState<FormType>(
     existing
@@ -675,6 +682,35 @@ export default function TransactionForm({
                 {addressInvalid ? t("tx.addressInvalid") : t("tx.addressHint")}
               </p>
             </div>
+          </fieldset>
+        )}
+
+        {/* Where the coins in this arrival came from (CLAUDE.md §3.2) — the
+            same list the transaction table unfolds, so both tell one story. */}
+        {existing?.type === "transfer_in" && (
+          <fieldset className="space-y-2 rounded-lg border border-border-c/60 p-3">
+            <legend className="px-1 text-xs text-muted">{t("tx.origin.section")}</legend>
+            <ProvenanceList
+              entry={existing}
+              entries={allEntries}
+              holdingPeriodDays={portfolio.settings.holdingPeriodDays}
+              onJump={
+                onJumpToTransaction
+                  ? (txId) => {
+                      onClose();
+                      onJumpToTransaction(txId);
+                    }
+                  : undefined
+              }
+              onAssign={
+                onAssignOrigin
+                  ? () => {
+                      onClose();
+                      onAssignOrigin(existing);
+                    }
+                  : undefined
+              }
+            />
           </fieldset>
         )}
 
