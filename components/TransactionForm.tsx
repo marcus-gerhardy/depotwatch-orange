@@ -38,6 +38,8 @@ import {
 import {
   allocationSumBtc,
   allocationTargetBtc,
+  effectiveOnChain,
+  groupOnChain,
   isLegPaired,
   pairedGroupIds,
   setLotAllocations,
@@ -152,6 +154,21 @@ export default function TransactionForm({
       };
     }
     return null;
+  }, [current, allEntries]);
+
+  /**
+   * What the counterpart leg recorded on-chain. Both legs describe the same
+   * send, and typically only one side has the data (a hardware wallet exports
+   * txid and address, an exchange rarely does), so the other side offers to
+   * take it over instead of leaving the field empty (§3.2).
+   */
+  const inheritedOnChain = useMemo(() => {
+    if (!current) return {};
+    const own = effectiveOnChain(
+      { txid: undefined, address: undefined, transferGroupId: current.transferGroupId },
+      groupOnChain(allEntries),
+    );
+    return { txid: own.txid, address: own.address };
   }, [current, allEntries]);
 
   // Which lots this outgoing transfer closes. Form state like every other
@@ -975,6 +992,10 @@ export default function TransactionForm({
                 {txidInvalid && (
                   <p className="mt-1 text-xs text-loss">{t("tx.txidInvalid")}</p>
                 )}
+                <InheritedOnChain
+                  value={txid.trim() === "" ? inheritedOnChain.txid : undefined}
+                  onAdopt={setTxid}
+                />
               </div>
               <div>
                 <Field label={t("tx.address")}>
@@ -992,6 +1013,10 @@ export default function TransactionForm({
                 >
                   {addressInvalid ? t("tx.addressInvalid") : t("tx.addressHint")}
                 </p>
+                <InheritedOnChain
+                  value={address.trim() === "" ? inheritedOnChain.address : undefined}
+                  onAdopt={setAddress}
+                />
               </div>
             </Section>
           )}
@@ -1065,5 +1090,35 @@ export default function TransactionForm({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/**
+ * The counterpart leg's txid or address, offered for the empty field next to
+ * it. Shown rather than filled in silently: it is the user's record, and the
+ * value only becomes theirs once they say so (linking two legs already carries
+ * it over on its own — this is for pairings made before that).
+ */
+function InheritedOnChain({
+  value,
+  onAdopt,
+}: {
+  value: string | undefined;
+  onAdopt: (value: string) => void;
+}) {
+  const { t } = useI18n();
+  if (!value) return null;
+  return (
+    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+      <span className="truncate font-mono">{value}</span>
+      <button
+        type="button"
+        className="shrink-0 rounded-md border border-border-c px-2 py-0.5 hover:border-accent-dim hover:text-foreground"
+        onClick={() => onAdopt(value)}
+      >
+        {t("tx.onChainAdopt")}
+      </button>
+      <span className="w-full">{t("tx.onChainInherited")}</span>
+    </p>
   );
 }

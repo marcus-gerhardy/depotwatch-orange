@@ -1,16 +1,33 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import Footer from "@/components/Footer";
+import ThemeEffect from "@/components/ThemeEffect";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Self-hosted, not pulled from Google — see app/fonts/README.md. One variable
+// file per family covers every weight the UI uses.
+const outfit = localFont({
+  src: "./fonts/Outfit-Variable.woff2",
+  variable: "--font-outfit",
+  display: "swap",
+  weight: "100 900",
+  fallback: ["system-ui", "sans-serif"],
 });
 
-const geistMono = Geist_Mono({
+const spaceGrotesk = localFont({
+  src: "./fonts/SpaceGrotesk-Variable.woff2",
+  variable: "--font-space-grotesk",
+  display: "swap",
+  weight: "300 700",
+  fallback: ["system-ui", "sans-serif"],
+});
+
+const geistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
+  weight: "100 900",
+  fallback: ["ui-monospace", "monospace"],
 });
 
 export const metadata: Metadata = {
@@ -27,9 +44,10 @@ export default function RootLayout({
   return (
     <html
       lang="de"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${outfit.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <ThemeEffect />
         {children}
         <Footer />
       </body>

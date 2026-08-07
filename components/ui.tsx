@@ -3,6 +3,7 @@
 // Small shared UI primitives, dark-theme styled.
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 
 export function Card({
@@ -21,11 +22,26 @@ export function Card({
   );
 }
 
-export function SectionTitle({ children }: { children: React.ReactNode }) {
+/**
+ * The small uppercase heading above a view or a card.
+ *
+ * `level` is the heading rank, not the look: a view's own title is the page's
+ * `h1` (the app shell has none — its brand is a logo, not a heading), and the
+ * cards inside it are `h2`/`h3`. Screen readers navigate by that outline, so it
+ * has to nest properly even though every level looks the same.
+ */
+export function SectionTitle({
+  children,
+  level = 2,
+}: {
+  children: React.ReactNode;
+  level?: 1 | 2 | 3;
+}) {
+  const Tag = `h${level}` as "h1" | "h2" | "h3";
   return (
-    <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">
+    <Tag className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">
       {children}
-    </h2>
+    </Tag>
   );
 }
 
@@ -63,7 +79,9 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`rounded-lg px-3 py-1.5 text-sm transition-colors disabled:opacity-40 disabled:pointer-events-none ${styles} ${className}`}
+      // Taller on touch screens, unchanged on the desktop layout the app is
+      // designed for — 30 px is a small target for a finger.
+      className={`rounded-lg px-3 py-2 text-sm transition-colors disabled:opacity-40 disabled:pointer-events-none sm:py-1.5 ${styles} ${className}`}
     >
       {children}
     </button>
@@ -81,7 +99,7 @@ export function stopEnterSubmit(e: React.KeyboardEvent<HTMLInputElement>) {
 }
 
 export const inputCls =
-  "w-full rounded-lg border border-border-c bg-surface-2 px-3 py-1.5 text-sm text-foreground placeholder:text-muted/60 focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-border-c bg-surface-2 px-3 py-1.5 text-sm text-foreground placeholder:text-muted/60 focus:border-accent";
 
 /**
  * Toggle-switch look for on/off checkboxes (bulk-select rows, CSV import row
@@ -241,6 +259,10 @@ export function Modal({
   /** Dialog width: md (default), lg for form dialogs with tables, xl for wizards. */
   size?: "md" | "lg" | "xl";
 }) {
+  const { t } = useI18n();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -249,25 +271,48 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Keyboard focus follows the dialog and comes back where it was: without
+  // this, tabbing after opening one walks the page behind it, and closing
+  // drops focus on <body>. The page behind also must not scroll away under
+  // the overlay while it is open.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = overflow;
+      previous?.focus?.();
+    };
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 pt-16"
       onClick={onClose}
     >
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={`w-full ${
           { md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" }[
             size ?? (wide ? "xl" : "md")
           ]
-        } rounded-xl border border-border-c bg-surface p-5 shadow-2xl`}
+        } rounded-xl border border-border-c bg-surface p-5 shadow-2xl focus:outline-none`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-semibold">{title}</h3>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 id={titleId} className="text-base font-semibold">
+            {title}
+          </h3>
           <button
             onClick={onClose}
-            className="text-muted hover:text-foreground"
-            aria-label="close"
+            className="rounded-md px-1 text-muted hover:text-foreground"
+            aria-label={t("common.close")}
+            title={t("common.close")}
           >
             ✕
           </button>

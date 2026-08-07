@@ -8,11 +8,13 @@ const layout: DashboardWidgetPlacement[] = [
 ];
 
 beforeEach(() => {
+  localStorage.clear();
   useAppStore.setState({
     portfolio: emptyPortfolio(),
     fileMode: "fallback",
     fileHandle: null,
     dirty: false,
+    uiTheme: "ocean",
   });
 });
 
@@ -60,5 +62,55 @@ describe("uiSettings in the file format", () => {
     const { portfolio } = await deserializePortfolio(JSON.stringify(json), null);
     expect(portfolio.uiSettings).toBeUndefined();
     expect(portfolio.wallets).toEqual([]);
+  });
+});
+
+describe("colour theme in the store", () => {
+  it("writes the choice to the file and to the device preference", () => {
+    useAppStore.getState().setUiTheme("night");
+
+    expect(useAppStore.getState().uiTheme).toBe("night");
+    expect(useAppStore.getState().portfolio?.settings.theme).toBe("night");
+    expect(localStorage.getItem("depotwatch.theme")).toBe("night");
+    expect(useAppStore.getState().dirty).toBe(true);
+  });
+
+  it("adopts the theme of a file that is opened", () => {
+    const portfolio = emptyPortfolio();
+    portfolio.settings.theme = "night";
+    useAppStore.getState().openPortfolio({
+      portfolio,
+      handle: null,
+      fileName: "test.dwp",
+      password: null,
+    });
+
+    expect(useAppStore.getState().uiTheme).toBe("night");
+    expect(localStorage.getItem("depotwatch.theme")).toBe("night");
+  });
+
+  it("keeps the current theme for a file written before themes existed", () => {
+    useAppStore.getState().setUiTheme("night");
+    const portfolio = emptyPortfolio();
+    delete portfolio.settings.theme;
+
+    useAppStore.getState().openPortfolio({
+      portfolio,
+      handle: null,
+      fileName: "old.dwp",
+      password: null,
+    });
+
+    expect(useAppStore.getState().uiTheme).toBe("night");
+  });
+
+  it("reads the remembered theme on start, ignoring junk", () => {
+    localStorage.setItem("depotwatch.theme", "sepia");
+    useAppStore.getState().initUiTheme();
+    expect(useAppStore.getState().uiTheme).toBe("ocean");
+
+    localStorage.setItem("depotwatch.theme", "night");
+    useAppStore.getState().initUiTheme();
+    expect(useAppStore.getState().uiTheme).toBe("night");
   });
 });

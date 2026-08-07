@@ -143,8 +143,10 @@ describe("TransactionsView: fully-transferred lots fade + popover", () => {
     render(<TransactionsView />);
 
     const headers = screen.getAllByRole("columnheader");
-    const walletIndex = headers.findIndex(
-      (h) => h.textContent?.trim() === "tx.wallet / tx.account",
+    // Sortable headers carry a direction arrow (a placeholder when inactive),
+    // so the label is matched as a prefix.
+    const walletIndex = headers.findIndex((h) =>
+      h.textContent?.trim().startsWith("tx.wallet / tx.account"),
     );
 
     const buyFullIcon = screen.getAllByRole("img", { name: "tx.types.buy" })[1];

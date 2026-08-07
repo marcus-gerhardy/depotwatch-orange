@@ -427,6 +427,8 @@ const de = {
       "Zieladresse beim Ausgang, Empfangsadresse beim Eingang. Das grenzt ein, welcher Output der Transaktion gemeint ist.",
     addressInvalid:
       "Ungültige Bitcoin-Adresse (erlaubt: Legacy 1…/3…, Bech32 bc1q…, Bech32m bc1p…).",
+    onChainInherited: "Aus der verknüpften Gegenbuchung übernommen",
+    onChainAdopt: "Übernehmen",
     copyValue: "In die Zwischenablage kopieren",
     copied: "Kopiert",
     openInExplorer: "Im Block-Explorer öffnen",
@@ -514,6 +516,8 @@ const de = {
     prevPage: "Vorherige Seite",
     nextPage: "Nächste Seite",
     empty: "Keine Transaktionen gefunden.",
+    emptyLedger: "Noch keine Transaktionen erfasst.",
+    resetFilters: "Filter zurücksetzen",
     amountRequired: "Menge muss größer als 0 sein.",
     priceRequired:
       "Kurs oder Betrag (EUR) wird für Kauf/Verkauf/Ausgabe benötigt.",
@@ -909,6 +913,11 @@ const de = {
     title: "Einstellungen",
     general: "Allgemein",
     language: "Sprache",
+    theme: "Farbschema",
+    themes: {
+      ocean: "Ozean (Standard)",
+      night: "Nacht",
+    },
     currency: "Anzeigewährung",
     security: "Sicherheit & Datei",
     changePassword: "Passwort ändern",

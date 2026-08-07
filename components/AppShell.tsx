@@ -105,7 +105,7 @@ export default function AppShell() {
             >
               ☰
             </button>
-            <div className="flex items-center gap-2 font-bold">
+            <div className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight">
               <span className="text-accent">₿</span>
               <span className="hidden sm:inline">
                 DepotWatch <span className="text-accent">Orange</span>

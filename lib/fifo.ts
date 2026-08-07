@@ -345,12 +345,31 @@ export function computeFifo(
       }
       case "transfer_in": {
         if (e.counterpartyAccountId) {
-          const moved = e.transferGroupId
-            ? movedByGroup.get(e.transferGroupId)
-            : undefined;
           // Legacy internal leg (no group): the lots never left the source
           // account's queue — nothing to re-create here.
-          if (!moved) break;
+          if (!e.transferGroupId) break;
+          const moved = movedByGroup.get(e.transferGroupId);
+          // A group whose out-leg does not exist (a half-imported transfer, a
+          // stale id): nothing moved, but the coins are in the account and the
+          // balance counts them. Dropping them here would take them out of the
+          // engine entirely — the holding would silently lose a chunk. They
+          // become a lot of unknown origin instead, like the surplus below.
+          if (!moved) {
+            lots.push({
+              txId: e.id,
+              acquiredDate: e.date,
+              accountId: e.accountId,
+              walletName: e.walletName,
+              accountName: e.accountName,
+              originalAmountBtc: amount,
+              remainingBtc: amount,
+              costPerBtcEur: null,
+              taxFreeDate: taxFreeDateFor(e.date),
+              note: e.note,
+              originUnresolved: true,
+            });
+            break;
+          }
           // Re-create the moved lot slices in this account, keeping the
           // original acquisition date and cost basis. The in-leg amount is
           // net of the BTC fee, so the tail slice (the fee) stays unclaimed.

@@ -16,6 +16,7 @@ import { useAppStore } from "@/lib/store";
 import { useDailyCloses } from "@/lib/marketData";
 import { dailyValueSeries } from "@/lib/portfolio";
 import type { LedgerEntry } from "@/lib/types";
+import { THEMES } from "@/lib/theme";
 import { Button } from "./ui";
 
 type Range = 90 | 365 | 0; // 0 = all
@@ -26,6 +27,10 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
   const portfolio = useAppStore((s) => s.portfolio)!;
   const privacyMode = useAppStore((s) => s.privacyMode);
   const currency = portfolio.settings.currencyDisplay;
+  // Recharts needs literal colours (SVG attributes take no CSS variables), so
+  // the chart reads the active theme's tokens from the same table the
+  // stylesheet is checked against (lib/theme.ts).
+  const c = THEMES[useAppStore((s) => s.uiTheme)];
 
   const [range, setRange] = useState<Range>(365);
   const [compare, setCompare] = useState(false);
@@ -97,15 +102,15 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
             <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
               <defs>
                 <linearGradient id="pfGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f7931a" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#f7931a" stopOpacity={0} />
+                  <stop offset="0%" stopColor={c.accent} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={c.accent} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#2a2a30" strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid stroke={c.border} strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="time"
                 tickFormatter={fmtAxisDate}
-                stroke="#98989f"
+                stroke={c.muted}
                 fontSize={11}
                 tickLine={false}
                 minTickGap={60}
@@ -113,7 +118,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
               <YAxis
                 yAxisId="pf"
                 tickFormatter={(v: number) => fmtMoney(v)}
-                stroke="#98989f"
+                stroke={c.muted}
                 fontSize={11}
                 tickLine={false}
                 width={80}
@@ -123,7 +128,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
                   yAxisId="btc"
                   orientation="right"
                   tickFormatter={(v: number) => fmtMoney(v)}
-                  stroke="#5b5b63"
+                  stroke={c.border}
                   fontSize={11}
                   tickLine={false}
                   width={80}
@@ -131,8 +136,8 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
               )}
               <Tooltip
                 contentStyle={{
-                  background: "#1d1d21",
-                  border: "1px solid #2a2a30",
+                  background: c.surface2,
+                  border: `1px solid ${c.border}`,
                   borderRadius: 8,
                   fontSize: 12,
                 }}
@@ -148,7 +153,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
                 yAxisId="pf"
                 type="monotone"
                 dataKey="value"
-                stroke="#f7931a"
+                stroke={c.accent}
                 strokeWidth={2}
                 fill="url(#pfGradient)"
                 dot={false}
@@ -158,7 +163,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
                   yAxisId="btc"
                   type="monotone"
                   dataKey="btcPrice"
-                  stroke="#8a8a93"
+                  stroke={c.muted}
                   strokeWidth={1.5}
                   dot={false}
                 />

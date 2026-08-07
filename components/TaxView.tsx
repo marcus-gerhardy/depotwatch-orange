@@ -50,7 +50,7 @@ export default function TaxView() {
 
   return (
     <div className="space-y-4">
-      <SectionTitle>{t("tax.title")}</SectionTitle>
+      <SectionTitle level={1}>{t("tax.title")}</SectionTitle>
       <p className="text-xs text-muted">{t("tax.disclaimer", { days: holdingDays })}</p>
 
       {uncovered.length > 0 && (
@@ -64,7 +64,7 @@ export default function TaxView() {
       )}
 
       <Card>
-        <SectionTitle>{t("tax.openLots")}</SectionTitle>
+        <SectionTitle level={2}>{t("tax.openLots")}</SectionTitle>
         {fifo.openLots.length === 0 ? (
           <p className="text-sm text-muted">{t("tax.emptyLots")}</p>
         ) : (
@@ -151,7 +151,7 @@ export default function TaxView() {
 
       <Card>
         <div className="mb-3 flex items-center justify-between gap-3">
-          <SectionTitle>{t("tax.disposals")}</SectionTitle>
+          <SectionTitle level={2}>{t("tax.disposals")}</SectionTitle>
           {years.length > 0 && (
             <select
               className={`${inputCls} w-auto`}

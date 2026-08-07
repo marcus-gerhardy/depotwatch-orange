@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { THEMES } from "@/lib/theme";
 import { dec, formatBtc, formatFiat, formatInt } from "@/lib/decimal";
 import { useDailyCloses } from "@/lib/marketData";
 import { Amount, Button } from "../ui";
@@ -27,13 +28,25 @@ import { StatLabel, StatValue, WidgetEmpty, WidgetError, WidgetSkeleton } from "
 
 const DAY = 86_400_000;
 
-/** Shared dark-theme tooltip styling. */
-const TOOLTIP_STYLE = {
-  background: "#1d1d21",
-  border: "1px solid #2a2a30",
-  borderRadius: 8,
-  fontSize: 12,
-} as const;
+/**
+ * The active theme's colours. Recharts needs literal colours (SVG attributes
+ * take no CSS variables), so charts read the same table the stylesheet is
+ * checked against (lib/theme.ts) instead of the tokens.
+ */
+function useThemeColors() {
+  return THEMES[useAppStore((s) => s.uiTheme)];
+}
+
+/** Tooltip styling in those colours. */
+function useTooltipStyle() {
+  const c = useThemeColors();
+  return {
+    background: c.surface2,
+    border: `1px solid ${c.border}`,
+    borderRadius: 8,
+    fontSize: 12,
+  } as const;
+}
 
 /** The value-over-time chart, unchanged in substance, now as a widget. */
 export function PortfolioChartWidget() {
@@ -63,6 +76,8 @@ interface TradeMarker {
 export function PriceEntriesWidget() {
   const { t, loc, currency, entries } = useDashboardData();
   const privacyMode = useAppStore((s) => s.privacyMode);
+  const c = useThemeColors();
+  const tooltipStyle = useTooltipStyle();
   const [range, setRange] = useState<Range>(365);
 
   const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
@@ -145,7 +160,7 @@ export function PriceEntriesWidget() {
       <div className={`min-h-0 flex-1 ${privacyMode ? "privacy-blur" : ""}`}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={line} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-            <CartesianGrid stroke="#2a2a30" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={c.border} strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="time"
               type="number"
@@ -156,7 +171,7 @@ export function PriceEntriesWidget() {
                   year: "2-digit",
                 })
               }
-              stroke="#98989f"
+              stroke={c.muted}
               fontSize={11}
               tickLine={false}
               minTickGap={50}
@@ -164,14 +179,14 @@ export function PriceEntriesWidget() {
             <YAxis
               dataKey="price"
               tickFormatter={fmtMoney}
-              stroke="#98989f"
+              stroke={c.muted}
               fontSize={11}
               tickLine={false}
               width={70}
               domain={["auto", "auto"]}
             />
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              contentStyle={tooltipStyle}
               labelFormatter={(ms) => formatDate(Number(ms), loc)}
               formatter={(v, _name, item) => {
                 const p = item?.payload as TradeMarker | undefined;
@@ -194,13 +209,13 @@ export function PriceEntriesWidget() {
             <Line
               type="monotone"
               dataKey="price"
-              stroke="#f7931a"
+              stroke={c.accent}
               strokeWidth={1.5}
               dot={false}
               isAnimationActive={false}
             />
-            <Scatter data={buys} dataKey="price" fill="#26a269" shape="circle" />
-            <Scatter data={sells} dataKey="price" fill="#e01b24" shape="triangle" />
+            <Scatter data={buys} dataKey="price" fill={c.gain} shape="circle" />
+            <Scatter data={sells} dataKey="price" fill={c.loss} shape="triangle" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -215,6 +230,8 @@ export function PriceEntriesWidget() {
 export function DcaWidget() {
   const { t, loc, currency, entries, eurToDisplay } = useDashboardData();
   const privacyMode = useAppStore((s) => s.privacyMode);
+  const c = useThemeColors();
+  const tooltipStyle = useTooltipStyle();
 
   const stats = useMemo(() => {
     const buys = entries
@@ -314,8 +331,8 @@ export function DcaWidget() {
           >
             <defs>
               <linearGradient id="dcaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#f7931a" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#f7931a" stopOpacity={0} />
+                <stop offset="0%" stopColor={c.accent} stopOpacity={0.35} />
+                <stop offset="100%" stopColor={c.accent} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
@@ -328,14 +345,14 @@ export function DcaWidget() {
                   year: "2-digit",
                 })
               }
-              stroke="#98989f"
+              stroke={c.muted}
               fontSize={10}
               tickLine={false}
               minTickGap={40}
             />
             <YAxis hide domain={[0, "auto"]} />
             <Tooltip
-              contentStyle={TOOLTIP_STYLE}
+              contentStyle={tooltipStyle}
               labelFormatter={(ms) => formatDate(Number(ms), loc)}
               formatter={(v) => [
                 `${formatBtc(String(v ?? 0), loc)} BTC`,
@@ -345,7 +362,7 @@ export function DcaWidget() {
             <Area
               type="stepAfter"
               dataKey="btc"
-              stroke="#f7931a"
+              stroke={c.accent}
               strokeWidth={1.5}
               fill="url(#dcaGradient)"
               dot={false}

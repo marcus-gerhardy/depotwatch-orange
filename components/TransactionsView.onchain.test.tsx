@@ -124,3 +124,85 @@ describe("TransactionsView: on-chain columns", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("TransactionsView: on-chain data of the counterpart leg", () => {
+  /** The exchange's send has neither txid nor address; the hardware wallet's arrival has both. */
+  function linkedPair(): PortfolioFile {
+    const p = emptyPortfolio();
+    p.wallets = [
+      {
+        id: "walletA",
+        name: "Kraken",
+        type: "exchange",
+        accounts: [
+          {
+            id: "acctA",
+            name: "Spot",
+            transactions: [
+              {
+                id: "out1",
+                type: "transfer_out",
+                date: "2024-02-01T00:00:00.000Z",
+                amountBtc: "0.5",
+                pricePerBtcEur: null,
+                totalFiatEur: null,
+                transferGroupId: "g1",
+                counterpartyAccountId: "acctB",
+                note: "",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: "walletB",
+        name: "BitBox02",
+        type: "hardware",
+        accounts: [
+          {
+            id: "acctB",
+            name: "Cold",
+            transactions: [
+              {
+                id: "in1",
+                type: "transfer_in",
+                date: "2024-02-01T01:00:00.000Z",
+                amountBtc: "0.5",
+                pricePerBtcEur: null,
+                totalFiatEur: null,
+                transferGroupId: "g1",
+                counterpartyAccountId: "acctA",
+                txid: TXID,
+                address: ADDRESS,
+                note: "",
+              },
+            ],
+          },
+        ],
+      },
+    ];
+    return p;
+  }
+
+  it("shows them on the leg that recorded none of them", () => {
+    useAppStore.setState({ portfolio: linkedPair() });
+    render(<TransactionsView />);
+    showOnChainColumns();
+
+    // Both rows, not just the arrival: one transaction, one txid, one output.
+    expect(screen.getAllByText("4a5e1e4b…fdeda33b")).toHaveLength(2);
+    expect(screen.getAllByText("bc1qw508…7kv8f3t4")).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "tx.openInExplorer" })).toHaveLength(4);
+  });
+
+  it("does not count the send as missing its txid", () => {
+    useAppStore.setState({ portfolio: linkedPair() });
+    render(<TransactionsView />);
+
+    // The data-quality filter is the same predicate the dashboard widget counts.
+    fireEvent.change(screen.getByTitle("tx.filterIssue"), {
+      target: { value: "missingTxid" },
+    });
+    expect(screen.getByText("tx.empty")).toBeTruthy();
+  });
+});

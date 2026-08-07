@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
-/* Dark-first Bitcoin theme: orange accent on near-black (spec §5). */
-:root {
+/* Colour themes (spec §5/§6.3). Both are dark and keep the Bitcoin orange as
+   the accent; only the neutrals change, so every component keeps working off
+   the same tokens and nothing needs a per-theme branch.
+
+   "ocean" (default): deep navy with warm cream text.
+   "night": orange on near-black, maximum contrast. */
+[data-theme="night"] {
   --background: #0b0b0d;
   --surface: #151518;
   --surface-2: #1d1d21;
@@ -13,6 +18,21 @@
   --gain: #26a269;
   --loss: #e01b24;
   --warning: #e5a50a;
+}
+
+:root,
+[data-theme="ocean"] {
+  --background: #050b14;
+  --surface: #07111f;
+  --surface-2: #0d2138;
+  --border: #17304a;
+  --foreground: #fff9ef;
+  --muted: #93a7bd;
+  --accent: #f7931a;
+  --accent-dim: #d97512;
+  --gain: #2fb37f;
+  --loss: #ef5350;
+  --warning: #f3a13d;
 }
 
 @theme inline {
@@ -27,14 +47,37 @@
   --color-gain: var(--gain);
   --color-loss: var(--loss);
   --color-warning: var(--warning);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-outfit);
+  --font-heading: var(--font-space-grotesk);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+/* Headings in Space Grotesk, body text in Outfit (§5). Set on the elements
+   rather than per component, so every heading follows — including the ones in
+   the legal pages, which are plain prose. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-space-grotesk), var(--font-outfit), system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Keyboard focus has to be visible everywhere — the app is dense and largely
+   made of buttons, and several of them (icons, table headers, disclosure
+   headers) have no other affordance once the pointer is gone. Pointer clicks
+   are unaffected: :focus-visible only matches keyboard/AT focus. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Privacy mode: blur amounts, e.g. for screenshots/screen sharing. */

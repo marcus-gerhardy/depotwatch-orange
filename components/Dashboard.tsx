@@ -29,7 +29,7 @@ import {
   placeAt,
   type WidgetPlacement,
 } from "@/lib/dashboardLayout";
-import { Button } from "./ui";
+import { Button, SectionTitle } from "./ui";
 import {
   DashboardDataProvider,
   useDashboardData,
@@ -192,7 +192,12 @@ function DashboardBody() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      {/* The view's own heading: every other view has one, and a page whose
+          outline starts at a card heading reads as a fragment to a screen
+          reader. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionTitle level={1}>{t("nav.dashboard")}</SectionTitle>
+        <div className="flex flex-wrap items-center justify-end gap-2">
         {editing && (
           <>
             <Button onClick={openPickerAtFirstGap}>
@@ -212,6 +217,7 @@ function DashboardBody() {
             {editing ? `✓ ${t("dashboard.widgets.doneEditing")}` : `⚙ ${t("common.edit")}`}
           </Button>
         )}
+        </div>
       </div>
 
       <LedgerWarnings />

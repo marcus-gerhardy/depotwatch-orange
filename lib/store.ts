@@ -13,6 +13,7 @@ import type {
 } from "./types";
 import type { UserImportPreset } from "./importPresets";
 import { emptyPortfolio } from "./types";
+import { DEFAULT_THEME, isThemeId, type ThemeId } from "./theme";
 import { deleteAndRelease } from "./deletion";
 import { Decimal, dec, ZERO } from "./decimal";
 import {
@@ -60,6 +61,17 @@ interface AppState {
   initUiLocale: () => void;
   /** Switch the interface language, incl. the open portfolio's setting. */
   setUiLocale: (locale: Locale) => void;
+
+  /**
+   * Interface colour theme — the same arrangement as the language: it travels
+   * with the portfolio (`settings.theme`) and is mirrored to a device
+   * preference, so the start screen and the legal pages are themed too.
+   */
+  uiTheme: ThemeId;
+  /** Read the remembered theme; call from an effect (never during SSR). */
+  initUiTheme: () => void;
+  /** Switch the theme, incl. the open portfolio's setting. */
+  setUiTheme: (theme: ThemeId) => void;
 
   initFileMode: () => void;
   openPortfolio: (opts: {
@@ -219,6 +231,7 @@ export async function deserializePortfolio(
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const UI_LOCALE_KEY = "depotwatch.locale";
+const UI_THEME_KEY = "depotwatch.theme";
 
 function readStoredUiLocale(): Locale | null {
   try {
@@ -234,6 +247,23 @@ function storeUiLocale(locale: Locale): void {
     localStorage.setItem(UI_LOCALE_KEY, locale);
   } catch {
     // The language just won't survive a reload.
+  }
+}
+
+function readStoredUiTheme(): ThemeId | null {
+  try {
+    const v = localStorage.getItem(UI_THEME_KEY);
+    return isThemeId(v) ? v : null;
+  } catch {
+    return null; // storage unavailable (private mode) — stay on the default
+  }
+}
+
+function storeUiTheme(theme: ThemeId): void {
+  try {
+    localStorage.setItem(UI_THEME_KEY, theme);
+  } catch {
+    // The theme just won't survive a reload.
   }
 }
 
@@ -302,12 +332,28 @@ export const useAppStore = create<AppState>((set, get) => {
     needsFileSetup: false,
     privacyMode: false,
     uiLocale: "de",
+    uiTheme: DEFAULT_THEME,
 
     initFileMode: () => set({ fileMode: detectFileMode() }),
 
     initUiLocale: () => {
       const stored = readStoredUiLocale();
       if (stored && stored !== get().uiLocale) set({ uiLocale: stored });
+    },
+
+    initUiTheme: () => {
+      const stored = readStoredUiTheme();
+      if (stored && stored !== get().uiTheme) set({ uiTheme: stored });
+    },
+
+    setUiTheme: (theme) => {
+      storeUiTheme(theme);
+      set({ uiTheme: theme });
+      // Keep the open file in sync: its settings.theme is the value that
+      // travels with the portfolio.
+      if (get().portfolio?.settings.theme !== theme) {
+        mutate((p) => ({ ...p, settings: { ...p.settings, theme } }));
+      }
     },
 
     setUiLocale: (locale) => {
@@ -321,8 +367,11 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     openPortfolio: ({ portfolio, handle, fileName, password, isDemo }) => {
-      // The file's own language wins on open and becomes the device default.
+      // The file's own language and theme win on open and become the device
+      // defaults; a file written before themes existed keeps the current one.
       storeUiLocale(portfolio.settings.locale);
+      const theme = portfolio.settings.theme ?? get().uiTheme;
+      storeUiTheme(theme);
       set({
         portfolio,
         fileHandle: handle,
@@ -333,6 +382,7 @@ export const useAppStore = create<AppState>((set, get) => {
         lastSavedAt: null,
         needsFileSetup: !!isDemo,
         uiLocale: portfolio.settings.locale,
+        uiTheme: theme,
       });
     },
 

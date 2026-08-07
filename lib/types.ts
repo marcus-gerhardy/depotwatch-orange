@@ -2,6 +2,7 @@
 // All BTC/fiat amounts are decimal strings — never JS numbers (see CLAUDE.md §10).
 
 import type { UserImportPreset } from "./importPresets";
+import { DEFAULT_THEME, type ThemeId } from "./theme";
 
 export type WalletType = "exchange" | "hardware" | "software" | "paper";
 
@@ -144,6 +145,12 @@ export type Locale = "de" | "en";
 export interface AppSettings {
   locale: Locale;
   currencyDisplay: Currency;
+  /**
+   * Interface colour theme (§5). Optional: files written before it existed
+   * fall back to the default, and it is mirrored to a device preference like
+   * the language, so the pages without an open file follow it too.
+   */
+  theme?: ThemeId;
   /** German rule: holdings become tax-free after this many days (default 365). */
   holdingPeriodDays: number;
   costBasisMethod: "FIFO";
@@ -194,6 +201,7 @@ export interface PortfolioFile {
 export const DEFAULT_SETTINGS: AppSettings = {
   locale: "de",
   currencyDisplay: "EUR",
+  theme: DEFAULT_THEME,
   holdingPeriodDays: 365,
   costBasisMethod: "FIFO",
   autosaveDebounceMs: 1500,
@@ -220,13 +228,24 @@ export interface LedgerEntry extends Transaction {
 }
 
 /**
- * Causal depth derived from persisted lot references: lot-creating entries
- * (buy, external transfer_in) are 0, every consuming/receiving step is one
- * deeper. Used purely as a same-date tie-break so the FIFO engine sees an
- * out-leg before its in-leg and multi-hop transfers in recording order even
- * when all legs share one timestamp.
+ * The order the ledger has to be read in.
+ *
+ * Timestamps alone are not it: an arrival is regularly recorded *before* the
+ * send it belongs to — a hardware wallet stamps the transaction when it sees
+ * it, an exchange when the withdrawal completes, and two CSV exports need not
+ * agree at all. Reading the arrival first means its lots have not left the
+ * source account yet, so the coins arrive from nowhere and drop out of the
+ * FIFO engine while the balance still counts them.
+ *
+ * So every entry is placed at the later of its own date and the dates of the
+ * transactions it draws its lots from (an in-leg's out-leg, a disposal's
+ * allocated lots), propagated along the chain; `depth` breaks ties within one
+ * effective date, so legs sharing a timestamp still read out-leg first.
  */
-function causalDepths(entries: LedgerEntry[]): Map<string, number> {
+function causalOrder(entries: LedgerEntry[]): {
+  date: Map<string, string>;
+  depth: Map<string, number>;
+} {
   const byId = new Map(entries.map((e) => [e.id, e]));
   const outByGroup = new Map<string, LedgerEntry>();
   for (const e of entries) {
@@ -234,27 +253,40 @@ function causalDepths(entries: LedgerEntry[]): Map<string, number> {
       outByGroup.set(e.transferGroupId, e);
     }
   }
-  const depths = new Map<string, number>();
-  function depthOf(e: LedgerEntry): number {
-    const known = depths.get(e.id);
-    if (known !== undefined) return known;
-    depths.set(e.id, 0); // guards against cyclic references in corrupt data
-    let d = 0;
+
+  /** What an entry takes its lots from. */
+  function sources(e: LedgerEntry): LedgerEntry[] {
+    if (e.type === "buy") return [];
     if (e.type === "transfer_in") {
       const out = e.transferGroupId ? outByGroup.get(e.transferGroupId) : undefined;
-      if (out) d = depthOf(out) + 1;
-    } else if (e.type !== "buy") {
-      d = 1;
-      for (const a of e.lotAllocations ?? []) {
-        const lotTx = byId.get(a.lotTransactionId);
-        if (lotTx) d = Math.max(d, depthOf(lotTx) + 1);
-      }
+      return out ? [out] : [];
     }
-    depths.set(e.id, d);
-    return d;
+    return (e.lotAllocations ?? [])
+      .map((a) => byId.get(a.lotTransactionId))
+      .filter((x): x is LedgerEntry => x !== undefined);
   }
-  for (const e of entries) depthOf(e);
-  return depths;
+
+  const date = new Map<string, string>();
+  const depth = new Map<string, number>();
+  function visit(e: LedgerEntry): void {
+    if (date.has(e.id)) return;
+    // Seeded before recursing, so a circular reference in corrupt data stops
+    // here instead of looping.
+    date.set(e.id, e.date);
+    depth.set(e.id, 0);
+    let effective = e.date;
+    let d = e.type === "buy" || e.type === "transfer_in" ? 0 : 1;
+    for (const src of sources(e)) {
+      visit(src);
+      const srcDate = date.get(src.id)!;
+      if (srcDate > effective) effective = srcDate;
+      d = Math.max(d, depth.get(src.id)! + 1);
+    }
+    date.set(e.id, effective);
+    depth.set(e.id, d);
+  }
+  for (const e of entries) visit(e);
+  return { date, depth };
 }
 
 export function flattenLedger(wallets: Wallet[]): LedgerEntry[] {
@@ -272,11 +304,11 @@ export function flattenLedger(wallets: Wallet[]): LedgerEntry[] {
       }
     }
   }
-  const depths = causalDepths(entries);
+  const order = causalOrder(entries);
   entries.sort(
     (x, y) =>
-      x.date.localeCompare(y.date) ||
-      depths.get(x.id)! - depths.get(y.id)! ||
+      order.date.get(x.id)!.localeCompare(order.date.get(y.id)!) ||
+      order.depth.get(x.id)! - order.depth.get(y.id)! ||
       x.id.localeCompare(y.id),
   );
   return entries;

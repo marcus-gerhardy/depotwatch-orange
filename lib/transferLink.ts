@@ -124,6 +124,69 @@ export function isLegPaired(
   return !!leg.transferGroupId && paired.has(leg.transferGroupId);
 }
 
+/** On-chain data a transfer group shares (CLAUDE.md §3.2). */
+export interface GroupOnChain {
+  txid?: string;
+  address?: string;
+}
+
+/**
+ * What each transfer group knows about its on-chain transaction.
+ *
+ * Both legs of one transfer describe the same send, so whichever side recorded
+ * it holds the data for both — and in practice only one side has it: a hardware
+ * wallet exports txid and address, an exchange export usually neither.
+ *
+ * `txid` is the transaction's id and therefore identical for every leg of the
+ * group. The `address` is only shared when the group pairs exactly one out-leg
+ * with exactly one in-leg: the out-leg's address is where the coins went, the
+ * in-leg's is where they arrived, which is the same output only as long as
+ * there is exactly one. A batched send to several arrivals pays several
+ * outputs, and picking one of them for the sending leg would be a guess.
+ */
+export function groupOnChain(entries: LedgerEntry[]): Map<string, GroupOnChain> {
+  const legs = new Map<string, LedgerEntry[]>();
+  for (const e of entries) {
+    if (!e.transferGroupId) continue;
+    if (e.type !== "transfer_in" && e.type !== "transfer_out") continue;
+    const list = legs.get(e.transferGroupId) ?? [];
+    list.push(e);
+    legs.set(e.transferGroupId, list);
+  }
+
+  const shared = new Map<string, GroupOnChain>();
+  for (const [group, list] of legs) {
+    const oneToOne =
+      list.filter((e) => e.type === "transfer_out").length === 1 &&
+      list.filter((e) => e.type === "transfer_in").length === 1;
+    shared.set(group, {
+      txid: list.find((e) => e.txid)?.txid,
+      address: oneToOne ? list.find((e) => e.address)?.address : undefined,
+    });
+  }
+  return shared;
+}
+
+export interface EffectiveOnChain extends GroupOnChain {
+  /** The value came from the counterpart leg, not from this transaction. */
+  txidInherited: boolean;
+  addressInherited: boolean;
+}
+
+/** A leg's on-chain data, its own first and its group's where it has none. */
+export function effectiveOnChain(
+  leg: Pick<LedgerEntry, "txid" | "address" | "transferGroupId">,
+  groups: Map<string, GroupOnChain>,
+): EffectiveOnChain {
+  const shared = leg.transferGroupId ? groups.get(leg.transferGroupId) : undefined;
+  return {
+    txid: leg.txid ?? shared?.txid,
+    address: leg.address ?? shared?.address,
+    txidInherited: !leg.txid && !!shared?.txid,
+    addressInherited: !leg.address && !!shared?.address,
+  };
+}
+
 export interface OutLegCandidate {
   entry: LedgerEntry;
   /** Arrivals this out-leg is already paired with; empty for an unlinked one. */
@@ -289,6 +352,14 @@ export function linkTransferLegs(
   const diff = amountDifference(outLeg, inLeg);
   const adopt = !joins && opts.adoptFeeBtc === true && diff.diffBtc.gt(0);
 
+  // Both legs describe the same send, and typically only one side recorded it
+  // (a hardware wallet exports txid and address, an exchange rarely does), so
+  // the pairing hands them over. The address only when this is the one arrival
+  // of the send — see `groupOnChain` for why.
+  const oneToOne = !joins;
+  const sharedTxid = inLeg.txid ?? outLeg.txid;
+  const sharedAddress = oneToOne ? (inLeg.address ?? outLeg.address) : undefined;
+
   return {
     ...portfolio,
     wallets: mapTransactions(portfolio.wallets, (t) => {
@@ -297,6 +368,8 @@ export function linkTransferLegs(
           ...t,
           transferGroupId,
           counterpartyAccountId: outLeg.accountId,
+          txid: t.txid ?? sharedTxid,
+          address: t.address ?? sharedAddress,
         };
       }
       if (t.id === outLegId) {
@@ -306,6 +379,8 @@ export function linkTransferLegs(
           // With several arrivals the single counterparty field can only name
           // one of them, so an existing pairing keeps the one it has.
           counterpartyAccountId: joins ? t.counterpartyAccountId : inLeg.accountId,
+          txid: t.txid ?? sharedTxid,
+          address: t.address ?? sharedAddress,
           ...(adopt
             ? {
                 amountBtc: inLeg.amountBtc,

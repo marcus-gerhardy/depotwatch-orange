@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import type { Currency, ExplorerProvider, Locale } from "@/lib/types";
+import { DEFAULT_THEME, THEMES, THEME_IDS, type ThemeId } from "@/lib/theme";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
 
@@ -13,6 +14,7 @@ export default function SettingsView() {
   const update = useAppStore((s) => s.update);
   const setPassword = useAppStore((s) => s.setPassword);
   const setUiLocale = useAppStore((s) => s.setUiLocale);
+  const setUiTheme = useAppStore((s) => s.setUiTheme);
   const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
   const fileMode = useAppStore((s) => s.fileMode);
 
@@ -41,10 +43,10 @@ export default function SettingsView() {
 
   return (
     <div className="max-w-2xl space-y-4">
-      <SectionTitle>{t("settings.title")}</SectionTitle>
+      <SectionTitle level={1}>{t("settings.title")}</SectionTitle>
 
       <Card className="space-y-3">
-        <SectionTitle>{t("settings.general")}</SectionTitle>
+        <SectionTitle level={2}>{t("settings.general")}</SectionTitle>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("settings.language")}>
             <select
@@ -71,10 +73,28 @@ export default function SettingsView() {
             </select>
           </Field>
         </div>
+
+        {/* Colour theme (§5). Written to the file and to the device preference,
+            like the language, so the pages without an open file follow it. */}
+        <fieldset>
+          <legend className="mb-1 block text-xs text-muted">
+            {t("settings.theme")}
+          </legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {THEME_IDS.map((id) => (
+              <ThemeOption
+                key={id}
+                id={id}
+                selected={(s.theme ?? DEFAULT_THEME) === id}
+                onSelect={() => setUiTheme(id)}
+              />
+            ))}
+          </div>
+        </fieldset>
       </Card>
 
       <Card className="space-y-3">
-        <SectionTitle>{t("settings.security")}</SectionTitle>
+        <SectionTitle level={2}>{t("settings.security")}</SectionTitle>
         <p className="text-sm">
           {encryptionEnabled ? (
             <span className="text-gain">🔒 {t("settings.encryptionOn")}</span>
@@ -114,7 +134,7 @@ export default function SettingsView() {
       </Card>
 
       <Card className="space-y-3">
-        <SectionTitle>{t("settings.explorer")}</SectionTitle>
+        <SectionTitle level={2}>{t("settings.explorer")}</SectionTitle>
         <Field label={t("settings.explorer")}>
           <select
             className={inputCls}
@@ -163,7 +183,7 @@ export default function SettingsView() {
 
       {TAX_FEATURES_ENABLED && (
         <Card className="space-y-3">
-          <SectionTitle>{t("settings.taxSettings")}</SectionTitle>
+          <SectionTitle level={2}>{t("settings.taxSettings")}</SectionTitle>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("settings.holdingPeriod")}>
               <input
@@ -188,7 +208,7 @@ export default function SettingsView() {
       )}
 
       <Card className="space-y-3">
-        <SectionTitle>{t("settings.autosave")}</SectionTitle>
+        <SectionTitle level={2}>{t("settings.autosave")}</SectionTitle>
         <Field label={t("settings.autosaveDebounce")}>
           <input
             type="number"
@@ -250,5 +270,59 @@ export default function SettingsView() {
         </Modal>
       )}
     </div>
+  );
+}
+
+/**
+ * One theme to pick from, previewed with its own colours rather than described
+ * in words — a swatch of background, surface, accent and text says more about
+ * a theme than its name does.
+ */
+function ThemeOption({
+  id,
+  selected,
+  onSelect,
+}: {
+  id: ThemeId;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { t } = useI18n();
+  const c = THEMES[id];
+
+  return (
+    <label
+      className={`flex cursor-pointer flex-col gap-2 rounded-lg border p-2 transition-colors ${
+        selected ? "border-accent bg-accent/10" : "border-border-c hover:border-accent-dim"
+      }`}
+    >
+      <span
+        aria-hidden
+        className="flex h-10 items-center gap-1.5 rounded-md px-2"
+        style={{ background: c.background, border: `1px solid ${c.border}` }}
+      >
+        <span
+          className="h-5 w-5 rounded-full"
+          style={{ background: c.accent }}
+        />
+        <span className="h-5 flex-1 rounded" style={{ background: c.surface2 }} />
+        <span
+          className="text-xs font-semibold"
+          style={{ color: c.foreground }}
+        >
+          ₿
+        </span>
+      </span>
+      <span className="flex items-center gap-1.5 text-xs">
+        <input
+          type="radio"
+          name="theme"
+          className="accent-accent"
+          checked={selected}
+          onChange={onSelect}
+        />
+        {t(`settings.themes.${id}`)}
+      </span>
+    </label>
   );
 }

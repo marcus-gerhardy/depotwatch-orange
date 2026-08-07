@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countIssues, hasIssue } from "./dataQuality";
+import { countIssues, hasIssue, issueContext } from "./dataQuality";
 import type { LedgerEntry, Transaction } from "./types";
 
 const tx = (t: Partial<Transaction> & Pick<Transaction, "type">): Transaction => ({
@@ -79,6 +79,30 @@ describe("missingEurValue", () => {
         "missingEurValue",
       ),
     ).toBe(false);
+  });
+});
+
+describe("missingTxid", () => {
+  const TXID = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b";
+
+  it("is satisfied by the counterpart leg's txid", () => {
+    // One transaction, one id: a hardware wallet's arrival carries it for the
+    // exchange's send as well, so the pair is not a gap (§3.2).
+    const entries = [
+      entry(tx({ id: "o1", type: "transfer_out", transferGroupId: "g" })),
+      entry(tx({ id: "in1", type: "transfer_in", transferGroupId: "g", txid: TXID })),
+    ];
+    const ctx = issueContext(entries);
+    expect(hasIssue(entries[0], "missingTxid", ctx)).toBe(false);
+    expect(countIssues(entries).missingTxid).toBe(0);
+  });
+
+  it("still reports a group where nobody recorded one", () => {
+    const entries = [
+      entry(tx({ id: "o1", type: "transfer_out", transferGroupId: "g" })),
+      entry(tx({ id: "in1", type: "transfer_in", transferGroupId: "g" })),
+    ];
+    expect(countIssues(entries).missingTxid).toBe(2);
   });
 });
 

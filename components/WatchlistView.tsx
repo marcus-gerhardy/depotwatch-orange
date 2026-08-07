@@ -79,7 +79,7 @@ export default function WatchlistView() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionTitle>{t("watchlist.title")}</SectionTitle>
+        <SectionTitle level={1}>{t("watchlist.title")}</SectionTitle>
         <Button variant="primary" onClick={() => setShowAdd(true)}>
           + {t("watchlist.add")}
         </Button>
@@ -87,8 +87,11 @@ export default function WatchlistView() {
       <p className="text-xs text-muted">{t("watchlist.subtitle")}</p>
 
       {portfolio.watchedAddresses.length === 0 && (
-        <Card>
+        <Card className="space-y-3 text-center">
           <p className="text-sm text-muted">{t("watchlist.empty")}</p>
+          <Button variant="primary" onClick={() => setShowAdd(true)}>
+            + {t("watchlist.add")}
+          </Button>
         </Card>
       )}
 

@@ -48,8 +48,11 @@ function seedPortfolio(): PortfolioFile {
   return p;
 }
 
+/** Header labels without the sort-direction arrow every sortable one carries. */
 const headers = () =>
-  [...document.querySelectorAll("thead th")].map((th) => th.textContent?.trim());
+  [...document.querySelectorAll("thead th")].map((th) =>
+    th.textContent?.trim().replace(/[↑↓]$/, ""),
+  );
 
 beforeEach(() => {
   localStorage.clear();

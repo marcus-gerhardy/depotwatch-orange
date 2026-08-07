@@ -754,6 +754,100 @@ describe("computeFifo", () => {
   });
 });
 
+describe("an arrival recorded before the send it belongs to", () => {
+  /**
+   * A hardware wallet stamps the transaction when it sees it, an exchange when
+   * the withdrawal completes — the arrival routinely carries the earlier time.
+   * Read in that order, its lots have not left the source account yet.
+   */
+  const wallets = (inDate: string): Wallet[] => [
+    {
+      id: "w1",
+      name: "Kraken",
+      type: "exchange",
+      accounts: [
+        {
+          id: "a1",
+          name: "Spot",
+          transactions: [
+            {
+              id: "buy1",
+              type: "buy",
+              date: "2024-01-01T00:00:00Z",
+              amountBtc: "1",
+              pricePerBtcEur: "50000",
+              totalFiatEur: "50000",
+              note: "",
+            },
+            {
+              id: "out1",
+              type: "transfer_out",
+              date: "2024-03-01T12:00:00Z",
+              amountBtc: "1",
+              pricePerBtcEur: null,
+              counterpartyAccountId: "a2",
+              transferGroupId: "g1",
+              lotAllocations: [{ lotTransactionId: "buy1", amountBtc: "1" }],
+              note: "",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: "w2",
+      name: "BitBox02",
+      type: "hardware",
+      accounts: [
+        {
+          id: "a2",
+          name: "Cold",
+          transactions: [
+            {
+              id: "in1",
+              type: "transfer_in",
+              date: inDate,
+              amountBtc: "1",
+              pricePerBtcEur: null,
+              counterpartyAccountId: "a1",
+              transferGroupId: "g1",
+              note: "",
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  for (const [label, inDate] of [
+    ["an hour after the send", "2024-03-01T13:00:00Z"],
+    ["an hour before the send", "2024-03-01T11:00:00Z"],
+    ["a day before the send", "2024-02-29T12:00:00Z"],
+  ] as const) {
+    it(`keeps the cost basis of the whole holding (${label})`, () => {
+      const fifo = computeFifo(flattenLedger(wallets(inDate)), 365);
+      expect(fifo.openLotsBtc.toString()).toBe("1");
+      // The whole stack is covered: nothing may fall out of the engine just
+      // because two exports disagree about the clock.
+      expect(fifo.openBasisBtc.toString()).toBe("1");
+      expect(fifo.openCostBasisEur.toString()).toBe("50000");
+      expect(fifo.openLots[0].acquiredDate).toBe("2024-01-01T00:00:00Z");
+    });
+  }
+
+  it("keeps an arrival whose group has no out-leg at all, as unknown origin", () => {
+    const w = wallets("2024-03-01T13:00:00Z");
+    w[0].accounts[0].transactions.splice(1, 1); // the send is gone
+    const fifo = computeFifo(flattenLedger(w), 365);
+
+    // The coins are in the account, so the engine has to hold them — with an
+    // unresolved origin, not as a silently missing chunk.
+    expect(fifo.openLotsBtc.toString()).toBe("2"); // the buy plus the arrival
+    expect(fifo.openLots.find((l) => l.txId === "in1")!.originUnresolved).toBe(true);
+    expect(fifo.openBasisBtc.toString()).toBe("1");
+  });
+});
+
 describe("flattenLedger", () => {
   it("orders same-timestamp transfer chains causally (out before in, hop by hop)", () => {
     // Two hops recorded with the SAME timestamp; the ids are chosen so a

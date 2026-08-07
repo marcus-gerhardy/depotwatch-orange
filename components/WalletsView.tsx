@@ -61,15 +61,20 @@ export default function WalletsView() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionTitle>{t("wallets.title")}</SectionTitle>
+        <SectionTitle level={1}>{t("wallets.title")}</SectionTitle>
         <Button variant="primary" onClick={() => openDialog({ kind: "addWallet" })}>
           + {t("wallets.addWallet")}
         </Button>
       </div>
 
       {portfolio.wallets.length === 0 && (
-        <Card>
+        <Card className="space-y-3 text-center">
           <p className="text-sm text-muted">{t("wallets.empty")}</p>
+          {/* An empty state that only states the emptiness leaves the user to
+              find the action in the header; it belongs here. */}
+          <Button variant="primary" onClick={() => openDialog({ kind: "addWallet" })}>
+            + {t("wallets.addWallet")}
+          </Button>
         </Card>
       )}
 

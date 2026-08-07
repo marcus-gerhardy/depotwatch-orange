@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   allocationSumBtc,
+  effectiveOnChain,
+  groupOnChain,
   allocationTargetBtc,
   amountDifference,
   linkTransferLegs,
@@ -518,5 +520,90 @@ describe("setLotAllocations", () => {
     expect(prov.origins[0].lotTxId).toBe("b2");
     expect(prov.origins[0].acquiredDate).toBe("2024-02-01T00:00:00.000Z");
     expect(prov.origins[0].pricePerBtcEur!.toString()).toBe("60000");
+  });
+});
+
+describe("on-chain data shared by a transfer group", () => {
+  const TXID = "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b";
+  const ADDRESS = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+
+  /** The usual case: the hardware wallet knows txid and address, the exchange does not. */
+  function pair(extra: Partial<Transaction> = {}) {
+    return portfolio(
+      [
+        tx({
+          id: "o1",
+          type: "transfer_out",
+          amountBtc: "0.5",
+          transferGroupId: "g1",
+          counterpartyAccountId: "aB",
+          ...extra,
+        }),
+      ],
+      [
+        tx({
+          id: "in1",
+          type: "transfer_in",
+          amountBtc: "0.5",
+          transferGroupId: "g1",
+          counterpartyAccountId: "aA",
+          txid: TXID,
+          address: ADDRESS,
+        }),
+      ],
+    );
+  }
+
+  it("hands the arrival's txid and address to the leg without them", () => {
+    const groups = groupOnChain(entriesOf(pair()));
+    const out = effectiveOnChain(find(pair(), "o1"), groups);
+    expect(out.txid).toBe(TXID);
+    expect(out.address).toBe(ADDRESS);
+    expect(out.txidInherited).toBe(true);
+    expect(out.addressInherited).toBe(true);
+  });
+
+  it("never overrides what a leg recorded itself", () => {
+    const own = "b".repeat(64);
+    const p = pair({ txid: own });
+    const out = effectiveOnChain(find(p, "o1"), groupOnChain(entriesOf(p)));
+    expect(out.txid).toBe(own);
+    expect(out.txidInherited).toBe(false);
+  });
+
+  it("shares the txid but not the address once a send has several arrivals", () => {
+    // One transaction pays several outputs, so "the" address of the sending
+    // leg is not decidable — the txid still is.
+    const p = pair();
+    p.wallets[1].accounts[0].transactions.push(
+      tx({
+        id: "in2",
+        type: "transfer_in",
+        amountBtc: "0.2",
+        transferGroupId: "g1",
+        counterpartyAccountId: "aA",
+      }),
+    );
+    const out = effectiveOnChain(find(p, "o1"), groupOnChain(entriesOf(p)));
+    expect(out.txid).toBe(TXID);
+    expect(out.address).toBeUndefined();
+  });
+
+  it("leaves an unlinked leg alone", () => {
+    const p = portfolio([tx({ id: "o1", type: "transfer_out" })], [
+      tx({ id: "in1", type: "transfer_in", txid: TXID }),
+    ]);
+    const out = effectiveOnChain(find(p, "o1"), groupOnChain(entriesOf(p)));
+    expect(out.txid).toBeUndefined();
+  });
+
+  it("writes them onto the other leg when the two are linked", () => {
+    const p = portfolio(
+      [tx({ id: "o1", type: "transfer_out", amountBtc: "0.5" })],
+      [tx({ id: "in1", type: "transfer_in", amountBtc: "0.5", txid: TXID, address: ADDRESS })],
+    );
+    const linked = linkTransferLegs(p, "in1", "o1");
+    expect(find(linked, "o1").txid).toBe(TXID);
+    expect(find(linked, "o1").address).toBe(ADDRESS);
   });
 });

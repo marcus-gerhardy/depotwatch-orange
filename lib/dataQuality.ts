@@ -8,8 +8,11 @@ import { unresolvedOriginIds } from "./provenance";
 import {
   allocationSumBtc,
   allocationTargetBtc,
+  effectiveOnChain,
+  groupOnChain,
   isLegPaired,
   pairedGroupIds,
+  type GroupOnChain,
 } from "./transferLink";
 import type { LedgerEntry, Transaction } from "./types";
 
@@ -51,12 +54,15 @@ export interface IssueContext {
   unresolvedOrigin: Set<string>;
   /** Groups that really pair an out-leg with an in-leg (`pairedGroupIds`). */
   pairedGroups: Set<string>;
+  /** On-chain data each transfer group shares (`groupOnChain`). */
+  onChainByGroup: Map<string, GroupOnChain>;
 }
 
 export function issueContext(entries: LedgerEntry[]): IssueContext {
   return {
     unresolvedOrigin: unresolvedOriginIds(entries),
     pairedGroups: pairedGroupIds(entries),
+    onChainByGroup: groupOnChain(entries),
   };
 }
 
@@ -92,7 +98,14 @@ export function hasIssue(
         !allocationSumBtc(tx.lotAllocations).eq(allocationTargetBtc(tx))
       );
     case "missingTxid":
-      return isTransferLeg(tx) && !tx.txid;
+      // The counterpart leg's txid is this leg's txid — one transaction, one
+      // id — so a leg is only missing it when the whole group is.
+      return (
+        isTransferLeg(tx) &&
+        !(ctx === undefined
+          ? tx.txid
+          : effectiveOnChain(tx, ctx.onChainByGroup).txid)
+      );
     case "missingEurValue":
       return (
         (tx.type === "buy" || tx.type === "sell" || tx.type === "spend") &&

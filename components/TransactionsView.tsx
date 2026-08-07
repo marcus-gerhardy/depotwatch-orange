@@ -38,7 +38,7 @@ import {
   issueContext,
   type DataIssue,
 } from "@/lib/dataQuality";
-import { isLegPaired, pairedGroupIds } from "@/lib/transferLink";
+import { effectiveOnChain, isLegPaired, pairedGroupIds } from "@/lib/transferLink";
 import {
   derivedTransferValues,
   recordedShareValue,
@@ -406,16 +406,21 @@ function CopyButton({ value }: { value: string }) {
 function OnChainCell({
   value,
   explorerUrl,
+  inherited = false,
 }: {
   value: string | undefined;
   explorerUrl: string | null;
+  /** Taken from the counterpart leg rather than recorded here (§3.2). */
+  inherited?: boolean;
 }) {
   const { t } = useI18n();
   if (!value) return <span className="text-muted">—</span>;
   return (
     <span className="flex items-center gap-0.5">
-      <IconTooltip label={value}>
-        <span className="font-mono text-xs">{truncateMiddle(value)}</span>
+      <IconTooltip label={inherited ? `${value}\n${t("tx.onChainInherited")}` : value}>
+        <span className={`font-mono text-xs ${inherited ? "text-muted" : ""}`}>
+          {truncateMiddle(value)}
+        </span>
       </IconTooltip>
       <CopyButton value={value} />
       {explorerUrl && (
@@ -1114,6 +1119,10 @@ function TransferDialog({
     const transferGroupId = crypto.randomUUID();
     const linkOut = outMode === "existing" ? selectedOutTx : undefined;
     const linkIn = inMode === "existing" ? selectedInTx : undefined;
+    // One send, one txid, and here exactly one arrival — so whichever side
+    // brought the on-chain data holds it for both (§3.2).
+    const sharedTxid = linkOut?.txid ?? linkIn?.txid;
+    const sharedAddress = linkOut?.address ?? linkIn?.address;
 
     update((p) => ({
       ...p,
@@ -1134,6 +1143,8 @@ function TransferDialog({
                         feeBtc: fee.gt(0) ? fee.toString() : undefined,
                         pricePerBtcEur: tx.pricePerBtcEur ?? legPrice,
                         totalFiatEur: tx.totalFiatEur ?? legTotal,
+                        txid: tx.txid ?? sharedTxid,
+                        address: tx.address ?? sharedAddress,
                         lotAllocations: allocations,
                         transferGroupId,
                         counterpartyAccountId: targetAccountId,
@@ -1152,6 +1163,8 @@ function TransferDialog({
                     pricePerBtcEur: legPrice,
                     totalFiatEur: legTotal,
                     feeBtc: fee.gt(0) ? fee.toString() : undefined,
+                    txid: sharedTxid,
+                    address: sharedAddress,
                     lotAllocations: allocations,
                     counterpartyAccountId: targetAccountId,
                     transferGroupId,
@@ -1168,6 +1181,8 @@ function TransferDialog({
                         ...tx,
                         pricePerBtcEur: tx.pricePerBtcEur ?? legPrice,
                         totalFiatEur: tx.totalFiatEur ?? legTotal,
+                        txid: tx.txid ?? sharedTxid,
+                        address: tx.address ?? sharedAddress,
                         transferGroupId,
                         counterpartyAccountId: sourceAccountId,
                       }
@@ -1182,6 +1197,8 @@ function TransferDialog({
                     amountBtc: netBtc.toString(),
                     pricePerBtcEur: legPrice,
                     totalFiatEur: legTotal,
+                    txid: sharedTxid,
+                    address: sharedAddress,
                     counterpartyAccountId: sourceAccountId,
                     transferGroupId,
                     note: "",
@@ -1961,25 +1978,57 @@ export default function TransactionsView({
     // Every column shrinks to its content except walletAccount, which
     // absorbs whatever width is left so the table fills the full width.
     const grow = key === "walletAccount";
+    const active = sortKey === key;
     return (
       <th
         key={key}
-        className={`cursor-pointer select-none py-2 pr-4 font-normal hover:text-foreground ${grow ? "w-full" : "whitespace-nowrap"} ${right ? "text-right" : "text-left"}`}
-        onClick={() => {
-          if (sortKey === key) setSortAsc(!sortAsc);
-          else {
-            setSortKey(key);
-            setSortAsc(false);
-          }
-        }}
+        scope="col"
+        aria-sort={active ? (sortAsc ? "ascending" : "descending") : "none"}
+        className={`select-none py-2 pr-4 font-normal ${grow ? "w-full" : "whitespace-nowrap"} ${right ? "text-right" : "text-left"}`}
       >
-        {columnLabel(key)} {sortKey === key ? (sortAsc ? "↑" : "↓") : ""}
+        {/* A button, not a clickable <th>: sorting has to be reachable by
+            keyboard and announced as a control. */}
+        <button
+          type="button"
+          className={`inline-flex items-center gap-1 hover:text-foreground ${right ? "flex-row-reverse" : ""}`}
+          onClick={() => {
+            if (active) setSortAsc(!sortAsc);
+            else {
+              setSortKey(key);
+              setSortAsc(false);
+            }
+          }}
+        >
+          {columnLabel(key)}
+          <span aria-hidden className={active ? "" : "opacity-0"}>
+            {sortAsc ? "↑" : "↓"}
+          </span>
+        </button>
       </th>
     );
   }
 
   // + expander, checkbox and actions columns
   const visibleColSpan = visibleCols.size + 3;
+
+  function openAdd() {
+    setEditing(null);
+    setSellingLot(null);
+    setShowForm(true);
+  }
+
+  /** Back to the unfiltered table — offered where a filter hides everything. */
+  function resetFilters() {
+    setFilterWallet("");
+    setFilterAccount("");
+    setFilterType("");
+    setFilterIssue("");
+    setFilterFrom("");
+    setFilterTo("");
+    setOnlyTaxFree(false);
+    setPage(1);
+  }
+
   const isFiltered = Boolean(
     filterWallet ||
       filterAccount ||
@@ -1993,7 +2042,7 @@ export default function TransactionsView({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionTitle>
+        <SectionTitle level={1}>
           {t("tx.title")}
           {isFiltered &&
             ` · ${t("tx.titleCount", { filtered: filtered.length, total: all.length })}`}
@@ -2001,11 +2050,7 @@ export default function TransactionsView({
         <div className="flex gap-2">
           <Button
             variant="primary"
-            onClick={() => {
-              setEditing(null);
-              setSellingLot(null);
-              setShowForm(true);
-            }}
+            onClick={openAdd}
           >
             + {t("tx.add")}
           </Button>
@@ -2256,14 +2301,33 @@ export default function TransactionsView({
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={visibleColSpan} className="py-6 text-center text-muted">
-                    {t("tx.empty")}
+                  <td colSpan={visibleColSpan} className="py-8 text-center text-muted">
+                    {/* An empty ledger and an empty filter result need
+                        different offers: add something, or drop the filter. */}
+                    {all.length === 0 ? (
+                      <div className="space-y-3">
+                        <p>{t("tx.emptyLedger")}</p>
+                        <Button variant="primary" onClick={() => openAdd()}>
+                          + {t("tx.add")}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p>{t("tx.empty")}</p>
+                        {isFiltered && (
+                          <Button onClick={resetFilters}>{t("tx.resetFilters")}</Button>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               )}
               {paged.map((r) => {
                 const value = rowValue(r, derivedValues);
                 const price = rowPrice(r, derivedValues);
+                // txid/address of the counterpart leg are this leg's too — one
+                // transaction, one output (§3.2).
+                const onChain = effectiveOnChain(r, issueCtx.onChainByGroup);
                 // Only a partial figure is flagged (see isPartialValue).
                 const derivedPartial = isPartialValue(r, derivedValues);
                 const d = new Date(r.date);
@@ -2482,10 +2546,11 @@ export default function TransactionsView({
                     {visibleCols.has("txid") && (
                       <td className="py-2 pr-4 whitespace-nowrap">
                         <OnChainCell
-                          value={r.txid}
+                          value={onChain.txid}
+                          inherited={onChain.txidInherited}
                           explorerUrl={
-                            r.txid
-                              ? explorerTxUrl(portfolio.explorerSettings, r.txid)
+                            onChain.txid
+                              ? explorerTxUrl(portfolio.explorerSettings, onChain.txid)
                               : null
                           }
                         />
@@ -2494,12 +2559,13 @@ export default function TransactionsView({
                     {visibleCols.has("address") && (
                       <td className="py-2 pr-4 whitespace-nowrap">
                         <OnChainCell
-                          value={r.address}
+                          value={onChain.address}
+                          inherited={onChain.addressInherited}
                           explorerUrl={
-                            r.address
+                            onChain.address
                               ? explorerAddressUrl(
                                   portfolio.explorerSettings,
-                                  r.address,
+                                  onChain.address,
                                 )
                               : null
                           }
