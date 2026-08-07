@@ -45,7 +45,10 @@ export interface Transaction {
   /**
    * sell/spend/transfer_out: persisted lot assignment (FIFO or
    * user-targeted). For a transfer_out these are the source-account lots the
-   * transfer closes; their sum must equal amountBtc.
+   * transfer closes; their sum must equal `amountBtc + feeBtc`, i.e. what
+   * actually left the account under the fee convention (§3.2) and what the
+   * FIFO engine consumes. `allocationTargetBtc()` in lib/transferLink.ts is
+   * that rule.
    */
   lotAllocations?: LotAllocation[];
   /** Only for transfer_in/transfer_out: the account on the other side. */

@@ -2,7 +2,7 @@
 
 // Small shared UI primitives, dark-theme styled.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAppStore } from "@/lib/store";
 
 export function Card({
@@ -68,6 +68,16 @@ export function Button({
       {children}
     </button>
   );
+}
+
+/**
+ * Enter in a filter field of a dialog that is nested inside a form (the lot and
+ * out-leg pickers live inside the transaction form) would implicitly submit
+ * that form — saving the transaction from a search box. Put this on such
+ * inputs; buttons keep their own Enter handling.
+ */
+export function stopEnterSubmit(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key === "Enter") e.preventDefault();
 }
 
 export const inputCls =
@@ -144,16 +154,92 @@ export function Field({
   );
 }
 
+/**
+ * A collapsible group of form fields (disclosure pattern).
+ *
+ * Dialogs that grew field by field — the transaction detail view above all —
+ * become unreadable as one flat column. Everything that is not part of the
+ * common case lives in one of these instead: closed by default, but opened
+ * automatically when it *has* content (`defaultOpen`) or when something in it
+ * needs attention (`forceOpen`), so nothing is ever hidden away silently. The
+ * collapsed header carries a `summary`, so the section can be judged without
+ * opening it.
+ */
+export function Section({
+  title,
+  summary,
+  tone = "default",
+  defaultOpen = false,
+  forceOpen = false,
+  children,
+}: {
+  title: string;
+  /** Shown in the header — what is inside, when it is closed. */
+  summary?: React.ReactNode;
+  /** "warning" flags a section the user should look at. */
+  tone?: "default" | "warning" | "success";
+  defaultOpen?: boolean;
+  /** Opens the section when it turns true (e.g. a validation error inside). */
+  forceOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(defaultOpen);
+  const bodyId = useId();
+  // A problem inside must not be hidden behind a closed header — neither when
+  // it appears nor by collapsing the section afterwards, so the flag wins over
+  // the toggle for as long as it lasts.
+  const open = expanded || forceOpen;
+
+  const border =
+    tone === "warning"
+      ? "border-warning/40"
+      : tone === "success"
+        ? "border-gain/30"
+        : "border-border-c/60";
+
+  return (
+    <section className={`rounded-lg border ${border}`}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left hover:bg-surface-2/40"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={() => setExpanded(!open)}
+      >
+        <span
+          aria-hidden
+          className={`text-muted transition-transform ${open ? "rotate-90" : ""}`}
+        >
+          ▸
+        </span>
+        <span className="text-xs font-medium">{title}</span>
+        {summary !== undefined && (
+          <span className="ml-auto truncate text-xs text-muted">{summary}</span>
+        )}
+      </button>
+      {open && (
+        <div id={bodyId} className="space-y-3 border-t border-border-c/50 p-3">
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Modal({
   title,
   onClose,
   children,
   wide = false,
+  size,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  /** Deprecated alias for size="xl". */
   wide?: boolean;
+  /** Dialog width: md (default), lg for form dialogs with tables, xl for wizards. */
+  size?: "md" | "lg" | "xl";
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -169,7 +255,11 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className={`w-full ${wide ? "max-w-4xl" : "max-w-lg"} rounded-xl border border-border-c bg-surface p-5 shadow-2xl`}
+        className={`w-full ${
+          { md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" }[
+            size ?? (wide ? "xl" : "md")
+          ]
+        } rounded-xl border border-border-c bg-surface p-5 shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

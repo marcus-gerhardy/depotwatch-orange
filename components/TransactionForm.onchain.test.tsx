@@ -53,6 +53,13 @@ const fill = (label: string, value: string) =>
 
 const save = () => fireEvent.click(screen.getByRole("button", { name: "common.save" }));
 
+/**
+ * Secondary field groups are collapsed until they have content, so a test that
+ * fills an empty one opens it first — exactly what a user does.
+ */
+const openSection = (title: string) =>
+  fireEvent.click(screen.getByRole("button", { name: title }));
+
 beforeEach(() => {
   useAppStore.setState({ portfolio: seedPortfolio(), dirty: false });
 });
@@ -67,6 +74,7 @@ describe("TransactionForm: on-chain fields", () => {
     expect(screen.queryByLabelText("tx.address")).toBeNull();
 
     setType("transfer");
+    openSection("tx.onChainSection");
     expect(screen.getByLabelText("tx.txid")).toBeTruthy();
     expect(screen.getByLabelText("tx.address")).toBeTruthy();
     expect(screen.getByText("tx.onChainSection")).toBeTruthy();
@@ -83,6 +91,7 @@ describe("TransactionForm: on-chain fields", () => {
     fill("tx.amountBtc", "0.5");
     fill("tx.fromAccount", "acctA");
     fill("tx.toAccount", "acctB");
+    openSection("tx.onChainSection");
     fill("tx.txid", `  ${TXID.toUpperCase()} `);
     fill("tx.address", ` ${ADDRESS.toUpperCase()} `);
     save();
@@ -101,6 +110,7 @@ describe("TransactionForm: on-chain fields", () => {
     setType("transfer");
     fill("tx.amountBtc", "0.5");
     fill("tx.toAccount", "acctB");
+    openSection("tx.onChainSection");
     fill("tx.txid", "not-a-txid");
     save();
 
@@ -114,6 +124,7 @@ describe("TransactionForm: on-chain fields", () => {
     setType("transfer");
     fill("tx.amountBtc", "0.5");
     fill("tx.toAccount", "acctB");
+    openSection("tx.onChainSection");
     // Valid bech32 characters, broken checksum.
     fill("tx.address", "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5");
     save();
@@ -142,6 +153,7 @@ describe("TransactionForm: on-chain fields", () => {
     setType("transfer");
     fill("tx.amountBtc", "0.5");
     fill("tx.toAccount", "acctB");
+    openSection("tx.onChainSection");
     fill("tx.txid", TXID);
     save();
     cleanup();

@@ -7,6 +7,7 @@ import { daysUntilTaxFree, isLotTaxFree, taxFreeDateOf } from "@/lib/fifo";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import {
   indexLedger,
+  provenanceValue,
   resolveProvenance,
   type OriginLot,
   type Provenance,
@@ -84,6 +85,8 @@ function OriginTable({
   const { t } = useI18n();
   /** The shares do not account for the whole transaction (see the footer). */
   const short = !provenance.resolvedBtc.eq(provenance.amountBtc);
+  /** Rate and value of the whole transaction, from the lots above. */
+  const value = provenanceValue(provenance);
 
   return (
     <div className="overflow-x-auto">
@@ -116,12 +119,25 @@ function OriginTable({
             <td className="py-1 pr-3 text-right font-mono whitespace-nowrap">
               <Amount>{formatBtc(provenance.resolvedBtc, loc)}</Amount>
             </td>
+            {/* No average in the Einstand column: that one carries the tax cost
+                basis (fiat fee included, net BTC), while the value next to it
+                is what the origins actually recorded. Printing both under one
+                header would invite exactly the comparison that never adds up. */}
+            <td className="py-1 pr-3" />
             {/* The transaction's own amount only appears when the shares fall
                 short of it: printing it next to an identical sum reads as the
                 same number twice, with nothing saying which is which. */}
-            <td colSpan={TAX_FEATURES_ENABLED ? 3 : 2} className="py-1 whitespace-nowrap">
+            <td colSpan={TAX_FEATURES_ENABLED ? 2 : 1} className="py-1 whitespace-nowrap">
+              {value && (
+                <Amount className="font-mono">
+                  {t("tx.origin.totalValue", {
+                    value: formatFiatPlain(value.totalFiatEur, loc),
+                  })}
+                </Amount>
+              )}
               {short && (
                 <Amount>
+                  {" "}
                   {t("tx.origin.ofAmount", {
                     amount: formatBtc(provenance.amountBtc, loc),
                   })}

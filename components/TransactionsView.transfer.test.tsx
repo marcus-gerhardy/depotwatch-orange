@@ -334,9 +334,11 @@ describe("TransferDialog: average cost carried onto the legs", () => {
 
     expect(out.amountBtc).toBe("0.49999");
     for (const leg of [out, inLeg]) {
-      expect(leg.pricePerBtcEur).toBe("36000.00");
-      // 36 000 × 0.49999
-      expect(leg.totalFiatEur).toBe("17999.64");
+      // The value is the sum of the buys the transfer moves — 0.3 × 30 000 plus
+      // 0.2 × 45 000 — including the coins the network fee burned, which were
+      // paid for with those same euros. The rate follows from value ÷ amount.
+      expect(leg.totalFiatEur).toBe("18000.00");
+      expect(leg.pricePerBtcEur).toBe("36000.72");
     }
 
     // The engine still derives the cost basis from the moved lots (0.3 at

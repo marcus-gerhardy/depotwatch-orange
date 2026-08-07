@@ -5,6 +5,12 @@
 // predicate per issue here rather than a copy on each side.
 
 import { unresolvedOriginIds } from "./provenance";
+import {
+  allocationSumBtc,
+  allocationTargetBtc,
+  isLegPaired,
+  pairedGroupIds,
+} from "./transferLink";
 import type { LedgerEntry, Transaction } from "./types";
 
 export type DataIssue =
@@ -17,6 +23,13 @@ export type DataIssue =
    * arrival can still dead-end on a broken reference further back.
    */
   | "unresolvedOrigin"
+  /**
+   * An outgoing transfer whose lot allocations do not cover what left the
+   * account, so which coins it moved is (partly) undecided. The counterpart of
+   * `unresolvedOrigin`: that one is a missing link, this one a missing
+   * assignment, and each is fixed in a different place.
+   */
+  | "incompleteAllocation"
   /** A transfer leg without its on-chain transaction id. */
   | "missingTxid"
   /** A buy/sell/spend with no EUR figure at all, so FIFO cannot value it. */
@@ -25,6 +38,7 @@ export type DataIssue =
 export const DATA_ISSUES: DataIssue[] = [
   "unlinkedTransfer",
   "unresolvedOrigin",
+  "incompleteAllocation",
   "missingTxid",
   "missingEurValue",
 ];
@@ -35,10 +49,15 @@ export const DATA_ISSUES: DataIssue[] = [
  */
 export interface IssueContext {
   unresolvedOrigin: Set<string>;
+  /** Groups that really pair an out-leg with an in-leg (`pairedGroupIds`). */
+  pairedGroups: Set<string>;
 }
 
 export function issueContext(entries: LedgerEntry[]): IssueContext {
-  return { unresolvedOrigin: unresolvedOriginIds(entries) };
+  return {
+    unresolvedOrigin: unresolvedOriginIds(entries),
+    pairedGroups: pairedGroupIds(entries),
+  };
 }
 
 function isTransferLeg(tx: Transaction): boolean {
@@ -59,9 +78,19 @@ export function hasIssue(
 ): boolean {
   switch (issue) {
     case "unlinkedTransfer":
-      return isTransferLeg(tx) && !tx.transferGroupId;
+      // A group id whose counterpart does not exist is not a link. Without a
+      // context only the field can be judged, which is the safe half of it.
+      return (
+        isTransferLeg(tx) &&
+        (ctx === undefined ? !tx.transferGroupId : !isLegPaired(tx, ctx.pairedGroups))
+      );
     case "unresolvedOrigin":
       return ctx?.unresolvedOrigin.has(tx.id) ?? false;
+    case "incompleteAllocation":
+      return (
+        tx.type === "transfer_out" &&
+        !allocationSumBtc(tx.lotAllocations).eq(allocationTargetBtc(tx))
+      );
     case "missingTxid":
       return isTransferLeg(tx) && !tx.txid;
     case "missingEurValue":
@@ -79,6 +108,7 @@ export function countIssues(entries: LedgerEntry[]): IssueCounts {
   const counts: IssueCounts = {
     unlinkedTransfer: 0,
     unresolvedOrigin: 0,
+    incompleteAllocation: 0,
     missingTxid: 0,
     missingEurValue: 0,
   };

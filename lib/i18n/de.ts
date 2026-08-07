@@ -259,6 +259,7 @@ const de = {
       issues: {
         unlinkedTransfer: "Transfers ohne Gegenstück",
         unresolvedOrigin: "Eingänge mit ungeklärter Herkunft",
+        incompleteAllocation: "Ausgänge ohne vollständige Lot-Zuordnung",
         missingTxid: "Transfers ohne Txid",
         missingEurValue: "Transaktionen ohne EUR-Bewertung",
       },
@@ -399,24 +400,20 @@ const de = {
     fromAccount: "Von Konto",
     toAccount: "Nach Konto",
     externalTransfer: "Externes Wallet (nicht im Portfolio)",
+    counterpartyLinked:
+      "Durch die verknüpfte Gegenbuchung bestimmt. Zum Ändern die Verknüpfung auf der Eingangstransaktion lösen.",
     amountBtc: "Menge (BTC)",
     priceEur: "Kurs (EUR/BTC)",
     totalEur: "Betrag (EUR)",
     feeBtc: "Gebühr (BTC)",
     feeEur: "Gebühr (EUR)",
     valueEur: "Wert (EUR)",
-    originalSection: "In anderer Währung abgewickelt",
-    originalHint:
-      "Nur zur Dokumentation, z. B. ein BTC-Kauf gegen USDT. Für Berechnungen und für steuerliche Zwecke ist ausschließlich der EUR-Gegenwert zum Transaktionszeitpunkt maßgeblich.",
-    originalCurrency: "Originalwährung",
-    originalCurrencyPlaceholder: "z. B. USDT",
-    originalAmount: "Betrag (Originalwährung)",
-    originalPrice: "Kurs pro BTC (Originalwährung)",
-    eurValuationRun: "EUR-Wert aus historischem Kurs ermitteln",
-    eurValuationDerived:
-      "EUR-Wert automatisch aus dem historischen Binance-Kurs ermittelt",
-    eurValuationNeedsAmount: "Dafür werden Datum und Menge benötigt.",
-    eurValuationUnavailable: "Für diesen Zeitpunkt ist kein Kurs verfügbar.",
+    valueFromOrigin:
+      "Summe der Beträge (EUR) der zugrundeliegenden Käufe, anteilig auf diese Transaktion. Ein Transfer hat keinen eigenen Kurs; der Kurs ergibt sich aus Wert geteilt durch Menge.",
+    valueFromOriginPartial:
+      "Summe der Beträge (EUR) der zugrundeliegenden Käufe, aber nur für den Teil der Menge, für den ein EUR-Betrag hinterlegt ist. Der tatsächliche Wert liegt darüber.",
+    valueFromTransfer:
+      "Beim Anlegen des Transfers festgehalten: Summe der Beträge (EUR) der bewegten Käufe.",
     note: "Notiz",
     onChainSection: "On-Chain-Daten (optional)",
     onChainHint:
@@ -527,6 +524,86 @@ const de = {
     transferredDate: "Datum",
     transferredAmount: "Menge",
     transferredJump: "Zur Transaktion",
+    section: {
+      fees: "Gebühren",
+      origin: "Herkunft & Zuordnung",
+    },
+    lotPicker: {
+      search: "Suche",
+      searchPlaceholder: "Datum, Notiz, Betrag …",
+      planned: "Wird zugeordnet",
+      noMatch: "Kein Lot passt zu diesen Filtern.",
+      needOnly: "Nur den Restbedarf von {amount} BTC verteilen",
+      needOnlyHint:
+        "Die Auswahl wird in der Reihenfolge der Tabelle aufgefüllt; ohne Haken wird jedes Lot vollständig zugeordnet.",
+      selectedSummary: "{count} ausgewählt · {amount} BTC",
+      confirm: "Zuordnen",
+    },
+    allocations: {
+      section: "Zugeordnete Käufe",
+      intro:
+        "Diese Käufe schließt der Transfer. Die Summe muss der Menge plus Netzwerkgebühr entsprechen, denn genau so viel hat das Konto verlassen.",
+      acquired: "Kaufdatum",
+      source: "Herkunfts-Konto",
+      amount: "Zugeordnet",
+      price: "Einstand / BTC",
+      available: "Verfügbar",
+      remove: "Zuordnung entfernen",
+      add: "Käufe hinzufügen",
+      pickTitle: "Käufe zuordnen",
+      pickIntro:
+        "Offene Lots im Quell-Konto, neueste zuerst. Mehrfachauswahl möglich; die zugeordneten Mengen lassen sich danach noch anpassen.",
+      pickEmpty: "Im Quell-Konto gibt es keine offenen Lots mehr.",
+      pickAria: "Lot vom {date} zuordnen",
+      target: "Soll (Menge + Gebühr)",
+      assigned: "Zugeordnet",
+      unassigned: "{amount} BTC nicht zugeordnet",
+      over: "{amount} BTC zu viel zugeordnet",
+      exceedsLot: "Mehr als im Lot verfügbar ({available} BTC).",
+      complete: "Vollständig zugeordnet.",
+      preview: "Ergebnis: Herkunft",
+      empty: "Diesem Transfer ist noch kein Kauf zugeordnet.",
+      hint: "Ohne vollständige Zuordnung ist unbestimmt, welche Käufe dieser Transfer bewegt.",
+    },
+    outLeg: {
+      section: "Zugeordnete Ausgangstransaktion",
+      linked: "Verknüpft mit:",
+      unlink: "Zuordnung lösen",
+      assign: "Ausgangstransaktion zuordnen",
+      none: "Diesem Eingang ist keine Ausgangstransaktion zugeordnet.",
+      pickTitle: "Ausgangstransaktion zuordnen",
+      pickIntro:
+        "Nicht zugeordnete Ausgänge aus anderen Wallets und Konten. Oben stehen die wahrscheinlichsten Treffer.",
+      pickEmpty: "Es gibt keine passende, noch freie Ausgangstransaktion.",
+      pickEmptyCreate: "Stattdessen aus Lots des Quell-Kontos einen Ausgang anlegen",
+      filterPeriod: "Zeitraum",
+      txidMatch: "Txid identisch",
+      alreadyPaired: "bereits zugeordnet",
+      includePaired: "Auch Ausgangstransaktionen anzeigen, die schon eine Eingangstransaktion haben",
+      joinsGroup:
+        "Diese Ausgangstransaktion ist bereits zugeordnet ({legs}). Die Eingangstransaktion wird demselben Transfer hinzugefügt. Das ist richtig, wenn ein Versand in mehreren Teilen angekommen ist; andernfalls prüfe, ob die vorhandene Zuordnung falsch ist (dort „Zuordnung lösen“).",
+      inLegSection: "Zugeordnete Eingangstransaktion",
+      inLegNone: "Keine Eingangstransaktion zugeordnet",
+      inLegHowTo:
+        "Die Verknüpfung wird auf der Eingangstransaktion gesetzt: Öffne sie im Ziel-Wallet und wähle dort unter „Herkunft & Zuordnung“ diese Ausgangstransaktion aus.",
+      colMatch: "Übereinstimmung",
+      searchPlaceholder: "Wallet, txid, Notiz …",
+      pickAria: "Ausgangstransaktion vom {date} auswählen",
+      bestMatch: "Wahrscheinlichster Treffer",
+      dayDiff: "{days} Tage Abstand",
+      diffTitle: "Mengendifferenz",
+      diffNone: "Beide Mengen sind identisch.",
+      diffFee:
+        "{amount} BTC Differenz, plausibel als Netzwerkgebühr ({percent} der Menge).",
+      diffAdopt:
+        "Differenz als Netzwerkgebühr übernehmen (die Ausgangsmenge wird dabei auf die Eingangsmenge gesetzt, die Gebühr steht daneben)",
+      diffTooLarge:
+        "{amount} BTC Differenz ({percent} der Menge). Das ist zu viel für eine Netzwerkgebühr, vermutlich passen die beiden Transaktionen nicht zusammen.",
+      diffNegative:
+        "Es sind {amount} BTC mehr angekommen als abgegangen. Das kann keine Netzwerkgebühr sein.",
+      confirm: "Zuordnen",
+      previewTitle: "Ergebnis: Herkunft dieses Eingangs",
+    },
     origin: {
       section: "Herkunft",
       intro:
@@ -539,6 +616,7 @@ const de = {
       source: "Herkunft",
       status: "Haltefrist",
       total: "Summe",
+      totalValue: "Wert {value} EUR",
       ofAmount: "von {amount} dieser Transaktion",
       jump: "Zur Kauftransaktion",
       unknownPrice: "Einstand unbekannt",

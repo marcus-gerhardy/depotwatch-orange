@@ -16,6 +16,7 @@
 
 import { Decimal, dec, ZERO } from "./decimal";
 import { buyLotBasis } from "./fifo";
+import { lotCreditedBtc } from "./transferLink";
 import type { LedgerEntry, LotAllocation } from "./types";
 
 /**
@@ -36,8 +37,19 @@ export interface OriginLot {
   amountBtc: Decimal;
   /** Original cost per BTC; null when the lot has no EUR figure. */
   pricePerBtcEur: Decimal | null;
-  /** Cost of this share (pricePerBtcEur × amountBtc); null when unknown. */
+  /**
+   * Tax cost basis of this share (`pricePerBtcEur × amountBtc`, fees included
+   * per `buyLotBasis`); null when unknown.
+   */
   costEur: Decimal | null;
+  /**
+   * The EUR the origin transaction actually recorded for this share — its
+   * "Betrag (EUR)", split in proportion to the share. Deliberately not the
+   * cost basis: that one adds the fiat fee and divides by the net BTC, so a
+   * transfer valued with it would not add up to the amounts its buys show in
+   * the transaction table. Null when the lot has no EUR figure at all.
+   */
+  valueEur: Decimal | null;
   /** Where the original acquisition sits, which is not where the coins are now. */
   walletId: string;
   walletName: string;
@@ -111,7 +123,7 @@ function isOriginEntry(e: LedgerEntry): boolean {
   return e.type === "transfer_in" && !e.counterpartyAccountId && !e.transferGroupId;
 }
 
-/** Cost per BTC of an entry that is itself an origin lot. */
+/** Cost per BTC of an entry that is itself an origin lot (fees included). */
 function originPricePerBtc(e: LedgerEntry): Decimal | null {
   if (e.type === "buy") return buyLotBasis(e).costPerBtcEur;
   return e.pricePerBtcEur === null || e.pricePerBtcEur === undefined
@@ -119,7 +131,44 @@ function originPricePerBtc(e: LedgerEntry): Decimal | null {
     : dec(e.pricePerBtcEur);
 }
 
-function originOf(e: LedgerEntry, share: Decimal, hops: number): OriginLot {
+/**
+ * The EUR figure the transaction itself shows — the total actually paid, or
+ * price × amount when only a price was recorded. The same rule the transaction
+ * table uses for its value column, so both tell the same number.
+ */
+function recordedTotalEur(
+  e: Pick<LedgerEntry, "amountBtc" | "pricePerBtcEur" | "totalFiatEur">,
+): Decimal | null {
+  if (e.totalFiatEur != null) return dec(e.totalFiatEur);
+  if (e.pricePerBtcEur != null) return dec(e.amountBtc).mul(dec(e.pricePerBtcEur));
+  return null;
+}
+
+/**
+ * What a lot-creating transaction recorded in EUR for `share` of its coins.
+ *
+ * The recorded total belongs to what the transaction credited to the account
+ * (a buy's BTC fee is charged on top of its amount, §3.2), so the share is
+ * measured against exactly that: moving a lot in full is then worth its own
+ * "Betrag (EUR)" to the cent, and half of it half that. Deliberately not the
+ * tax cost basis, which adds the fiat fee and divides by the net BTC — valuing
+ * a transfer with that leaves it differing from the buys behind it.
+ */
+export function recordedShareValue(
+  e: Pick<LedgerEntry, "type" | "amountBtc" | "feeBtc" | "pricePerBtcEur" | "totalFiatEur">,
+  share: Decimal,
+): Decimal | null {
+  const total = recordedTotalEur(e);
+  const credited = lotCreditedBtc(e);
+  return total === null || !credited.gt(0) ? null : total.mul(share).div(credited);
+}
+
+function originOf(
+  e: LedgerEntry,
+  share: Decimal,
+  hops: number,
+  valueScale: Decimal,
+): OriginLot {
   const price = originPricePerBtc(e);
   return {
     lotTxId: e.id,
@@ -127,6 +176,12 @@ function originOf(e: LedgerEntry, share: Decimal, hops: number): OriginLot {
     amountBtc: share,
     pricePerBtcEur: price,
     costEur: price === null ? null : price.mul(share),
+    // Valued over the share that was *consumed* for this transaction, which is
+    // larger than the share that arrived by every network fee on the way (see
+    // `valueScale`): the euros of the coins burned as a fee were still paid for
+    // these buys, so leaving them out would put the transfer's value below the
+    // amounts of the buys it is made of.
+    valueEur: recordedShareValue(e, share.mul(valueScale)),
     walletId: e.walletId,
     walletName: e.walletName,
     accountId: e.accountId,
@@ -209,10 +264,20 @@ export function resolveProvenance(
     prev.amountBtc = prev.amountBtc.plus(o.amountBtc);
     prev.costEur =
       prev.costEur === null || o.costEur === null ? null : prev.costEur.plus(o.costEur);
+    prev.valueEur =
+      prev.valueEur === null || o.valueEur === null ? null : prev.valueEur.plus(o.valueEur);
     prev.hops = Math.min(prev.hops, o.hops);
   }
 
-  function walk(e: LedgerEntry, share: Decimal, hops: number) {
+  /**
+   * `valueScale` turns an arrived share back into the share that was consumed
+   * for it. A transfer_out closes `amountBtc + feeBtc` worth of lots but only
+   * `amountBtc` reaches the other side, so the shares (which must add up to the
+   * arrival's amount) are the net ones while their EUR value has to come from
+   * the gross ones. Multiplies across hops, so a chain of transfers keeps every
+   * fee it paid inside the value.
+   */
+  function walk(e: LedgerEntry, share: Decimal, hops: number, valueScale: Decimal) {
     if (share.lte(0)) return;
     if (hops > MAX_DEPTH || path.has(e.id)) {
       truncated = true;
@@ -220,18 +285,21 @@ export function resolveProvenance(
       return;
     }
     if (isOriginEntry(e)) {
-      addOrigin(originOf(e, share, hops));
+      addOrigin(originOf(e, share, hops, valueScale));
       return;
     }
 
     // An incoming leg is explained by the out-leg of its transfer group; every
     // other type carries its own allocations.
     let allocations: LotAllocation[] = [];
+    /** What the leg owning these allocations passed on, i.e. minus its fee. */
+    let passedOn = dec(e.amountBtc);
     if (e.type === "transfer_in") {
       const legs = e.transferGroupId
         ? (index.outLegsByGroup.get(e.transferGroupId) ?? [])
         : [];
       allocations = legs.flatMap((leg) => leg.lotAllocations ?? []);
+      passedOn = legs.reduce((s, leg) => s.plus(dec(leg.amountBtc)), ZERO);
     } else {
       allocations = e.lotAllocations ?? [];
     }
@@ -239,6 +307,9 @@ export function resolveProvenance(
       unresolved = unresolved.plus(share);
       return;
     }
+
+    const closed = allocations.reduce((s, a) => s.plus(dec(a.amountBtc)), ZERO);
+    const nextScale = passedOn.gt(0) ? valueScale.mul(closed).div(passedOn) : valueScale;
 
     path.add(e.id);
     for (const part of splitProportionally(allocations, share)) {
@@ -249,12 +320,12 @@ export function resolveProvenance(
         continue;
       }
       followedSomething = true;
-      walk(lotTx, part.amount, hops + 1);
+      walk(lotTx, part.amount, hops + 1, nextScale);
     }
     path.delete(e.id);
   }
 
-  walk(entry, amount, 0);
+  walk(entry, amount, 0, new Decimal(1));
 
   const origins = [...merged.values()].sort(
     (a, b) => a.acquiredDate.localeCompare(b.acquiredDate) || a.lotTxId.localeCompare(b.lotTxId),
@@ -270,6 +341,81 @@ export function resolveProvenance(
     status: statusOf(entry, origins.length, unresolved, followedSomething),
     truncated,
   };
+}
+
+/** What a transfer's coins are worth in EUR, derived from where they came from. */
+export interface ProvenanceValue {
+  /** Value per BTC: the value below over the BTC it covers. */
+  pricePerBtcEur: Decimal;
+  /**
+   * Σ of the origins' recorded EUR amounts for the shares they contributed
+   * (`valueEur`), network fees included — a transfer that moves whole buys is
+   * worth exactly the sum of those buys' "Betrag (EUR)".
+   */
+  totalFiatEur: Decimal;
+  /** BTC covered by origins that have an EUR figure. */
+  valuedBtc: Decimal;
+  /** Whether that is the whole amount, i.e. the value is not a partial one. */
+  complete: boolean;
+}
+
+/**
+ * Kurs and value of a transfer leg, computed from its origins.
+ *
+ * A transfer is not a trade, so it has no price of its own — but the coins it
+ * moves do: they were bought somewhere, and their quantity-weighted cost is
+ * exactly what the leg is worth. The transfer dialog writes this figure onto
+ * the legs it creates (§3.2), which legs from an import or a later linking
+ * never got; deriving it here means both look the same in the UI without
+ * writing anything into the file.
+ *
+ * The figures come from what the origin transactions recorded (their "Betrag
+ * (EUR)"), not from their tax cost basis: the latter adds the fiat fee and
+ * divides by the net BTC, which would leave the transfer's value differing
+ * from the sum of the buys it moves. Origins without any EUR figure are left
+ * out of both sums rather than valued at the others' average, and `complete`
+ * says so — a partial value must never be passed off as the whole one.
+ * Returns null when nothing at all can be valued.
+ */
+export function provenanceValue(p: Provenance): ProvenanceValue | null {
+  let valueEur = ZERO;
+  let valuedBtc = ZERO;
+  for (const o of p.origins) {
+    if (o.valueEur === null) continue;
+    valueEur = valueEur.plus(o.valueEur);
+    valuedBtc = valuedBtc.plus(o.amountBtc);
+  }
+  if (!valuedBtc.gt(0)) return null;
+  return {
+    pricePerBtcEur: valueEur.div(valuedBtc),
+    totalFiatEur: valueEur,
+    valuedBtc,
+    complete: valuedBtc.eq(p.amountBtc),
+  };
+}
+
+/**
+ * The derived Kurs/value of every transfer leg in one pass, for surfaces that
+ * show many of them (the transaction table). The ledger is indexed once, so
+ * this costs one walk per leg instead of one per rendered row.
+ */
+export function derivedTransferValues(
+  entries: LedgerEntry[],
+): Map<string, ProvenanceValue> {
+  const index = indexLedger(entries);
+  const values = new Map<string, ProvenanceValue>();
+  for (const e of entries) {
+    if (e.type !== "transfer_in" && e.type !== "transfer_out") continue;
+    const provenance = resolveProvenance(e, index);
+    // A receive from outside the ledger is its own origin: there is nothing
+    // behind it to compute from, and recomputing its figures out of itself
+    // would only re-derive the rate from the total and quietly replace the one
+    // that was actually recorded.
+    if (provenance.status === "origin") continue;
+    const value = provenanceValue(provenance);
+    if (value) values.set(e.id, value);
+  }
+  return values;
 }
 
 function statusOf(

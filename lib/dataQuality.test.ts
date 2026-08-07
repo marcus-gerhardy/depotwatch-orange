@@ -90,13 +90,40 @@ describe("countIssues", () => {
       entry(tx({ type: "buy", id: "3", pricePerBtcEur: null, totalFiatEur: null })),
     ]);
     expect(counts).toEqual({
-      unlinkedTransfer: 1,
-      // The linked arrival claims a group whose out-leg is missing, so its
-      // coins still trace back to nothing.
+      // The arrival's group has no out-leg, and a group id whose counterpart
+      // does not exist is not a link: it is as unlinked as the out-leg that
+      // has no id at all.
+      unlinkedTransfer: 2,
+      // ... and its coins still trace back to nothing.
       unresolvedOrigin: 1,
+      // The out-leg closes no lots at all.
+      incompleteAllocation: 1,
       missingTxid: 1,
       missingEurValue: 1,
     });
+  });
+
+  it("counts an outgoing transfer whose allocations do not cover it", () => {
+    const outLeg = (lotAllocations: { lotTransactionId: string; amountBtc: string }[]) =>
+      entry(
+        tx({
+          type: "transfer_out",
+          id: "o",
+          amountBtc: "0.4999",
+          feeBtc: "0.0001",
+          transferGroupId: "g",
+          lotAllocations,
+        }),
+      );
+    // The target is amount + BTC fee: that is what left the account (§3.2).
+    expect(
+      countIssues([outLeg([{ lotTransactionId: "b", amountBtc: "0.5" }])])
+        .incompleteAllocation,
+    ).toBe(0);
+    expect(
+      countIssues([outLeg([{ lotTransactionId: "b", amountBtc: "0.4999" }])])
+        .incompleteAllocation,
+    ).toBe(1);
   });
 
   it("does not flag an arrival whose origin resolves", () => {

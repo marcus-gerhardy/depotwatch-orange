@@ -107,9 +107,14 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-/** The expander of the single transfer_in row. */
-function originToggle() {
-  return screen.getByRole("button", { name: "tx.origin.show" });
+/**
+ * The expander of the row of the given type. Both transfer directions have one
+ * (an arrival resolves through its group, an outgoing leg through its own
+ * allocations), so the row has to be picked by its type icon.
+ */
+function originToggle(type: "transfer_in" | "transfer_out" = "transfer_in") {
+  const row = screen.getByRole("img", { name: `tx.types.${type}` }).closest("tr")!;
+  return within(row).getByRole("button", { name: "tx.origin.show" });
 }
 
 /**
@@ -184,10 +189,95 @@ describe("origin of an incoming transfer", () => {
     expect(screen.queryByText("tx.origin.intro")).toBeNull();
   });
 
-  it("offers no expander on rows that are not an arrival", () => {
+  it("offers an expander on both transfer directions and on nothing else", () => {
     render(<TransactionsView />);
-    // Five buys and one out-leg besides the single arrival.
-    expect(screen.getAllByRole("button", { name: "tx.origin.show" })).toHaveLength(1);
+    // Seven rows: five buys (no expander), one out-leg and one arrival.
+    expect(screen.getAllByRole("button", { name: "tx.origin.show" })).toHaveLength(2);
+  });
+
+  it("unfolds the outgoing leg into the buys it closes", () => {
+    render(<TransactionsView />);
+    fireEvent.click(originToggle("transfer_out"));
+
+    const panel = within(originPanel());
+    expect(panel.getAllByText("Kraken / Spot")).toHaveLength(5);
+    expect(panel.getByText("tx.origin.total")).toBeTruthy();
+  });
+});
+
+describe("Kurs and value of a transfer leg", () => {
+  /** The row of a transfer direction, picked by its type icon. */
+  const legRow = (type: "transfer_in" | "transfer_out") =>
+    screen.getByRole("img", { name: `tx.types.${type}` }).closest("tr")!;
+
+  it("derives them from the buys behind it, on both legs", () => {
+    render(<TransactionsView />);
+
+    // 0.1@30000 + 0.2@28000 + 0.3@20000 + 0.15@16000 + 0.25@25000 = 23 250
+    // for 1 BTC, so rate and value read the same here.
+    for (const type of ["transfer_in", "transfer_out"] as const) {
+      const row = legRow(type);
+      expect(within(row).getAllByText("23.250,00")).toHaveLength(2);
+      // No "≈": this is the exact sum of those buys' amounts, not an estimate.
+      expect(within(row).queryByText("≈")).toBeNull();
+    }
+  });
+
+  it("marks a value that covers only part of the amount", () => {
+    // One of the five buys has no EUR figure at all, so 0.1 BTC of the arrival
+    // cannot be valued — the sum shown is genuinely short of the whole.
+    const p = seedPortfolio();
+    p.wallets[0].accounts[0].transactions[0] = {
+      ...p.wallets[0].accounts[0].transactions[0],
+      pricePerBtcEur: null,
+      totalFiatEur: null,
+    };
+    load(p);
+    render(<TransactionsView />);
+
+    const row = legRow("transfer_in");
+    expect(within(row).getAllByText("20.250,00")).toHaveLength(1); // 23 250 − 3 000
+    expect(within(row).getAllByText("≈").length).toBeGreaterThan(0);
+  });
+
+  it("recomputes over figures the leg stored earlier", () => {
+    // Lot assignments are editable, so a value written when the transfer was
+    // created can be out of date; the buys behind it never are.
+    const p = seedPortfolio();
+    p.wallets[1].accounts[0].transactions[0] = {
+      ...p.wallets[1].accounts[0].transactions[0],
+      pricePerBtcEur: "20000",
+      totalFiatEur: "20000",
+    };
+    load(p);
+    render(<TransactionsView />);
+
+    const row = legRow("transfer_in");
+    expect(within(row).getAllByText("23.250,00")).toHaveLength(2);
+    expect(within(row).queryByText("20.000,00")).toBeNull();
+  });
+
+  it("falls back to the stored figures when the origin does not resolve", () => {
+    const p = seedPortfolio(false);
+    p.wallets[1].accounts[0].transactions[0] = {
+      ...p.wallets[1].accounts[0].transactions[0],
+      pricePerBtcEur: "20000",
+      totalFiatEur: "20000",
+    };
+    load(p);
+    render(<TransactionsView />);
+
+    const row = legRow("transfer_in");
+    expect(within(row).getAllByText("20.000,00")).toHaveLength(2);
+    expect(within(row).queryByText("≈")).toBeNull();
+  });
+
+  it("stays empty when the origin does not resolve", () => {
+    load(seedPortfolio(false));
+    render(<TransactionsView />);
+
+    const row = legRow("transfer_in");
+    expect(within(row).queryByText("23.250,00")).toBeNull();
   });
 });
 
@@ -210,20 +300,45 @@ describe("an arrival without a link", () => {
     expect(badges.length).toBeGreaterThan(0);
   });
 
-  it("opens the assignment dialog from the hint", () => {
+  it("opens the out-leg picker from the hint", () => {
     render(<TransactionsView />);
     fireEvent.click(originToggle());
     fireEvent.click(screen.getByRole("button", { name: "tx.origin.assign" }));
 
-    // The transfer dialog runs in assignment mode: source account still to pick.
-    expect(screen.getByText("tx.transferAssignIntro")).toBeTruthy();
-    expect(screen.getByText("tx.transferAssignSource")).toBeTruthy();
+    // The unlinked out-leg of the seed is exactly such a candidate.
+    expect(screen.getByText("tx.outLeg.pickIntro")).toBeTruthy();
+    expect(screen.getByRole("radio")).toBeTruthy();
   });
 
-  it("links the arrival to the picked source lots", () => {
+  it("links the arrival to the picked out-leg", () => {
     render(<TransactionsView />);
     fireEvent.click(originToggle());
     fireEvent.click(screen.getByRole("button", { name: "tx.origin.assign" }));
+    fireEvent.click(screen.getByRole("radio"));
+    fireEvent.click(screen.getByRole("button", { name: "tx.outLeg.confirm" }));
+
+    const p = useAppStore.getState().portfolio!;
+    const arrival = p.wallets[1].accounts[0].transactions.find((t) => t.id === "in1")!;
+    const outLeg = p.wallets[0].accounts[0].transactions.find((t) => t.id === "out1")!;
+    expect(arrival.transferGroupId).toBeTruthy();
+    expect(outLeg.transferGroupId).toBe(arrival.transferGroupId);
+    expect(outLeg.counterpartyAccountId).toBe("acctB");
+    expect(arrival.counterpartyAccountId).toBe("acctA");
+  });
+
+  it("falls back to building an out-leg from source lots when none exists", () => {
+    // Remove the only candidate, so the picker has nothing to offer.
+    const p = seedPortfolio(false);
+    p.wallets[0].accounts[0].transactions = p.wallets[0].accounts[0].transactions.filter(
+      (t) => t.id !== "out1",
+    );
+    load(p);
+
+    render(<TransactionsView />);
+    fireEvent.click(originToggle());
+    fireEvent.click(screen.getByRole("button", { name: "tx.origin.assign" }));
+    expect(screen.getByText("tx.outLeg.pickEmpty")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "tx.outLeg.pickEmptyCreate" }));
 
     // Source account, then one of its open lots.
     const sourceSelect = screen
@@ -238,11 +353,11 @@ describe("an arrival without a link", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "tx.transferSubmit" }));
 
-    const p = useAppStore.getState().portfolio!;
-    const arrival = p.wallets[1].accounts[0].transactions.find((t) => t.id === "in1")!;
+    const saved = useAppStore.getState().portfolio!;
+    const arrival = saved.wallets[1].accounts[0].transactions.find((t) => t.id === "in1")!;
     // The arrival keeps its identity and gains the group that explains it.
     expect(arrival.transferGroupId).toBeTruthy();
-    const outLeg = p.wallets[0].accounts[0].transactions.find(
+    const outLeg = saved.wallets[0].accounts[0].transactions.find(
       (t) => t.type === "transfer_out" && t.transferGroupId === arrival.transferGroupId,
     )!;
     expect(outLeg.lotAllocations).toHaveLength(5);

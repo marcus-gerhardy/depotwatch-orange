@@ -418,18 +418,38 @@ export const useAppStore = create<AppState>((set, get) => {
       ),
 
     updateTransaction: (txId, tx, accountId) =>
-      mutate((p) =>
-        mapWallets(p, (w) => ({
+      mutate((p) => {
+        // Where the transaction sat before this edit — an edit may move it.
+        const previousAccountId = p.wallets
+          .flatMap((w) => w.accounts)
+          .find((a) => a.transactions.some((t) => t.id === txId))?.id;
+        // A moved transfer leg drags its counterpart's reference along, the
+        // same way the bulk move does; otherwise the pair would point at the
+        // account the leg just left (CLAUDE.md §3.2).
+        const retarget =
+          tx.transferGroupId !== undefined &&
+          previousAccountId !== undefined &&
+          previousAccountId !== accountId;
+
+        return mapWallets(p, (w) => ({
           ...w,
           accounts: w.accounts.map((a) => {
             // Remove from old account, insert into target (may be the same).
             const without = a.transactions.filter((t) => t.id !== txId);
+            const adjusted = retarget
+              ? without.map((t) =>
+                  t.transferGroupId === tx.transferGroupId &&
+                  t.counterpartyAccountId === previousAccountId
+                    ? { ...t, counterpartyAccountId: accountId }
+                    : t,
+                )
+              : without;
             return a.id === accountId
-              ? { ...a, transactions: [...without, tx] }
-              : { ...a, transactions: without };
+              ? { ...a, transactions: [...adjusted, tx] }
+              : { ...a, transactions: adjusted };
           }),
-        })),
-      ),
+        }));
+      }),
 
     moveTransactions: (txIds, targetAccountId) =>
       mutate((p) => {

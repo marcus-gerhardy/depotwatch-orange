@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  derivedTransferValues,
   indexLedger,
+  provenanceValue,
   resolveProvenance,
   unresolvedOriginIds,
   type Provenance,
@@ -507,5 +509,189 @@ describe("flattenLedger integration", () => {
     expect(p.status).toBe("resolved");
     expect(p.origins[0].walletName).toBe("Kraken");
     expect(p.origins[0].accountName).toBe("Spot");
+  });
+});
+
+describe("provenanceValue", () => {
+  /** 0.3 at 30 000 and 0.2 at 45 000 leave wallet A; 0.4999 arrives in B. */
+  function bundled(secondPrice: string | null = "45000") {
+    const b1 = buy("2023-01-01T00:00:00Z", "0.3", "30000");
+    const b2 = entry("buy", "0.2", {
+      date: "2023-02-01T00:00:00Z",
+      pricePerBtcEur: secondPrice,
+      totalFiatEur: secondPrice === null ? null : undefined,
+    });
+    const out = entry("transfer_out", "0.4999", {
+      date: "2023-06-01T00:00:00Z",
+      feeBtc: "0.0001",
+      counterpartyAccountId: "aB",
+      transferGroupId: "g1",
+      lotAllocations: [
+        { lotTransactionId: b1.id, amountBtc: "0.3" },
+        { lotTransactionId: b2.id, amountBtc: "0.2" },
+      ],
+    });
+    const inLeg = entry("transfer_in", "0.4999", {
+      ...inB,
+      date: "2023-06-01T00:30:00Z",
+      counterpartyAccountId: "aA",
+      transferGroupId: "g1",
+    });
+    return { entries: [b1, b2, out, inLeg], inLeg, out };
+  }
+
+  it("is worth exactly the sum of the buys it moves, network fee and all", () => {
+    const { entries, inLeg } = bundled();
+    const value = provenanceValue(resolve(entries, inLeg.id))!;
+
+    // 0.3 @ 30 000 plus 0.2 @ 45 000: the two buys show 9 000 + 9 000 in the
+    // transaction table, and the transfer made of them has to show 18 000 —
+    // the 0.0001 BTC burned as a fee was paid for with those same euros.
+    expect(value.totalFiatEur.toFixed(2)).toBe("18000.00");
+    expect(value.complete).toBe(true);
+    // The rate follows from value ÷ amount, so the two never contradict each
+    // other; it is above the buys' 36 000 by exactly what the fee cost.
+    expect(value.pricePerBtcEur.toFixed(2)).toBe("36007.20");
+    expect(value.pricePerBtcEur.mul(dec("0.4999")).toFixed(2)).toBe("18000.00");
+  });
+
+  it("gives the outgoing leg the same value", () => {
+    const { entries, out } = bundled();
+    const value = provenanceValue(resolve(entries, out.id))!;
+    expect(value.totalFiatEur.toFixed(2)).toBe("18000.00");
+    expect(value.complete).toBe(true);
+  });
+
+  it("leaves a lot without a known cost out instead of averaging it in", () => {
+    const { entries, inLeg } = bundled(null);
+    const value = provenanceValue(resolve(entries, inLeg.id))!;
+
+    // Only the 30 000 lot can be valued — in full, at its own 9 000 — and the
+    // rate must not be applied to the rest of the amount.
+    expect(value.totalFiatEur.toFixed(2)).toBe("9000.00");
+    expect(value.valuedBtc.toFixed(8)).toBe("0.29994000");
+    expect(value.complete).toBe(false);
+  });
+
+  it("values a moved buy at its own recorded amount, fees and all", () => {
+    // The buy shows "Betrag (EUR) 10 000" in the table; its tax cost basis is
+    // 10 050 over 0.499 BTC (fiat fee on top, BTC fee off the amount). Moving
+    // it in full must be worth what the buy shows, not what it cost.
+    const b = entry("buy", "0.5", {
+      date: "2023-01-01T00:00:00Z",
+      pricePerBtcEur: "20000",
+      totalFiatEur: "10000",
+      feeFiatEur: "50",
+      feeBtc: "0.001",
+    });
+    const out = entry("transfer_out", "0.499", {
+      date: "2023-06-01T00:00:00Z",
+      counterpartyAccountId: "aB",
+      transferGroupId: "g1",
+      lotAllocations: [{ lotTransactionId: b.id, amountBtc: "0.499" }],
+    });
+    const inLeg = entry("transfer_in", "0.499", {
+      ...inB,
+      counterpartyAccountId: "aA",
+      transferGroupId: "g1",
+    });
+
+    const p = resolve([b, out, inLeg], inLeg.id);
+    expect(provenanceValue(p)!.totalFiatEur.toFixed(2)).toBe("10000.00");
+    // The cost basis is still available for the tax side, and differs.
+    expect(p.origins[0].costEur!.toFixed(2)).toBe("10050.00");
+  });
+
+  it("splits a partly moved buy in proportion to its recorded amount", () => {
+    const b = entry("buy", "1", {
+      date: "2023-01-01T00:00:00Z",
+      pricePerBtcEur: "20000",
+      totalFiatEur: "20000",
+    });
+    const out = entry("transfer_out", "0.25", {
+      date: "2023-06-01T00:00:00Z",
+      counterpartyAccountId: "aB",
+      transferGroupId: "g1",
+      lotAllocations: [{ lotTransactionId: b.id, amountBtc: "0.25" }],
+    });
+    const inLeg = entry("transfer_in", "0.25", {
+      ...inB,
+      counterpartyAccountId: "aA",
+      transferGroupId: "g1",
+    });
+
+    const value = provenanceValue(resolve([b, out, inLeg], inLeg.id))!;
+    expect(value.totalFiatEur.toFixed(2)).toBe("5000.00");
+    expect(value.pricePerBtcEur.toFixed(2)).toBe("20000.00");
+  });
+
+  it("has no value for an arrival whose origin does not resolve", () => {
+    const inLeg = entry("transfer_in", "0.5", {
+      ...inB,
+      counterpartyAccountId: "aA",
+      transferGroupId: "gone",
+    });
+    expect(provenanceValue(resolve([inLeg], inLeg.id))).toBeNull();
+  });
+
+  it("keeps the value whole across several hops, each with its own fee", () => {
+    // A → B → C, 0.001 BTC network fee per hop. However often the coins move,
+    // the value stays what the buy behind them cost.
+    const b = entry("buy", "1", {
+      date: "2023-01-01T00:00:00Z",
+      pricePerBtcEur: "20000",
+      totalFiatEur: "20000",
+    });
+    const outAB = entry("transfer_out", "0.999", {
+      date: "2023-02-01T00:00:00Z",
+      feeBtc: "0.001",
+      counterpartyAccountId: "aB",
+      transferGroupId: "g1",
+      lotAllocations: [{ lotTransactionId: b.id, amountBtc: "1" }],
+    });
+    const inB1 = entry("transfer_in", "0.999", {
+      ...inB,
+      date: "2023-02-01T01:00:00Z",
+      counterpartyAccountId: "aA",
+      transferGroupId: "g1",
+    });
+    const outBC = entry("transfer_out", "0.998", {
+      ...inB,
+      date: "2023-03-01T00:00:00Z",
+      feeBtc: "0.001",
+      counterpartyAccountId: "aC",
+      transferGroupId: "g2",
+      lotAllocations: [{ lotTransactionId: inB1.id, amountBtc: "0.999" }],
+    });
+    const inC1 = entry("transfer_in", "0.998", {
+      ...inC,
+      date: "2023-03-01T01:00:00Z",
+      counterpartyAccountId: "aB",
+      transferGroupId: "g2",
+    });
+
+    const entries = [b, outAB, inB1, outBC, inC1];
+    expect(provenanceValue(resolve(entries, inC1.id))!.totalFiatEur.toFixed(2)).toBe(
+      "20000.00",
+    );
+  });
+
+  it("leaves a receive from outside the ledger with its own figures", () => {
+    // Its own origin: nothing to compute from, and recomputing would replace
+    // the recorded rate with total ÷ amount.
+    const external = entry("transfer_in", "0.5", {
+      ...inB,
+      pricePerBtcEur: "50000",
+      totalFiatEur: "24000",
+    });
+    expect(derivedTransferValues([external]).has(external.id)).toBe(false);
+  });
+
+  it("derives both legs of a transfer in one pass", () => {
+    const { entries, inLeg, out } = bundled();
+    const values = derivedTransferValues(entries);
+    expect([...values.keys()].sort()).toEqual([inLeg.id, out.id].sort());
+    // Buys are not transfers: they keep their own recorded figures.
+    expect(values.has(entries[0].id)).toBe(false);
   });
 });

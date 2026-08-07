@@ -38,11 +38,18 @@ import {
   issueContext,
   type DataIssue,
 } from "@/lib/dataQuality";
+import { isLegPaired, pairedGroupIds } from "@/lib/transferLink";
+import {
+  derivedTransferValues,
+  recordedShareValue,
+  type ProvenanceValue,
+} from "@/lib/provenance";
 import { legacyTransactionColumns } from "@/lib/legacyUiPrefs";
 import { deletionImpact } from "@/lib/deletion";
 import { Amount, Button, Card, Field, Modal, SectionTitle, Switch, inputCls } from "./ui";
 import TransactionForm, { type SellLotTarget } from "./TransactionForm";
 import ProvenanceList from "./ProvenanceList";
+import { OutLegPicker } from "./OutLegLink";
 import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import CsvImportWizard from "./CsvImportWizard";
 
@@ -243,13 +250,38 @@ function pageNumbers(total: number, current: number): (number | null)[] {
   return list;
 }
 
-/** Row value in EUR: prefer the actually paid total over price × amount. */
-function rowValue(r: LedgerEntry) {
-  return r.totalFiatEur != null
-    ? dec(r.totalFiatEur)
-    : r.pricePerBtcEur !== null
-      ? dec(r.amountBtc).mul(dec(r.pricePerBtcEur))
-      : null;
+/**
+ * Kurs of a row: what it recorded — except on a transfer leg, which has no
+ * price of its own. There the buys behind it decide (§3.2), computed live, so
+ * an edited lot assignment can never leave a stale figure on the row; what a
+ * leg stored earlier is the fallback for a chain that no longer resolves.
+ */
+function rowPrice(r: LedgerEntry, derived?: Map<string, ProvenanceValue>) {
+  const fromOrigin = derived?.get(r.id)?.pricePerBtcEur;
+  if (fromOrigin) return fromOrigin;
+  return r.pricePerBtcEur != null ? dec(r.pricePerBtcEur) : null;
+}
+
+/**
+ * Row value in EUR: the value of what a transfer moves (see above), otherwise
+ * the actually paid total, otherwise price × amount.
+ */
+function rowValue(r: LedgerEntry, derived?: Map<string, ProvenanceValue>) {
+  const fromOrigin = derived?.get(r.id)?.totalFiatEur;
+  if (fromOrigin) return fromOrigin;
+  if (r.totalFiatEur != null) return dec(r.totalFiatEur);
+  if (r.pricePerBtcEur !== null) return dec(r.amountBtc).mul(dec(r.pricePerBtcEur));
+  return null;
+}
+
+/**
+ * Whether the computed figures cover only part of the amount, i.e. the value
+ * shown is genuinely lower than the transaction's. A *complete* computed value
+ * needs no marker: it is the exact sum of the amounts of the buys behind it,
+ * not an estimate.
+ */
+function isPartialValue(r: LedgerEntry, derived?: Map<string, ProvenanceValue>) {
+  return derived?.get(r.id)?.complete === false;
 }
 
 function toLocalInput(iso: string): string {
@@ -800,7 +832,10 @@ function TransferDialog({
   const sourceAccountId = linkMode ? pickedSourceAccountId : typeEligible[0]?.accountId;
 
   // Existing-transaction candidates for the out-leg: same account, matching
-  // direction, and not already part of another linked transfer.
+  // direction, and not already part of another linked transfer — "linked"
+  // meaning actually paired, not merely carrying a group id (§3.2), so a leg
+  // whose counterpart never existed stays repairable.
+  const paired = useMemo(() => pairedGroupIds(all), [all]);
   const outCandidates = useMemo(
     () =>
       sourceAccountId
@@ -808,10 +843,10 @@ function TransferDialog({
             (e) =>
               e.accountId === sourceAccountId &&
               e.type === "transfer_out" &&
-              !e.transferGroupId,
+              !isLegPaired(e, paired),
           )
         : [],
-    [all, sourceAccountId],
+    [all, sourceAccountId, paired],
   );
 
   // A not-yet-linked transfer_out (e.g. an independently CSV-imported "sent"
@@ -842,9 +877,15 @@ function TransferDialog({
     return map;
   }, [all, outCandidates, lotByTxId, portfolio.settings.holdingPeriodDays]);
 
-  /** Open lots of the source account, i.e. what can be assigned at all. */
+  /**
+   * Open lots of the source account, i.e. what can be assigned at all —
+   * newest purchase first, which is what one goes looking for after an import.
+   */
   const lotCandidates = useMemo(
-    () => typeEligible.filter((r) => effectiveLotByTxId.has(r.id)),
+    () =>
+      typeEligible
+        .filter((r) => effectiveLotByTxId.has(r.id))
+        .sort((a, b) => b.date.localeCompare(a.date)),
     [typeEligible, effectiveLotByTxId],
   );
   const eligible = useMemo(
@@ -916,6 +957,7 @@ function TransferDialog({
     ? costInfo.costEur.div(costInfo.knownBasisBtc)
     : null;
   const hasUnknownBasisLots = costInfo.knownBasisBtc.lt(totalBtc);
+
   const feeValid = feeBtc.trim() === "" || dec(feeBtc).gte(0);
   const fee =
     feeBtc.trim() === ""
@@ -924,6 +966,31 @@ function TransferDialog({
         ? dec(feeBtc).div(SATS_PER_BTC)
         : dec(feeBtc);
   const netBtc = totalBtc.minus(fee);
+
+  /**
+   * What the moved shares are worth by the EUR the lots themselves recorded —
+   * the figure the legs get, so a transfer never differs from the buys behind
+   * it. Not the cost basis above: that one adds the fiat fee and divides by the
+   * net BTC, which is right for tax and wrong as a value. The shares here are
+   * the ones that leave the account (network fee included), so the value is the
+   * full sum of the buys, exactly as the origin resolver computes it.
+   */
+  const legValueInfo = rows.reduce(
+    (acc, r) => {
+      if (!r.valid) return acc;
+      const share = dec(r.raw);
+      const value = recordedShareValue(r.entry, share);
+      return value === null
+        ? acc
+        : { valueEur: acc.valueEur.plus(value), valuedBtc: acc.valuedBtc.plus(share) };
+    },
+    { valueEur: ZERO, valuedBtc: ZERO },
+  );
+  /** Rate that follows from that value and what actually arrives. */
+  const legPricePerBtcEur =
+    legValueInfo.valuedBtc.gt(0) && netBtc.gt(0)
+      ? legValueInfo.valueEur.div(netBtc)
+      : null;
   const transferDateIso = dateInputToIso(transferDate);
 
   // Existing-transaction candidates for the in-leg: same account, matching
@@ -934,16 +1001,15 @@ function TransferDialog({
           (e) =>
             e.accountId === targetAccountId &&
             e.type === "transfer_in" &&
-            !e.transferGroupId,
+            !isLegPaired(e, paired),
         )
       : [];
-    // The leg being assigned always belongs in its own list, including the case
-    // where it carries a stale transferGroupId whose out-leg is gone — linking
-    // it here mints a fresh group and repairs exactly that.
+    // The leg being assigned always belongs in its own list, whatever its
+    // state — linking it here mints a fresh group.
     return linkInEntry && !open.some((e) => e.id === linkInEntry.id)
       ? [linkInEntry, ...open]
       : open;
-  }, [all, targetAccountId, linkInEntry]);
+  }, [all, targetAccountId, linkInEntry, paired]);
   // Candidate lists are small (a portfolio's transfer-type transactions), so
   // this is left unmemoized rather than fighting the compiler over Decimal deps.
   // Candidates are ranked against the transfer amount (lots minus the network
@@ -1023,18 +1089,26 @@ function TransferDialog({
 
   function submit() {
     if (!canSubmit || !sourceAccountId) return;
+    // Stored oldest lot first, however the table happens to be sorted: the
+    // FIFO engine takes the network fee off the last allocation, so the order
+    // decides which lot pays it and must not follow a display preference.
     const allocations: LotAllocation[] = rows
       .filter((r) => r.valid)
+      .sort((a, b) => a.entry.date.localeCompare(b.entry.date))
       .map((r) => ({ lotTransactionId: r.entry.id, amountBtc: r.raw }));
-    // Both legs carry the moved lots' quantity-weighted average cost and the
-    // value of the transferred amount, so the transaction table shows a price
-    // and a value for transfers too. This is display data only: the FIFO
-    // engine keeps deriving cost basis from the moved lots themselves.
-    const legPrice = avgCostPerBtcEur === null ? null : fiatString(avgCostPerBtcEur);
-    const legTotal =
-      avgCostPerBtcEur === null
+    // Both legs carry the value of what they move and the rate that follows
+    // from it, so the transaction table shows a price and a value for transfers
+    // too. Display data only: the FIFO engine keeps deriving the cost basis
+    // from the moved lots themselves, and the same figures are recomputed live
+    // from the origins wherever they are shown (§3.2).
+    // Rounded like every other stored EUR figure — the leg's value is the sum
+    // of the buys, the rate is what follows from it.
+    const legPrice =
+      legPricePerBtcEur === null
         ? null
-        : fiatString(avgCostPerBtcEur.mul(netBtc).toDecimalPlaces(2));
+        : fiatString(legPricePerBtcEur.toDecimalPlaces(2));
+    const legTotal =
+      legPricePerBtcEur === null ? null : fiatString(legValueInfo.valueEur.toDecimalPlaces(2));
     // Candidates are filtered to ones without a transferGroupId already, so
     // this always mints a fresh one — for either a new or a linked leg.
     const transferGroupId = crypto.randomUUID();
@@ -1541,6 +1615,8 @@ export default function TransactionsView({
   const [expandedOrigins, setExpandedOrigins] = useState<ReadonlySet<string>>(new Set());
   /** Arrival to be linked to its source lots via the transfer dialog. */
   const [linkOriginFor, setLinkOriginFor] = useState<LedgerEntry | null>(null);
+  /** Arrival looking for the existing out-leg it belongs to. */
+  const [linkOutLegFor, setLinkOutLegFor] = useState<LedgerEntry | null>(null);
   const saveTransactionColumns = useAppStore((s) => s.saveTransactionColumns);
   const [visibleCols, setVisibleCols] = useState<Set<ColumnKey>>(() =>
     initialVisibleColumns(portfolio.uiSettings?.transactionColumns),
@@ -1628,6 +1704,11 @@ export default function TransactionsView({
   // Ledger-wide data-quality facts (origin resolution walks every link), so the
   // filter and the per-row badge read one shared computation.
   const issueCtx = useMemo(() => issueContext(all), [all]);
+
+  // Kurs/value of the transfer legs that carry none of their own, derived from
+  // the buys behind them (§3.2). Computed once for the whole ledger: sorting
+  // needs it for every row, not just the visible page.
+  const derivedValues = useMemo(() => derivedTransferValues(all), [all]);
 
   // Open lot per buy/transfer_in transaction (only lots with remaining > 0).
   // A transfer_in can carry several moved lots under one transaction id —
@@ -1729,12 +1810,9 @@ export default function TransactionsView({
             ) * dir
           );
         case "price":
-          return cmpNullable(
-            a.pricePerBtcEur === null ? null : dec(a.pricePerBtcEur),
-            b.pricePerBtcEur === null ? null : dec(b.pricePerBtcEur),
-          );
+          return cmpNullable(rowPrice(a, derivedValues), rowPrice(b, derivedValues));
         case "value":
-          return cmpNullable(rowValue(a), rowValue(b));
+          return cmpNullable(rowValue(a, derivedValues), rowValue(b, derivedValues));
         case "originalCurrency": {
           // By code, then by amount inside one currency; rows without a code
           // sort last like every other empty value.
@@ -2184,16 +2262,20 @@ export default function TransactionsView({
                 </tr>
               )}
               {paged.map((r) => {
-                const value = rowValue(r);
+                const value = rowValue(r, derivedValues);
+                const price = rowPrice(r, derivedValues);
+                // Only a partial figure is flagged (see isPartialValue).
+                const derivedPartial = isPartialValue(r, derivedValues);
                 const d = new Date(r.date);
                 const lot = lotByTxId.get(r.id);
                 const transferredLegs = transferredOutByTxId.get(r.id);
                 const rowSelected = selectedIds.has(r.id);
-                // Only an arrival has an origin to unfold: everything else
-                // either is an acquisition or is explained by its own lots.
-                const expandable = r.type === "transfer_in";
+                // Both directions unfold: an arrival resolves through its
+                // group's out-leg, an outgoing leg through its own allocations.
+                const expandable = r.type === "transfer_in" || r.type === "transfer_out";
                 const expanded = expandedOrigins.has(r.id);
                 const originUnresolved = hasIssue(r, "unresolvedOrigin", issueCtx);
+                const incompleteAllocation = hasIssue(r, "incompleteAllocation", issueCtx);
                 return (
                   <Fragment key={`${r.accountId}-${r.id}`}>
                   <tr
@@ -2274,7 +2356,7 @@ export default function TransactionsView({
                     )}
                     {visibleCols.has("taxStatus") && (
                       <td className="py-2 pr-4 whitespace-nowrap">
-                        {originUnresolved ? (
+                        {originUnresolved || incompleteAllocation ? (
                           <OriginUnresolvedBadge />
                         ) : lot ? (
                           <TaxStatusBadge lot={lot} />
@@ -2296,7 +2378,8 @@ export default function TransactionsView({
                               no determinable holding period. The tax column
                               says so where it is shown; without it the mark
                               would be lost, so it moves next to the account. */}
-                          {originUnresolved && !visibleCols.has("taxStatus") && (
+                          {(originUnresolved || incompleteAllocation) &&
+                            !visibleCols.has("taxStatus") && (
                             <span className="shrink-0">
                               <OriginUnresolvedBadge />
                             </span>
@@ -2346,8 +2429,15 @@ export default function TransactionsView({
                     )}
                     {visibleCols.has("price") && (
                       <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
-                        {r.pricePerBtcEur !== null ? (
-                          <Amount>{formatFiatPlain(r.pricePerBtcEur, loc)}</Amount>
+                        {price !== null ? (
+                          <>
+                            {derivedPartial && (
+                              <IconTooltip label={t("tx.valueFromOriginPartial")}>
+                                <span className="mr-0.5 cursor-default text-muted">≈</span>
+                              </IconTooltip>
+                            )}
+                            <Amount>{formatFiatPlain(price, loc)}</Amount>
+                          </>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
@@ -2361,6 +2451,11 @@ export default function TransactionsView({
                                 an estimate — keep that visible (§3.2). */}
                             {r.eurValuationSource === "binance-klines" && (
                               <IconTooltip label={t("tx.eurValuationDerived")}>
+                                <span className="mr-0.5 cursor-default text-muted">≈</span>
+                              </IconTooltip>
+                            )}
+                            {derivedPartial && (
+                              <IconTooltip label={t("tx.valueFromOriginPartial")}>
                                 <span className="mr-0.5 cursor-default text-muted">≈</span>
                               </IconTooltip>
                             )}
@@ -2497,14 +2592,31 @@ export default function TransactionsView({
                     <tr className="border-b border-border-c/50 bg-surface-2/40">
                       <td />
                       <td colSpan={visibleColSpan - 1} className="py-2 pr-4 pl-2">
-                        <div className="border-l-2 border-accent/40 pl-3">
+                        <div className="space-y-2 border-l-2 border-accent/40 pl-3">
                           <ProvenanceList
                             entry={r}
                             entries={all}
                             holdingPeriodDays={portfolio.settings.holdingPeriodDays}
                             onJump={jumpToTransaction}
-                            onAssign={() => setLinkOriginFor(r)}
+                            onAssign={
+                              r.type === "transfer_in"
+                                ? () => setLinkOutLegFor(r)
+                                : () => openEdit(r)
+                            }
                           />
+                          {/* An out-leg that closes fewer coins than it moved
+                              is fixed in its own dialog, where the assignments
+                              are editable. */}
+                          {incompleteAllocation && (
+                            <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-2">
+                              <p className="text-xs text-warning">
+                                {t("tx.allocations.hint")}
+                              </p>
+                              <Button variant="primary" onClick={() => openEdit(r)}>
+                                {t("tx.allocations.section")}
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2604,6 +2716,22 @@ export default function TransactionsView({
           onTransferred={() => {
             setShowTransfer(false);
             setSelectedIds(new Set());
+          }}
+        />
+      )}
+
+      {/* Pair an arrival with an out-leg that already exists. Falls back to
+          the dialog below when there is nothing to pair it with. */}
+      {linkOutLegFor && (
+        <OutLegPicker
+          entry={linkOutLegFor}
+          entries={all}
+          holdingPeriodDays={portfolio.settings.holdingPeriodDays}
+          onClose={() => setLinkOutLegFor(null)}
+          onCreateFromLots={() => {
+            const target = linkOutLegFor;
+            setLinkOutLegFor(null);
+            setLinkOriginFor(target);
           }}
         />
       )}

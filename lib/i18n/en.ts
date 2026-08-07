@@ -262,6 +262,7 @@ const en: typeof de = {
       issues: {
         unlinkedTransfer: "Transfers without a counterpart",
         unresolvedOrigin: "Arrivals with unresolved origin",
+        incompleteAllocation: "Outgoing transfers with incomplete lot assignment",
         missingTxid: "Transfers without a txid",
         missingEurValue: "Transactions without a EUR value",
       },
@@ -400,24 +401,20 @@ const en: typeof de = {
     fromAccount: "From account",
     toAccount: "To account",
     externalTransfer: "External wallet (not in portfolio)",
+    counterpartyLinked:
+      "Determined by the linked counterpart. To change it, release the link on the incoming transaction.",
     amountBtc: "Amount (BTC)",
     priceEur: "Price (EUR/BTC)",
     totalEur: "Total (EUR)",
     feeBtc: "Fee (BTC)",
     feeEur: "Fee (EUR)",
     valueEur: "Value (EUR)",
-    originalSection: "Settled in another currency",
-    originalHint:
-      "Documentation only, e.g. a BTC buy against USDT. Calculations and tax figures always use the EUR value at the time of the transaction.",
-    originalCurrency: "Original currency",
-    originalCurrencyPlaceholder: "e.g. USDT",
-    originalAmount: "Amount (original currency)",
-    originalPrice: "Price per BTC (original currency)",
-    eurValuationRun: "Derive EUR value from historical price",
-    eurValuationDerived:
-      "EUR value derived automatically from the historical Binance price",
-    eurValuationNeedsAmount: "This needs a date and an amount.",
-    eurValuationUnavailable: "No price available for that point in time.",
+    valueFromOrigin:
+      "The sum of the buys' EUR amounts behind this transaction, in proportion to its share. A transfer has no price of its own; the rate is value ÷ amount.",
+    valueFromOriginPartial:
+      "The sum of the buys' EUR amounts behind this transaction, but only for the part of the amount that has one. The real value is higher.",
+    valueFromTransfer:
+      "Recorded when the transfer was created: the sum of the EUR amounts of the buys it moves.",
     note: "Note",
     onChainSection: "On-chain data (optional)",
     onChainHint:
@@ -526,6 +523,86 @@ const en: typeof de = {
     transferredDate: "Date",
     transferredAmount: "Amount",
     transferredJump: "Go to transaction",
+    section: {
+      fees: "Fees",
+      origin: "Origin & assignment",
+    },
+    lotPicker: {
+      search: "Search",
+      searchPlaceholder: "date, note, amount …",
+      planned: "Will be assigned",
+      noMatch: "No lot matches these filters.",
+      needOnly: "Only distribute the remaining {amount} BTC",
+      needOnlyHint:
+        "The selection is filled up in the table's order; without this, every picked lot is assigned in full.",
+      selectedSummary: "{count} selected · {amount} BTC",
+      confirm: "Assign",
+    },
+    allocations: {
+      section: "Assigned buys",
+      intro:
+        "The buys this transfer closes. Their sum has to match the amount plus the network fee, because that is what left the account.",
+      acquired: "Purchase date",
+      source: "Source account",
+      amount: "Assigned",
+      price: "Cost / BTC",
+      available: "Available",
+      remove: "Remove assignment",
+      add: "Add buys",
+      pickTitle: "Assign buys",
+      pickIntro:
+        "Open lots in the source account, newest first. Several can be picked at once; the assigned amounts stay editable afterwards.",
+      pickEmpty: "The source account has no open lots left.",
+      pickAria: "Assign the lot from {date}",
+      target: "Target (amount + fee)",
+      assigned: "Assigned",
+      unassigned: "{amount} BTC unassigned",
+      over: "{amount} BTC assigned too much",
+      exceedsLot: "More than the lot has available ({available} BTC).",
+      complete: "Fully assigned.",
+      preview: "Result: origin",
+      empty: "No buy is assigned to this transfer yet.",
+      hint: "Without a complete assignment it is undecided which buys this transfer moved.",
+    },
+    outLeg: {
+      section: "Assigned outgoing transaction",
+      linked: "Linked to:",
+      unlink: "Remove link",
+      assign: "Assign an outgoing transaction",
+      none: "No outgoing transaction is assigned to this arrival.",
+      pickTitle: "Assign an outgoing transaction",
+      pickIntro:
+        "Unassigned outgoing transfers from other wallets and accounts. The most likely matches come first.",
+      pickEmpty: "There is no matching outgoing transaction left to assign.",
+      pickEmptyCreate: "Create an outgoing leg from the source account's lots instead",
+      filterPeriod: "Period",
+      txidMatch: "Same txid",
+      alreadyPaired: "already linked",
+      includePaired: "Also show outgoing transactions that already have an arrival",
+      joinsGroup:
+        "This outgoing transaction is already linked ({legs}). The arrival is added to the same transfer, which is right when one send arrived in several pieces; otherwise check whether the existing link is wrong (release it there).",
+      inLegSection: "Assigned incoming transaction",
+      inLegNone: "No incoming transaction assigned",
+      inLegHowTo:
+        "The link is made on the incoming transaction: open it in the target wallet and pick this outgoing transaction under “Origin & assignment”.",
+      colMatch: "Match",
+      searchPlaceholder: "wallet, txid, note …",
+      pickAria: "Select the outgoing transaction from {date}",
+      bestMatch: "Most likely match",
+      dayDiff: "{days} days apart",
+      diffTitle: "Amount difference",
+      diffNone: "Both amounts are identical.",
+      diffFee:
+        "{amount} BTC difference, plausible as a network fee ({percent} of the amount).",
+      diffAdopt:
+        "Adopt the difference as the network fee (the outgoing amount is set to the amount that arrived, with the fee next to it)",
+      diffTooLarge:
+        "{amount} BTC difference ({percent} of the amount). That is too much for a network fee; these two transactions probably do not belong together.",
+      diffNegative:
+        "{amount} BTC more arrived than left. That cannot be a network fee.",
+      confirm: "Assign",
+      previewTitle: "Result: origin of this arrival",
+    },
     origin: {
       section: "Origin",
       intro:
@@ -538,6 +615,7 @@ const en: typeof de = {
       source: "Origin",
       status: "Holding period",
       total: "Total",
+      totalValue: "worth {value} EUR",
       ofAmount: "of this transaction's {amount}",
       jump: "Go to the buy transaction",
       unknownPrice: "Cost basis unknown",
