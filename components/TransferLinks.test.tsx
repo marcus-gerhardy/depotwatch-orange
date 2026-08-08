@@ -422,3 +422,68 @@ describe("editing an arrival's out-leg link", () => {
     expect(currentTx("in1").transferGroupId).toBeUndefined();
   });
 });
+
+describe("no assignment is ever made by the app", () => {
+  /** Two buys in wallet A, nothing sold yet. */
+  function withBuysOnly(): PortfolioFile {
+    const p = seed();
+    p.wallets[0].accounts[0].transactions.splice(2, 1); // drop the transfer
+    p.wallets[1].accounts[0].transactions = [];
+    return p;
+  }
+
+  it("creates a sale without picking the lots itself", () => {
+    load(withBuysOnly());
+    render(<TransactionsView />);
+
+    fireEvent.click(screen.getByRole("button", { name: /tx\.add/ }));
+    fireEvent.change(screen.getByLabelText("tx.type"), { target: { value: "sell" } });
+    fireEvent.change(screen.getByLabelText("tx.amountBtc"), { target: { value: "0.2" } });
+    fireEvent.change(screen.getByLabelText("tx.priceEur"), { target: { value: "60000" } });
+    fireEvent.click(screen.getByRole("button", { name: "common.save" }));
+
+    const sell = useAppStore
+      .getState()
+      .portfolio!.wallets[0].accounts[0].transactions.find((t) => t.type === "sell")!;
+    expect(sell.lotAllocations).toBeUndefined();
+  });
+
+  it("offers the assignment while the sale is being created", () => {
+    load(withBuysOnly());
+    render(<TransactionsView />);
+
+    fireEvent.click(screen.getByRole("button", { name: /tx\.add/ }));
+    fireEvent.change(screen.getByLabelText("tx.type"), { target: { value: "sell" } });
+    fireEvent.change(screen.getByLabelText("tx.amountBtc"), { target: { value: "0.2" } });
+    fireEvent.change(screen.getByLabelText("tx.priceEur"), { target: { value: "60000" } });
+
+    // The lot picker is right there — assigning must not require saving first.
+    fireEvent.click(screen.getByRole("button", { name: /tx\.allocations\.add/ }));
+    // Both buys are offered, newest first; 0.2 of it covers the sale.
+    fireEvent.click(screen.getAllByRole("checkbox", { name: "tx.allocations.pickAria" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "tx.lotPicker.confirm" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.save" }));
+
+    const sell = useAppStore
+      .getState()
+      .portfolio!.wallets[0].accounts[0].transactions.find((t) => t.type === "sell")!;
+    // Newest buy first in the picker, and exactly the 0.2 that were needed.
+    expect(sell.lotAllocations).toEqual([
+      { lotTransactionId: "buy2", amountBtc: "0.20000000" },
+    ]);
+  });
+
+  it("flags an unassigned sale as a data-quality issue", () => {
+    const p = withBuysOnly();
+    p.wallets[0].accounts[0].transactions.push(
+      tx({ id: "sell1", type: "sell", date: "2024-03-01T00:00:00.000Z", amountBtc: "0.2", pricePerBtcEur: "60000" }),
+    );
+    load(p);
+    render(<TransactionsView />);
+
+    fireEvent.change(screen.getByTitle("tx.filterIssue"), {
+      target: { value: "incompleteAllocation" },
+    });
+    expect(screen.getByRole("img", { name: "tx.types.sell" })).toBeTruthy();
+  });
+});

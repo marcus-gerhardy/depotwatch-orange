@@ -9,9 +9,7 @@ import {
   fiatString,
   formatBtc,
   formatFiatPlain,
-  ZERO,
 } from "@/lib/decimal";
-import { allocateFifo, computeFifo } from "@/lib/fifo";
 import { fetchSpotPrice } from "@/lib/binance";
 import { suggestEurValuation } from "@/lib/valuation";
 import { normalizeCurrencyCode } from "@/lib/csvImport";
@@ -178,21 +176,18 @@ export default function TransactionForm({
   );
   const [allocationsEdited, setAllocationsEdited] = useState(false);
 
+  /** Sell, spend and outgoing transfer all close lots and all need an assignment. */
+  const isDisposal =
+    current?.type === "sell" || current?.type === "spend" || current?.type === "transfer_out";
+
   /** The origin list as it would read with the currently edited allocations. */
   const allocationPreview = useMemo(() => {
-    if (!current || current.type !== "transfer_out") return null;
+    if (!current || !isDisposal) return null;
     const next = flattenLedger(
       setLotAllocations(portfolio, current.id, allocations).wallets,
     );
     return { entries: next, entry: next.find((e) => e.id === current.id)! };
-  }, [portfolio, current, allocations]);
-
-  // Open lots as of now, excluding the edited transaction's own consumption —
-  // used to compute the persisted FIFO allocation for new sells/spends.
-  const openLots = useMemo(() => {
-    const entries = allEntries.filter((e) => e.id !== existing?.id);
-    return computeFifo(entries, portfolio.settings.holdingPeriodDays).openLots;
-  }, [allEntries, portfolio.settings.holdingPeriodDays, existing?.id]);
+  }, [portfolio, current, isDisposal, allocations]);
 
   const [formType, setFormType] = useState<FormType>(
     existing
@@ -406,19 +401,20 @@ export default function TransactionForm({
       const a = dec(amount);
       const priceD = dec(price).gt(0) ? dec(price) : dec(total).div(a).toDecimalPlaces(2);
       const totalD = dec(total).gt(0) ? dec(total) : dec(price).mul(a).toDecimalPlaces(2);
-      // Lot assignment is fixed at creation time (never re-derived later):
-      // targeted sale → exactly that lot; edit with unchanged amount → keep
-      // the stored allocation; otherwise FIFO over current open lots.
+      // Which buys a disposal took its coins from is never decided by the app
+      // (§3.2): a targeted sale carries the lot the user started from, an edit
+      // keeps what is assigned, and anything else is left unassigned for the
+      // user to fill in — flagged as a data-quality issue until they do.
       let lotAllocations: LotAllocation[] | undefined;
       if (formType === "sell" || formType === "spend") {
-        if (sellLot) {
+        if (allocationsEdited) {
+          lotAllocations = allocations.filter((x) => dec(x.amountBtc).gt(0));
+        } else if (sellLot) {
           lotAllocations = [
             { lotTransactionId: sellLot.lotTxId, amountBtc: a.toString() },
           ];
-        } else if (existing && dec(existing.amountBtc).eq(a)) {
-          lotAllocations = existing.lotAllocations;
         } else {
-          lotAllocations = allocateFifo(openLots, a, accountId);
+          lotAllocations = existing?.lotAllocations;
         }
       }
       const tx: Transaction = {
@@ -444,39 +440,20 @@ export default function TransactionForm({
       setError(t("tx.sameAccount"));
       return;
     }
-    const transferAmount = dec(amount);
-    // What actually leaves the source account: the transferred amount plus the
-    // network fee on top (CLAUDE.md §3.2).
-    const transferLeaving = transferAmount.plus(dec(feeBtc));
     // Lot assignment for the out-leg, fixed at creation time like for sells:
     // always FIFO over the source account's open lots (oldest first, may span
     // several lots). Rule: an internal transfer_out's allocations must cover
     // amountBtc + feeBtc exactly (no unassigned remainder). Returns null on
     // failure.
-    const resolveOutAllocations = (): LotAllocation[] | undefined | null => {
-      // Assignments the user edited by hand are the answer, whatever FIFO
-      // would have picked — including a deliberate shortfall, which the editor
-      // has already spelled out in BTC.
+    const resolveOutAllocations = (): LotAllocation[] | undefined => {
+      // What the user assigned, and nothing else — including a deliberate
+      // shortfall, which the editor has already spelled out in BTC. A new
+      // transfer starts unassigned; the app must not pick the buys it moves
+      // (§3.2), the assignment dialog does.
       if (allocationsEdited) {
         return allocations.filter((a) => dec(a.amountBtc).gt(0));
       }
-      if (
-        existing?.type === "transfer_out" &&
-        existing.lotAllocations?.length &&
-        dec(existing.amountBtc).eq(transferAmount) &&
-        dec(existing.feeBtc).eq(dec(feeBtc)) &&
-        existing.accountId === fromAccount
-      ) {
-        // Unchanged edit: keep the stored allocation.
-        return existing.lotAllocations;
-      }
-      const sourceLots = openLots.filter((l) => l.accountId === fromAccount);
-      const alloc = allocateFifo(sourceLots, transferLeaving);
-      const covered = alloc.reduce((s, x) => s.plus(dec(x.amountBtc)), ZERO);
-      if (covered.eq(transferLeaving)) return alloc;
-      if (toAccount === EXTERNAL) return undefined; // legacy dynamic FIFO
-      setError(t("tx.insufficientLots", { available: covered.toString() }));
-      return null;
+      return existing?.type === "transfer_out" ? existing.lotAllocations : undefined;
     };
 
     if (existing && isTransferLeg) {
@@ -495,9 +472,7 @@ export default function TransactionForm({
       }
       let lotAllocations: LotAllocation[] | undefined;
       if (isOut) {
-        const resolved = resolveOutAllocations();
-        if (resolved === null) return;
-        lotAllocations = resolved;
+        lotAllocations = resolveOutAllocations();
       }
       const tx: Transaction = {
         ...base,
@@ -520,9 +495,7 @@ export default function TransactionForm({
     }
     let outAllocations: LotAllocation[] | undefined;
     if (fromAccount !== EXTERNAL) {
-      const resolved = resolveOutAllocations();
-      if (resolved === null) return;
-      outAllocations = resolved;
+      outAllocations = resolveOutAllocations();
     }
     // Both legs internal → link them so the FIFO engine can move the lots
     // (original acquisition date + cost basis) into the target account.
@@ -558,6 +531,32 @@ export default function TransactionForm({
     }
     onClose();
   }
+
+  /**
+   * The transaction the assignment editor works on. For an existing one that is
+   * the transaction itself; while a disposal is still being *created* there is
+   * nothing in the ledger yet, so a stand-in carries the two things the editor
+   * needs — the account whose lots may be assigned, and an id that excludes
+   * nothing. Without it a new sale could only be assigned after saving it,
+   * which is a poor answer to "assignment is mandatory".
+   */
+  const disposalEntry: LedgerEntry | null = useMemo(() => {
+    if (current) return isDisposal ? current : null;
+    const sourceAccountId = formType === "transfer" ? fromAccount : accountId;
+    if (formType === "buy" || sourceAccountId === EXTERNAL || !sourceAccountId) return null;
+    return {
+      id: "",
+      type: formType === "transfer" ? "transfer_out" : formType,
+      date: new Date(date).toISOString(),
+      amountBtc: amount === "" ? "0" : amount,
+      pricePerBtcEur: null,
+      note: "",
+      walletId: "",
+      walletName: "",
+      accountId: sourceAccountId,
+      accountName: "",
+    };
+  }, [current, isDisposal, formType, fromAccount, accountId, date, amount]);
 
   // What the collapsed sections say about themselves, so the dialog can be
   // read top to bottom without opening anything (UX: a disclosure has to
@@ -863,7 +862,10 @@ export default function TransactionForm({
             </Section>
           )}
 
-          {current?.type === "transfer_out" && (
+          {/* Every disposal needs an assignment, not just a transfer: nothing
+              in the app decides which buys were sold (§3.2). Offered while
+              creating one too, so it can be answered right away. */}
+          {disposalEntry && (
             <Section
               title={t("tx.allocations.section")}
               tone={allocationsComplete ? "success" : "warning"}
@@ -875,7 +877,7 @@ export default function TransactionForm({
               }
             >
               <LotAllocationEditor
-                entry={current}
+                entry={disposalEntry}
                 entries={allEntries}
                 allocations={allocations}
                 amountBtc={amount}

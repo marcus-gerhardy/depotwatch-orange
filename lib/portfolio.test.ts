@@ -160,10 +160,38 @@ describe("totalBalance", () => {
 
 describe("ledger balance vs. FIFO open lots", () => {
   it("agree for every transaction shape when BTC fees are involved", () => {
+    // Every disposal carries the assignment the app requires — the engine
+    // closes lots on that basis alone (§3.2) — and each assignment covers what
+    // actually left the account: the amount plus the BTC fee.
+    const buy = entry("buy", "1", {
+      date: "2026-01-01T00:00:00Z",
+      pricePerBtcEur: "50000",
+      feeBtc: "0.001",
+    });
+    const from = (amountBtc: string) => [
+      { lotTransactionId: buy.id, amountBtc },
+    ];
+    const arrival = entry("transfer_in", "0.29999", {
+      date: "2026-03-01T00:00:01Z",
+      accountId: "a2",
+      accountName: "Cold",
+      counterpartyAccountId: "a1",
+      transferGroupId: "g1",
+    });
     const entries = [
-      entry("buy", "1", { date: "2026-01-01T00:00:00Z", pricePerBtcEur: "50000", feeBtc: "0.001" }),
-      entry("sell", "0.2", { date: "2026-02-01T00:00:00Z", pricePerBtcEur: "60000", feeBtc: "0.0005" }),
-      entry("spend", "0.05", { date: "2026-02-15T00:00:00Z", pricePerBtcEur: "60000", feeBtc: "0.0001" }),
+      buy,
+      entry("sell", "0.2", {
+        date: "2026-02-01T00:00:00Z",
+        pricePerBtcEur: "60000",
+        feeBtc: "0.0005",
+        lotAllocations: from("0.2005"),
+      }),
+      entry("spend", "0.05", {
+        date: "2026-02-15T00:00:00Z",
+        pricePerBtcEur: "60000",
+        feeBtc: "0.0001",
+        lotAllocations: from("0.0501"),
+      }),
       // Internal transfer: the out-leg records the transferred amount and
       // loses the fee on top, the in-leg receives that amount — so only the
       // fee leaves the portfolio.
@@ -172,22 +200,35 @@ describe("ledger balance vs. FIFO open lots", () => {
         feeBtc: "0.00001",
         counterpartyAccountId: "a2",
         transferGroupId: "g1",
+        lotAllocations: from("0.3"),
       }),
-      entry("transfer_in", "0.29999", {
-        date: "2026-03-01T00:00:01Z",
+      arrival,
+      // External send: fee on top, nothing absorbs it.
+      entry("transfer_out", "0.1", {
+        date: "2026-04-01T00:00:00Z",
+        feeBtc: "0.00002",
+        lotAllocations: [{ lotTransactionId: arrival.id, amountBtc: "0.10002" }],
         accountId: "a2",
         accountName: "Cold",
-        counterpartyAccountId: "a1",
-        transferGroupId: "g1",
       }),
-      // External send: fee on top, nothing absorbs it.
-      entry("transfer_out", "0.1", { date: "2026-04-01T00:00:00Z", feeBtc: "0.00002" }),
     ];
     const ledger = totalBalance(entries);
     // (1 − 0.001) − (0.2 + 0.0005) − (0.05 + 0.0001) − (0.29999 + 0.00001)
     //   + 0.29999 − (0.1 + 0.00002)
     expect(ledger.toString()).toBe("0.64837");
     expect(computeFifo(entries, 365).openLotsBtc.toString()).toBe(ledger.toString());
+  });
+
+  it("part ways exactly by what nobody has assigned", () => {
+    // Without an assignment the engine closes nothing, so its open lots keep
+    // what the ledger has already spent — the dashboard reports that gap
+    // instead of the app inventing a lot to close.
+    const entries = [
+      entry("buy", "1", { date: "2026-01-01T00:00:00Z", pricePerBtcEur: "50000" }),
+      entry("sell", "0.2", { date: "2026-02-01T00:00:00Z", pricePerBtcEur: "60000" }),
+    ];
+    expect(totalBalance(entries).toString()).toBe("0.8");
+    expect(computeFifo(entries, 365).openLotsBtc.toString()).toBe("1");
   });
 });
 

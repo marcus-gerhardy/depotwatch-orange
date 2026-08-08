@@ -2336,7 +2336,14 @@ export default function TransactionsView({
                 const rowSelected = selectedIds.has(r.id);
                 // Both directions unfold: an arrival resolves through its
                 // group's out-leg, an outgoing leg through its own allocations.
-                const expandable = r.type === "transfer_in" || r.type === "transfer_out";
+                // Every transaction that draws on lots unfolds into them: a
+                // sale and a spend are assigned the same way a transfer is
+                // (§3.2), so they get the same expander and the same hint.
+                const expandable =
+                  r.type === "transfer_in" ||
+                  r.type === "transfer_out" ||
+                  r.type === "sell" ||
+                  r.type === "spend";
                 const expanded = expandedOrigins.has(r.id);
                 const originUnresolved = hasIssue(r, "unresolvedOrigin", issueCtx);
                 const incompleteAllocation = hasIssue(r, "incompleteAllocation", issueCtx);

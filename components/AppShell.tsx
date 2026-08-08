@@ -112,16 +112,34 @@ export default function AppShell() {
               </span>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              {/* Drawn, not an emoji: at this size the emoji eye rendered as a
+                  few grey pixels, and its look depended on the platform's
+                  emoji font rather than on the theme. */}
               <button
                 onClick={togglePrivacyMode}
                 title={t("nav.privacyMode")}
-                className={`rounded-lg px-2 py-1.5 text-sm ${
+                aria-label={t("nav.privacyMode")}
+                aria-pressed={privacyMode}
+                className={`rounded-lg p-2 transition-colors ${
                   privacyMode
                     ? "bg-accent/15 text-accent"
                     : "text-muted hover:text-foreground"
                 }`}
               >
-                {privacyMode ? "🙈" : "👁"}
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.9"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M1.8 12S5.4 5.5 12 5.5 22.2 12 22.2 12 18.6 18.5 12 18.5 1.8 12 1.8 12Z" />
+                  <circle cx="12" cy="12" r="3.2" />
+                  {privacyMode && <path d="M3.5 3.5 20.5 20.5" />}
+                </svg>
               </button>
               {needsFileSetup && (
                 <Button

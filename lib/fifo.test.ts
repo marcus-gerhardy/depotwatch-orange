@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { allocateFifo, computeFifo, daysUntilTaxFree, isLotTaxFree } from "./fifo";
-import { dec } from "./decimal";
+import { computeFifo, daysUntilTaxFree, isLotTaxFree } from "./fifo";
 import { flattenLedger } from "./types";
 import type { LedgerEntry, TransactionType, Wallet } from "./types";
 
@@ -29,6 +28,28 @@ function entry(
   };
 }
 
+/**
+ * A disposal with its lot assignment spelled out. Since the engine never picks
+ * lots by itself (§3.2), every test that expects coins to be consumed has to
+ * say which ones — exactly as the app makes the user say it.
+ */
+function disposal(
+  type: TransactionType,
+  date: string,
+  amountBtc: string,
+  pricePerBtcEur: string | null,
+  from: [LedgerEntry, string][],
+  extra: Partial<LedgerEntry> = {},
+): LedgerEntry {
+  return entry(type, date, amountBtc, pricePerBtcEur, {
+    lotAllocations: from.map(([lot, amount]) => ({
+      lotTransactionId: lot.id,
+      amountBtc: amount,
+    })),
+    ...extra,
+  });
+}
+
 describe("computeFifo", () => {
   it("accumulates buys into open lots", () => {
     const r = computeFifo(
@@ -45,17 +66,21 @@ describe("computeFifo", () => {
     expect(r.avgCostPerBtcEur!.toFixed(2)).toBe("46666.67");
   });
 
-  it("consumes oldest lots first on sell (FIFO order)", () => {
+  it("consumes exactly the assigned lots, in the assigned amounts", () => {
+    const jan = entry("buy", "2024-01-01T00:00:00Z", "1", "40000");
+    const jun = entry("buy", "2024-06-01T00:00:00Z", "1", "60000");
     const r = computeFifo(
       [
-        entry("buy", "2024-01-01T00:00:00Z", "1", "40000"),
-        entry("buy", "2024-06-01T00:00:00Z", "1", "60000"),
-        entry("sell", "2024-07-01T00:00:00Z", "1.2", "65000"),
+        jan,
+        jun,
+        disposal("sell", "2024-07-01T00:00:00Z", "1.2", "65000", [
+          [jan, "1"],
+          [jun, "0.2"],
+        ]),
       ],
       365,
     );
-    expect(r.openLots).toHaveLength(1);
-    // 0.8 remains from the second (June) lot.
+    expect(r.openLots.filter((l) => l.remainingBtc.gt(0))).toHaveLength(1);
     expect(r.openLots[0].remainingBtc.toString()).toBe("0.8");
     expect(r.openLots[0].acquiredDate).toBe("2024-06-01T00:00:00Z");
     const d = r.disposals[0];
@@ -64,13 +89,44 @@ describe("computeFifo", () => {
     expect(d.gainEur.toString()).toBe("26000");
   });
 
+  it("consumes nothing at all without an assignment", () => {
+    // The whole point: the engine must not decide which buys were sold. The
+    // sale is reported as uncovered until someone assigns it.
+    const jan = entry("buy", "2024-01-01T00:00:00Z", "1", "40000");
+    const r = computeFifo(
+      [jan, entry("sell", "2024-07-01T00:00:00Z", "0.4", "65000")],
+      365,
+    );
+    expect(r.openLots[0].remainingBtc.toString()).toBe("1");
+    expect(r.disposals[0].uncoveredBtc.toString()).toBe("0.4");
+    expect(r.disposals[0].costBasisEur.toString()).toBe("0");
+  });
+
+  it("follows an assignment that is not the oldest lot", () => {
+    const jan = entry("buy", "2024-01-01T00:00:00Z", "1", "40000");
+    const jun = entry("buy", "2024-06-01T00:00:00Z", "1", "60000");
+    const r = computeFifo(
+      [jan, jun, disposal("sell", "2024-07-01T00:00:00Z", "1", "65000", [[jun, "1"]])],
+      365,
+    );
+    expect(r.openLots.filter((l) => l.remainingBtc.gt(0))[0].acquiredDate).toBe(
+      "2024-01-01T00:00:00Z",
+    );
+    expect(r.disposals[0].costBasisEur.toString()).toBe("60000");
+  });
+
   it("splits gains into taxable and tax-free by holding period", () => {
+    const old2023 = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+    const recent = entry("buy", "2024-06-01T00:00:00Z", "1", "60000");
     const r = computeFifo(
       [
-        entry("buy", "2023-01-01T00:00:00Z", "1", "20000"),
-        entry("buy", "2024-06-01T00:00:00Z", "1", "60000"),
+        old2023,
+        recent,
         // First lot held ~1.5 years (tax-free), second ~2 months (taxable).
-        entry("sell", "2024-08-01T00:00:00Z", "1.5", "70000"),
+        disposal("sell", "2024-08-01T00:00:00Z", "1.5", "70000", [
+          [old2023, "1"],
+          [recent, "0.5"],
+        ]),
       ],
       365,
     );
@@ -82,20 +138,18 @@ describe("computeFifo", () => {
   });
 
   it("boundary: exactly holdingPeriodDays is still taxable, one day more is free", () => {
-    const base = [entry("buy", "2024-01-01T00:00:00Z", "1", "20000")];
+    const lot = entry("buy", "2024-01-01T00:00:00Z", "1", "20000");
     const atLimit = computeFifo(
-      [...base, entry("sell", "2024-12-31T00:00:00Z", "1", "30000")],
+      [lot, disposal("sell", "2024-12-31T00:00:00Z", "1", "30000", [[lot, "1"]])],
       365,
     );
     expect(atLimit.disposals[0].taxableGainEur.toString()).toBe("10000");
     expect(atLimit.disposals[0].taxFreeGainEur.toString()).toBe("0");
 
     seq = 0;
+    const lot2 = entry("buy", "2024-01-01T00:00:00Z", "1", "20000");
     const past = computeFifo(
-      [
-        entry("buy", "2024-01-01T00:00:00Z", "1", "20000"),
-        entry("sell", "2025-01-02T00:00:00Z", "1", "30000"),
-      ],
+      [lot2, disposal("sell", "2025-01-02T00:00:00Z", "1", "30000", [[lot2, "1"]])],
       365,
     );
     expect(past.disposals[0].taxFreeGainEur.toString()).toBe("10000");
@@ -103,18 +157,26 @@ describe("computeFifo", () => {
   });
 
   it("internal transfers keep acquisition date and are not disposals", () => {
+    const lot = entry("buy", "2023-01-01T00:00:00Z", "1", "20000");
+    const out = disposal("transfer_out", "2024-01-15T00:00:00Z", "1", null, [[lot, "1"]], {
+      counterpartyAccountId: "a2",
+      transferGroupId: "g1",
+    });
+    const arrival = entry("transfer_in", "2024-01-15T00:00:00Z", "1", null, {
+      counterpartyAccountId: "a1",
+      transferGroupId: "g1",
+      accountId: "a2",
+      accountName: "Cold",
+    });
     const r = computeFifo(
       [
-        entry("buy", "2023-01-01T00:00:00Z", "1", "20000"),
-        entry("transfer_out", "2024-01-15T00:00:00Z", "1", null, {
-          counterpartyAccountId: "a2",
-        }),
-        entry("transfer_in", "2024-01-15T00:00:00Z", "1", null, {
-          counterpartyAccountId: "a1",
+        lot,
+        out,
+        arrival,
+        disposal("sell", "2024-06-01T00:00:00Z", "1", "60000", [[arrival, "1"]], {
           accountId: "a2",
           accountName: "Cold",
         }),
-        entry("sell", "2024-06-01T00:00:00Z", "1", "60000"),
       ],
       365,
     );
@@ -124,16 +186,22 @@ describe("computeFifo", () => {
     expect(r.disposals[0].taxableGainEur.toString()).toBe("0");
   });
 
-  it("transfer fee in BTC reduces holdings from oldest lot", () => {
+  it("the assigned amount covers the transfer's BTC fee as well", () => {
+    const lot = entry("buy", "2024-01-01T00:00:00Z", "1", "40000");
     const r = computeFifo(
       [
-        entry("buy", "2024-01-01T00:00:00Z", "1", "40000"),
-        entry("transfer_out", "2024-02-01T00:00:00Z", "1", null, {
+        lot,
+        // Amount plus fee is what left the account, so that is what the
+        // assignment has to close (§3.2).
+        disposal("transfer_out", "2024-02-01T00:00:00Z", "0.9999", null, [[lot, "1"]], {
           counterpartyAccountId: "a2",
+          transferGroupId: "g1",
           feeBtc: "0.0001",
         }),
         entry("transfer_in", "2024-02-01T00:00:00Z", "0.9999", null, {
           counterpartyAccountId: "a1",
+          transferGroupId: "g1",
+          accountId: "a2",
         }),
       ],
       365,
@@ -152,11 +220,9 @@ describe("computeFifo", () => {
   });
 
   it("spend behaves like sell for tax purposes", () => {
+    const lot = entry("buy", "2024-01-01T00:00:00Z", "1", "40000");
     const r = computeFifo(
-      [
-        entry("buy", "2024-01-01T00:00:00Z", "1", "40000"),
-        entry("spend", "2024-03-01T00:00:00Z", "0.1", "50000"),
-      ],
+      [lot, disposal("spend", "2024-03-01T00:00:00Z", "0.1", "50000", [[lot, "0.1"]])],
       365,
     );
     expect(r.disposals[0].type).toBe("spend");
@@ -165,12 +231,13 @@ describe("computeFifo", () => {
   });
 
   it("fiat fees adjust cost basis (buy) and proceeds (sell)", () => {
+    const lot = entry("buy", "2024-01-01T00:00:00Z", "1", "40000", {
+      feeFiatEur: "100",
+    });
     const r = computeFifo(
       [
-        entry("buy", "2024-01-01T00:00:00Z", "1", "40000", {
-          feeFiatEur: "100",
-        }),
-        entry("sell", "2024-02-01T00:00:00Z", "1", "50000", {
+        lot,
+        disposal("sell", "2024-02-01T00:00:00Z", "1", "50000", [[lot, "1"]], {
           feeFiatEur: "50",
         }),
       ],
@@ -181,10 +248,12 @@ describe("computeFifo", () => {
   });
 
   it("selling more than held reports uncovered amount instead of crashing", () => {
+    const lot = entry("buy", "2024-01-01T00:00:00Z", "0.5", "40000");
     const r = computeFifo(
       [
-        entry("buy", "2024-01-01T00:00:00Z", "0.5", "40000"),
-        entry("sell", "2024-02-01T00:00:00Z", "1", "50000"),
+        lot,
+        // Assigned more than the lot has: the surplus is uncovered.
+        disposal("sell", "2024-02-01T00:00:00Z", "1", "50000", [[lot, "1"]]),
       ],
       365,
     );
@@ -256,30 +325,6 @@ describe("computeFifo", () => {
     expect(r.disposals[0].uncoveredBtc.toString()).toBe("0.5");
     // The existing lot is untouched.
     expect(r.openLots[0].remainingBtc.toString()).toBe("1");
-  });
-
-  it("allocateFifo prefers the sell account's lots, oldest first, split as needed", () => {
-    const r = computeFifo(
-      [
-        entry("buy", "2023-01-01T00:00:00Z", "0.4", "20000", {
-          accountId: "a2",
-          accountName: "Cold",
-        }),
-        entry("buy", "2024-01-01T00:00:00Z", "0.3", "40000"),
-        entry("buy", "2024-06-01T00:00:00Z", "0.3", "60000"),
-      ],
-      365,
-    );
-    const allocs = allocateFifo(r.openLots, dec("0.7"), "a1");
-    // Both a1 lots first (oldest first), then the a2 lot for the remainder.
-    expect(allocs.map((a) => a.amountBtc)).toEqual(["0.3", "0.3", "0.1"]);
-    const a2Lot = r.openLots.find((l) => l.accountId === "a2")!;
-    expect(allocs[2].lotTransactionId).toBe(a2Lot.txId);
-    const a1LotIds = r.openLots
-      .filter((l) => l.accountId === "a1")
-      .map((l) => l.txId);
-    expect(a1LotIds).toContain(allocs[0].lotTransactionId);
-    expect(a1LotIds).toContain(allocs[1].lotTransactionId);
   });
 
   it("lot-moving transfer keeps acquisition date and cost basis in the target account", () => {
@@ -494,6 +539,12 @@ describe("computeFifo", () => {
   it("batched transfer moves several lots at once, each keeping its identity", () => {
     const buy1 = entry("buy", "2023-01-01T00:00:00Z", "0.4", "20000");
     const buy2 = entry("buy", "2024-06-01T00:00:00Z", "0.6", "60000");
+    const arrival = entry("transfer_in", "2024-07-01T00:00:00Z", "1", null, {
+      counterpartyAccountId: "a1",
+      transferGroupId: "g1",
+      accountId: "a2",
+      accountName: "Cold",
+    });
     const r = computeFifo(
       [
         buy1,
@@ -506,14 +557,11 @@ describe("computeFifo", () => {
             { lotTransactionId: buy2.id, amountBtc: "0.6" },
           ],
         }),
-        entry("transfer_in", "2024-07-01T00:00:00Z", "1", null, {
-          counterpartyAccountId: "a1",
-          transferGroupId: "g1",
-          accountId: "a2",
-          accountName: "Cold",
-        }),
+        arrival,
         // Sell everything: the old 0.4 must be tax-free, the young 0.6 not.
-        entry("sell", "2024-08-01T00:00:00Z", "1", "70000", {
+        // The arrival is the lot in this account; the engine unfolds it into
+        // the two origins behind it.
+        disposal("sell", "2024-08-01T00:00:00Z", "1", "70000", [[arrival, "1"]], {
           accountId: "a2",
           accountName: "Cold",
         }),
@@ -561,7 +609,7 @@ describe("computeFifo", () => {
         hop2out,
         hop2in,
         // > 1 year after the ORIGINAL buy, < 1 year after both transfers.
-        entry("sell", "2024-02-01T00:00:00Z", "1", "60000", {
+        disposal("sell", "2024-02-01T00:00:00Z", "1", "60000", [[hop2in, "1"]], {
           accountId: "a3",
           accountName: "Vault",
         }),
@@ -664,6 +712,12 @@ describe("computeFifo", () => {
 
   it("carries an unresolved origin into the disposal that consumes it", () => {
     const buy = entry("buy", "2024-01-01T00:00:00Z", "0.5", "40000");
+    const arrival = entry("transfer_in", "2024-02-01T00:00:00Z", "0.8", null, {
+      counterpartyAccountId: "a1",
+      transferGroupId: "g1",
+      accountId: "a2",
+      accountName: "Cold",
+    });
     const r = computeFifo(
       [
         buy,
@@ -672,14 +726,9 @@ describe("computeFifo", () => {
           transferGroupId: "g1",
           lotAllocations: [{ lotTransactionId: buy.id, amountBtc: "0.5" }],
         }),
-        entry("transfer_in", "2024-02-01T00:00:00Z", "0.8", null, {
-          counterpartyAccountId: "a1",
-          transferGroupId: "g1",
-          accountId: "a2",
-          accountName: "Cold",
-        }),
+        arrival,
         // Sells the whole arrival: 0.5 traced, 0.3 from the unexplained surplus.
-        entry("sell", "2024-03-01T00:00:00Z", "0.8", "60000", {
+        disposal("sell", "2024-03-01T00:00:00Z", "0.8", "60000", [[arrival, "0.8"]], {
           accountId: "a2",
           accountName: "Cold",
         }),

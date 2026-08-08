@@ -27,10 +27,12 @@ export type DataIssue =
    */
   | "unresolvedOrigin"
   /**
-   * An outgoing transfer whose lot allocations do not cover what left the
-   * account, so which coins it moved is (partly) undecided. The counterpart of
-   * `unresolvedOrigin`: that one is a missing link, this one a missing
-   * assignment, and each is fixed in a different place.
+   * A disposal — sell, spend or outgoing transfer — whose lot allocations do
+   * not cover what left the account, so which buys it took its coins from is
+   * (partly) undecided. Nothing decides that for the user (§3.2), so until it
+   * is assigned the disposal closes no lots: its cost basis, holding period
+   * and gain are unknown. The counterpart of `unresolvedOrigin`: that one is a
+   * missing link, this one a missing assignment, each fixed in its own place.
    */
   | "incompleteAllocation"
   /** A transfer leg without its on-chain transaction id. */
@@ -94,7 +96,7 @@ export function hasIssue(
       return ctx?.unresolvedOrigin.has(tx.id) ?? false;
     case "incompleteAllocation":
       return (
-        tx.type === "transfer_out" &&
+        (tx.type === "transfer_out" || tx.type === "sell" || tx.type === "spend") &&
         !allocationSumBtc(tx.lotAllocations).eq(allocationTargetBtc(tx))
       );
     case "missingTxid":

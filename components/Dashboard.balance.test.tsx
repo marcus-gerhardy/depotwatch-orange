@@ -58,12 +58,19 @@ afterEach(() => {
 
 describe("Dashboard: BTC holding", () => {
   it("shows buys + transfer_ins − sells − transfer_outs − spends", async () => {
+    // Every disposal assigned, so the engine and the ledger agree and no gap
+    // is reported (the app never assigns lots by itself, §3.2).
+    const buy = tx("buy", "2026-01-01T00:00:00Z", "1");
+    const received = tx("transfer_in", "2026-01-02T00:00:00Z", "0.5");
+    const from = (id: string, amountBtc: string) => ({
+      lotAllocations: [{ lotTransactionId: id, amountBtc }],
+    });
     load([
-      tx("buy", "2026-01-01T00:00:00Z", "1"),
-      tx("transfer_in", "2026-01-02T00:00:00Z", "0.5"),
-      tx("sell", "2026-01-03T00:00:00Z", "0.2"),
-      tx("transfer_out", "2026-01-04T00:00:00Z", "0.3"),
-      tx("spend", "2026-01-05T00:00:00Z", "0.1"),
+      buy,
+      received,
+      tx("sell", "2026-01-03T00:00:00Z", "0.2", from(buy.id, "0.2")),
+      tx("transfer_out", "2026-01-04T00:00:00Z", "0.3", from(buy.id, "0.3")),
+      tx("spend", "2026-01-05T00:00:00Z", "0.1", from(received.id, "0.1")),
     ]);
 
     render(<Dashboard />);

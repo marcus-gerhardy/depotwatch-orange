@@ -4,13 +4,15 @@
 // pins the lots it consumed via `lotAllocations`, and the legs of an internal
 // transfer share a `transferGroupId`. Deleting a transaction without touching
 // those references leaves dangling links: a sell would keep pointing at a buy
-// that no longer exists (reported as an uncovered amount forever), and the
+// that no longer exists (an amount no lot can ever cover), and the
 // surviving leg of a transfer would have no counterpart, so its coins drop out
 // of the FIFO engine while the balance still counts them.
 //
-// Both are released here: stale allocations are dropped so the disposal falls
-// back to dynamic FIFO, and a leg whose counterpart is gone becomes a plain
-// external transfer.
+// Both are released here: an allocation pointing at a deleted transaction is
+// dropped — it could never be covered again, and nothing re-assigns the
+// disposal by itself (§3.2), so it is reported as unassigned until the user
+// says which buy it came from — and a leg whose counterpart is gone becomes a
+// plain external transfer.
 
 import type { Transaction, Wallet } from "./types";
 

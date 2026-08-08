@@ -71,18 +71,21 @@ describe("deleting a lot that a disposal points at", () => {
     expect(impact.releasedLegs).toEqual([]);
   });
 
-  it("drops the stale allocation so the sell falls back to FIFO", () => {
+  it("drops the stale allocation, leaving the sell to be assigned again", () => {
     const after = deleteAndRelease(ws, ["b1"]);
     const sell = find(after, "s1")!;
     expect(find(after, "b1")).toBeUndefined();
+    // A reference to a transaction that no longer exists is worse than none:
+    // it would keep reporting an amount no lot can ever cover.
     expect(sell.lotAllocations).toBeUndefined();
 
-    // The sell now consumes the remaining lot instead of reporting a phantom
-    // uncovered amount, and ledger and engine still agree.
+    // The app does not put a replacement lot in its place — which buy the sale
+    // came from is the user's call (§3.2), so it is reported as unassigned
+    // until they make it.
     const entries = flattenLedger(after);
     const fifo = computeFifo(entries, 365);
-    expect(fifo.disposals[0].uncoveredBtc.toString()).toBe("0");
-    expect(fifo.openLotsBtc.toString()).toBe(totalBalance(entries).toString());
+    expect(fifo.disposals[0].uncoveredBtc.toString()).toBe("0.4");
+    expect(fifo.openLotsBtc.minus(totalBalance(entries)).toString()).toBe("0.4");
   });
 
   it("keeps allocations that point at surviving lots", () => {

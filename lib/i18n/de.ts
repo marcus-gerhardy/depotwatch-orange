@@ -259,7 +259,7 @@ const de = {
       issues: {
         unlinkedTransfer: "Transfers ohne Gegenstück",
         unresolvedOrigin: "Eingänge mit ungeklärter Herkunft",
-        incompleteAllocation: "Ausgänge ohne vollständige Lot-Zuordnung",
+        incompleteAllocation: "Verkäufe/Ausgaben/Transfers ohne vollständige Lot-Zuordnung",
         missingTxid: "Transfers ohne Txid",
         missingEurValue: "Transaktionen ohne EUR-Bewertung",
       },
@@ -414,6 +414,18 @@ const de = {
       "Summe der Beträge (EUR) der zugrundeliegenden Käufe, aber nur für den Teil der Menge, für den ein EUR-Betrag hinterlegt ist. Der tatsächliche Wert liegt darüber.",
     valueFromTransfer:
       "Beim Anlegen des Transfers festgehalten: Summe der Beträge (EUR) der bewegten Käufe.",
+    originalSection: "In anderer Währung abgewickelt",
+    originalHint:
+      "Nur zur Dokumentation, z. B. ein BTC-Kauf gegen USDT. Für Berechnungen und für steuerliche Zwecke ist ausschließlich der EUR-Gegenwert zum Transaktionszeitpunkt maßgeblich.",
+    originalCurrency: "Originalwährung",
+    originalCurrencyPlaceholder: "z. B. USDT",
+    originalAmount: "Betrag (Originalwährung)",
+    originalPrice: "Kurs pro BTC (Originalwährung)",
+    eurValuationRun: "EUR-Wert aus historischem Kurs ermitteln",
+    eurValuationDerived:
+      "EUR-Wert automatisch aus dem historischen Binance-Kurs ermittelt",
+    eurValuationNeedsAmount: "Dafür werden Datum und Menge benötigt.",
+    eurValuationUnavailable: "Für diesen Zeitpunkt ist kein Kurs verfügbar.",
     note: "Notiz",
     onChainSection: "On-Chain-Daten (optional)",
     onChainHint:
@@ -448,8 +460,6 @@ const de = {
     sellLotTitle: "Lot verkaufen",
     lotMax: "Restbestand dieses Lots: {max} BTC",
     lotExceeds: "Menge übersteigt den Restbestand des Lots ({max} BTC).",
-    insufficientLots:
-      "Die offenen Lots im Quellkonto decken die Menge nicht (verfügbar: {available} BTC).",
     rowsPerPage: "Zeilen pro Seite",
     allRows: "Alle",
     taxStatus: "Steuerstatus",

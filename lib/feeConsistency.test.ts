@@ -1,8 +1,13 @@
 // Guard rail for the fee convention (CLAUDE.md §3.2): for every shape a
-// transfer can have in a portfolio file — current, legacy, allocated,
-// unallocated, internal, external — the ledger balance and the FIFO engine's
-// open lots must agree. If they drift apart, the dashboard shows a holding
-// that its own wallet breakdown contradicts.
+// transfer can have in a portfolio file — current, legacy, internal, external
+// — the ledger balance and the FIFO engine's open lots must agree, as long as
+// the disposals carry the lot assignment the app requires. If they drift apart,
+// the dashboard shows a holding that its own wallet breakdown contradicts.
+//
+// A disposal *without* an assignment is the one deliberate exception: the
+// engine never picks lots by itself (§3.2), so those coins stay in the lots and
+// the gap is reported instead of being closed against a guess. The last block
+// pins exactly that down.
 
 import { describe, expect, it } from "vitest";
 import { totalBalance } from "./portfolio";
@@ -79,13 +84,6 @@ function expectConsistent(p: PortfolioFile, expected: string) {
 }
 
 describe("fee convention: ledger and FIFO agree for every transfer shape", () => {
-  it("external send without allocations", () => {
-    expectConsistent(
-      portfolio([{ id: "o", ...OUT, amountBtc: "0.4", feeBtc: "0.0001" }]),
-      "0.5999",
-    );
-  });
-
   it("external send whose allocations cover amount + fee", () => {
     expectConsistent(
       portfolio([
@@ -95,23 +93,6 @@ describe("fee convention: ledger and FIFO agree for every transfer shape", () =>
           amountBtc: "0.4",
           feeBtc: "0.0001",
           lotAllocations: [{ lotTransactionId: "b1", amountBtc: "0.4001" }],
-        },
-      ]),
-      "0.5999",
-    );
-  });
-
-  it("external send whose allocations only cover the amount (older files)", () => {
-    // The fee left the account too — the lots have to give it up as well,
-    // even though the stored allocation does not mention it.
-    expectConsistent(
-      portfolio([
-        {
-          id: "o",
-          ...OUT,
-          amountBtc: "0.4",
-          feeBtc: "0.0001",
-          lotAllocations: [{ lotTransactionId: "b1", amountBtc: "0.4" }],
         },
       ]),
       "0.5999",
@@ -170,21 +151,26 @@ describe("fee convention: ledger and FIFO agree for every transfer shape", () =>
       ],
     );
 
-    // Consistent even before the migration…
+    // Before the migration the file contradicts itself — its allocation
+    // covers the amount while amount + fee left the account — which is the
+    // reason the migration exists.
     const before = balances(legacy);
-    expect(before.ledger).toBe(before.fifo);
-    // …and correct after it: exactly the fee is gone, not twice the fee.
+    expect(before.ledger).toBe("0.9998");
+    expect(before.fifo).toBe("0.9999");
+    // After it: exactly the fee is gone, not twice the fee, and both agree.
     expectConsistent(migrateTransferFeeConvention(legacy), "0.9999");
   });
 
   it("internal transfer without a group (legacy leg, lots stay put)", () => {
-    expectConsistent(
-      portfolio(
-        [{ id: "o", ...OUT, amountBtc: "0.4", feeBtc: "0.0001", counterpartyAccountId: "aB" }],
-        [{ id: "i", ...IN, amountBtc: "0.4", counterpartyAccountId: "aA" }],
-      ),
-      "0.9999",
+    // Neither leg moves lots, so the engine keeps the full buy while the
+    // ledger has already paid the network fee — the gap is the fee.
+    const p = portfolio(
+      [{ id: "o", ...OUT, amountBtc: "0.4", feeBtc: "0.0001", counterpartyAccountId: "aB" }],
+      [{ id: "i", ...IN, amountBtc: "0.4", counterpartyAccountId: "aA" }],
     );
+    const { ledger, fifo } = balances(p);
+    expect(ledger).toBe("0.9999");
+    expect(fifo).toBe("1");
   });
 
   it("sell and spend with a BTC fee", () => {
@@ -199,7 +185,7 @@ describe("fee convention: ledger and FIFO agree for every transfer shape", () =>
           totalFiatEur: null,
           feeBtc: "0.0001",
           note: "",
-          lotAllocations: [{ lotTransactionId: "b1", amountBtc: "0.4" }],
+          lotAllocations: [{ lotTransactionId: "b1", amountBtc: "0.4001" }],
         },
         {
           id: "sp",
@@ -210,9 +196,43 @@ describe("fee convention: ledger and FIFO agree for every transfer shape", () =>
           totalFiatEur: null,
           feeBtc: "0.00005",
           note: "",
+          lotAllocations: [{ lotTransactionId: "b1", amountBtc: "0.10005" }],
         },
       ]),
       "0.49985",
     );
+  });
+});
+
+describe("a disposal without an assignment closes nothing", () => {
+  it("leaves the lots untouched and reports the gap", () => {
+    // The engine must not decide which buy was sold (§3.2). The ledger says
+    // 0.5999 BTC are left, the lots still hold the whole buy, and the
+    // difference is exactly what nobody has assigned yet.
+    const p = portfolio([{ id: "o", ...OUT, amountBtc: "0.4", feeBtc: "0.0001" }]);
+    const entries = flattenLedger(p.wallets);
+    const fifo = computeFifo(entries, 365);
+
+    expect(totalBalance(entries).toString()).toBe("0.5999");
+    expect(fifo.openLotsBtc.toString()).toBe("1");
+    expect(fifo.openLotsBtc.minus(totalBalance(entries)).toString()).toBe("0.4001");
+  });
+
+  it("reports a sale it cannot cover as uncovered, with no cost basis", () => {
+    const p = portfolio([
+      {
+        id: "s",
+        type: "sell",
+        date: "2026-02-01T00:00:00.000Z",
+        amountBtc: "0.4",
+        pricePerBtcEur: "60000",
+        totalFiatEur: null,
+        note: "",
+      },
+    ]);
+    const fifo = computeFifo(flattenLedger(p.wallets), 365);
+    expect(fifo.disposals[0].uncoveredBtc.toString()).toBe("0.4");
+    expect(fifo.disposals[0].costBasisEur.toString()).toBe("0");
+    expect(fifo.openLotsBtc.toString()).toBe("1");
   });
 });

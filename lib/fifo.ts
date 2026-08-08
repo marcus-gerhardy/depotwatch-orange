@@ -239,35 +239,15 @@ export function computeFifo(
   }
 
   /**
-   * Consume `amount` BTC oldest-lot-first; returns consumed parts. With
-   * `accountId` only that account's lots are touched (lot-moving transfers
-   * must not drain other accounts).
-   */
-  function consumeFifo(
-    amount: Decimal,
-    disposedDate: string,
-    accountId?: string,
-  ): {
-    parts: DisposalPart[];
-    uncovered: Decimal;
-  } {
-    const parts: DisposalPart[] = [];
-    let remaining = amount;
-    for (const lot of lots) {
-      if (remaining.lte(0)) break;
-      if (lot.remainingBtc.lte(0)) continue;
-      if (accountId && lot.accountId !== accountId) continue;
-      const take = Decimal.min(remaining, lot.remainingBtc);
-      parts.push(takePart(lot, take, disposedDate));
-      remaining = remaining.minus(take);
-    }
-    return { parts, uncovered: remaining };
-  }
-
-  /**
    * Consume exactly the persisted allocations (capped at the disposal amount).
-   * Missing/short lots (e.g. the referenced buy was deleted) become uncovered,
-   * as does any disposal remainder the allocations don't cover.
+   *
+   * This is the *only* way lots are ever consumed: which buys a disposal took
+   * its coins from is a decision the user makes and the file records (§3.2).
+   * The engine never picks lots by itself — a guessed assignment silently
+   * decides holding periods and cost basis, and quietly changes them again as
+   * soon as anything earlier in the ledger is edited. Missing/short lots (a
+   * deleted buy) and anything the allocations do not cover stay uncovered and
+   * are reported as such.
    */
   function consumeAllocated(
     allocations: LotAllocation[],
@@ -296,26 +276,59 @@ export function computeFifo(
   }
 
   /**
-   * Close `leaving` BTC for a transfer_out: the persisted allocations first
-   * (they pin which lots this transfer closed), then plain FIFO for whatever
-   * they do not cover. The remainder matters for files whose allocations were
-   * written for `amountBtc` alone while the network fee left on top of it —
-   * without it the lots would keep coins the balance has already spent.
+   * Close `leaving` BTC (amount + network fee, §3.2) against the persisted
+   * allocations. What they do not cover is not closed against anything — the
+   * lots keep those coins and the gap is reported, rather than being taken
+   * from whichever lot happens to be oldest.
    */
   function consumeLeaving(
     leaving: Decimal,
     e: LedgerEntry,
-    accountId?: string,
-  ): DisposalPart[] {
-    if (leaving.lte(0)) return [];
-    const allocated = e.lotAllocations?.length
+  ): { parts: DisposalPart[]; uncovered: Decimal } {
+    if (leaving.lte(0)) return { parts: [], uncovered: ZERO };
+    return e.lotAllocations?.length
       ? consumeAllocated(e.lotAllocations, leaving, e.date)
-      : { parts: [] as DisposalPart[], uncovered: leaving };
-    if (allocated.uncovered.lte(0)) return allocated.parts;
-    return [
-      ...allocated.parts,
-      ...consumeFifo(allocated.uncovered, e.date, accountId).parts,
-    ];
+      : { parts: [], uncovered: leaving };
+  }
+
+  /**
+   * Split consumed parts at `amount`: what the disposal sold, and the tail that
+   * paid the BTC network fee. The allocations of a sell cover both (§3.2), but
+   * only the first part has proceeds — the fee's coins simply leave.
+   */
+  function splitAtAmount(
+    parts: DisposalPart[],
+    amount: Decimal,
+  ): { sold: DisposalPart[]; fee: DisposalPart[] } {
+    const sold: DisposalPart[] = [];
+    const fee: DisposalPart[] = [];
+    let left = amount;
+    for (const p of parts) {
+      if (left.lte(0)) {
+        fee.push(p);
+        continue;
+      }
+      if (p.amountBtc.lte(left)) {
+        sold.push(p);
+        left = left.minus(p.amountBtc);
+        continue;
+      }
+      // One part straddles the boundary: divide it in proportion.
+      const share = left.div(p.amountBtc);
+      sold.push({
+        ...p,
+        amountBtc: left,
+        costBasisEur: p.costBasisEur === null ? null : p.costBasisEur.mul(share),
+      });
+      fee.push({
+        ...p,
+        amountBtc: p.amountBtc.minus(left),
+        costBasisEur:
+          p.costBasisEur === null ? null : p.costBasisEur.mul(ZERO.plus(1).minus(share)),
+      });
+      left = ZERO;
+    }
+    return { sold, fee };
   }
 
   for (const e of entries) {
@@ -439,7 +452,7 @@ export function computeFifo(
           // stash them for the in-leg(s) of the same group. No disposal — the
           // in-leg re-materializes `amount`, the fee slice stays behind
           // unclaimed and is thereby burned.
-          const parts = consumeLeaving(leaving, e, e.accountId);
+          const { parts } = consumeLeaving(leaving, e);
           addTransferConsumption(parts, {
             transferOutTxId: e.id,
             transferGroupId: e.transferGroupId,
@@ -459,25 +472,27 @@ export function computeFifo(
           break;
         }
         if (e.counterpartyAccountId) {
-          // Legacy internal leg: no disposal, no lot movement. Only the
-          // network fee leaves the portfolio.
-          if (feeBtc.gt(0)) addOtherConsumption(consumeFifo(feeBtc, e.date).parts);
+          // Legacy internal leg (no group): the lots never left the source
+          // account's queue, so there is nothing to close here either.
           break;
         }
-        // External send: coins leave the ledger without taxable proceeds;
-        // persisted allocations pin which lots close.
-        addOtherConsumption(consumeLeaving(leaving, e));
+        // External send: coins leave the ledger without taxable proceeds; the
+        // persisted allocations say which lots close, and nothing else does.
+        addOtherConsumption(consumeLeaving(leaving, e).parts);
         break;
       }
       case "sell":
       case "spend": {
-        // Persisted allocations are authoritative; legacy sells without them
-        // fall back to dynamic FIFO.
-        const { parts, uncovered } = e.lotAllocations?.length
-          ? consumeAllocated(e.lotAllocations, amount, e.date)
-          : consumeFifo(amount, e.date);
+        // The persisted allocations are the only source: a sell without them
+        // closes no lots and is reported as uncovered (§3.2). They cover what
+        // actually left the account, i.e. the amount plus the BTC fee.
+        const closed = consumeLeaving(amount.plus(feeBtc), e);
+        const { sold: parts, fee: feeParts } = splitAtAmount(closed.parts, amount);
+        // Whatever is missing is missing from the sale first — the fee tail is
+        // the last thing the allocations cover.
+        const uncovered = Decimal.min(amount, closed.uncovered);
         addOtherConsumption(parts);
-        if (feeBtc.gt(0)) addOtherConsumption(consumeFifo(feeBtc, e.date).parts); // fee BTC leaves too
+        addOtherConsumption(feeParts);
         const gross =
           e.totalFiatEur != null
             ? dec(e.totalFiatEur)
@@ -578,42 +593,6 @@ export function computeFifo(
     realizedTaxFreeGainEur: realizedTaxFree,
     fullyTransferredLots,
   };
-}
-
-/**
- * FIFO allocation for a new disposal: oldest lot first, split across lots as
- * needed. Lots of `preferredAccountId` (the sell's account) are consumed
- * before lots of other accounts; if the amount exceeds all open lots, the
- * remainder simply stays unallocated (reported as uncovered by computeFifo).
- */
-export function allocateFifo(
-  openLots: OpenLot[],
-  amount: Decimal,
-  preferredAccountId?: string,
-): LotAllocation[] {
-  const ordered = preferredAccountId
-    ? [
-        ...openLots.filter((l) => l.accountId === preferredAccountId),
-        ...openLots.filter((l) => l.accountId !== preferredAccountId),
-      ]
-    : openLots;
-  const out: LotAllocation[] = [];
-  let remaining = amount;
-  for (const lot of ordered) {
-    if (remaining.lte(0)) break;
-    if (lot.remainingBtc.lte(0)) continue;
-    const take = Decimal.min(remaining, lot.remainingBtc);
-    const last = out[out.length - 1];
-    if (last && last.lotTransactionId === lot.txId) {
-      // Several queue lots can share one transaction id (multi-lot
-      // transfer_in) — collapse them into a single allocation entry.
-      last.amountBtc = dec(last.amountBtc).plus(take).toString();
-    } else {
-      out.push({ lotTransactionId: lot.txId, amountBtc: take.toString() });
-    }
-    remaining = remaining.minus(take);
-  }
-  return out;
 }
 
 // Both take anything carrying a taxFreeDate, so a provenance row (whose date

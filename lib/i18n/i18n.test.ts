@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import de from "./de";
 import en from "./en";
+import { DATA_ISSUES } from "../dataQuality";
+import { THEME_IDS } from "../theme";
 
 /** Flatten a nested dictionary into "a.b.c" → value pairs. */
 function flatten(obj: object, prefix = ""): Map<string, string> {
@@ -58,5 +62,58 @@ describe("wording", () => {
       .filter(([, v]) => v.includes("—") || v.includes("–"))
       .map(([key]) => key);
     expect(offenders).toEqual([]);
+  });
+});
+
+/** Every non-test source file of the app. */
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) sourceFiles(p, out);
+    else if (/\.tsx?$/.test(name) && !/\.test\./.test(name)) out.push(p);
+  }
+  return out;
+}
+
+/** `t("some.key")` — the literal keys the code asks the dictionary for. */
+function usedKeys(): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const file of ["components", "lib", "app"].flatMap((d) => sourceFiles(d))) {
+    const src = readFileSync(file, "utf8");
+    for (const m of src.matchAll(/\bt\(\s*"([^"]+)"/g)) {
+      if (!found.has(m[1])) found.set(m[1], file);
+    }
+  }
+  return found;
+}
+
+/**
+ * A missing key is invisible in TypeScript — the translator falls back to the
+ * key itself, so the UI simply shows "tx.originalSection" and only a human
+ * looking at that screen notices. This is what catches it instead: every key
+ * the code asks for has to exist in both languages.
+ */
+describe("every key the app uses exists", () => {
+  it("resolves all literal t() keys in both languages", () => {
+    const missing: string[] = [];
+    for (const [key, file] of usedKeys()) {
+      if (deFlat.has(key) && enFlat.has(key)) continue;
+      missing.push(`${key} (${file}${deFlat.has(key) ? ", missing in en" : ""}${enFlat.has(key) ? ", missing in de" : ""})`);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  // The families built as `t(\`prefix.${value}\`)` cannot be read off the
+  // source, so they are checked against the value lists they are built from.
+  it.each([
+    ["tx.types", ["buy", "sell", "transfer_in", "transfer_out", "spend", "transfer"]],
+    ["wallets.types", ["exchange", "hardware", "software", "paper"]],
+    ["dashboard.widgets.issues", DATA_ISSUES],
+    ["settings.themes", THEME_IDS],
+  ] as [string, string[]][])("covers every %s", (prefix, values) => {
+    const missing = values.filter(
+      (v) => !deFlat.has(`${prefix}.${v}`) || !enFlat.has(`${prefix}.${v}`),
+    );
+    expect(missing).toEqual([]);
   });
 });

@@ -262,7 +262,7 @@ const en: typeof de = {
       issues: {
         unlinkedTransfer: "Transfers without a counterpart",
         unresolvedOrigin: "Arrivals with unresolved origin",
-        incompleteAllocation: "Outgoing transfers with incomplete lot assignment",
+        incompleteAllocation: "Sells, spends and transfers with incomplete lot assignment",
         missingTxid: "Transfers without a txid",
         missingEurValue: "Transactions without a EUR value",
       },
@@ -415,6 +415,18 @@ const en: typeof de = {
       "The sum of the buys' EUR amounts behind this transaction, but only for the part of the amount that has one. The real value is higher.",
     valueFromTransfer:
       "Recorded when the transfer was created: the sum of the EUR amounts of the buys it moves.",
+    originalSection: "Settled in another currency",
+    originalHint:
+      "Documentation only, e.g. a BTC buy against USDT. Calculations and tax figures always use the EUR value at the time of the transaction.",
+    originalCurrency: "Original currency",
+    originalCurrencyPlaceholder: "e.g. USDT",
+    originalAmount: "Amount (original currency)",
+    originalPrice: "Price per BTC (original currency)",
+    eurValuationRun: "Derive EUR value from historical price",
+    eurValuationDerived:
+      "EUR value derived automatically from the historical Binance price",
+    eurValuationNeedsAmount: "This needs a date and an amount.",
+    eurValuationUnavailable: "No price available for that point in time.",
     note: "Note",
     onChainSection: "On-chain data (optional)",
     onChainHint:
@@ -449,8 +461,6 @@ const en: typeof de = {
     sellLotTitle: "Sell lot",
     lotMax: "Remaining in this lot: {max} BTC",
     lotExceeds: "Amount exceeds the lot's remaining balance ({max} BTC).",
-    insufficientLots:
-      "The open lots in the source account don't cover the amount (available: {available} BTC).",
     rowsPerPage: "Rows per page",
     allRows: "All",
     taxStatus: "Tax status",
