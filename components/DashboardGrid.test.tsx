@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { useAppStore } from "@/lib/store";
 import { emptyPortfolio } from "@/lib/types";
 import { defaultDashboard, type WidgetPlacement } from "@/lib/dashboardLayout";
@@ -140,6 +141,25 @@ describe("DashboardGrid", () => {
     await waitFor(() =>
       expect(storedLayout()?.map((p) => p.i)).toEqual(["dataQuality-1"]),
     );
+  });
+
+  it("leaves the demo portfolio's layout alone for the same reason", async () => {
+    // The demo file ships its own arrangement; if the grid compacted it on
+    // mount, simply looking at the dashboard would mark the demo as edited.
+    const demo = JSON.parse(
+      readFileSync("public/demo-portfolio.json", "utf8"),
+    ) as { uiSettings: { dashboardLayout: WidgetPlacement[] } };
+    const p = useAppStore.getState().portfolio!;
+    useAppStore.setState({
+      portfolio: { ...p, uiSettings: { dashboardLayout: demo.uiSettings.dashboardLayout } },
+      dirty: false,
+    });
+
+    const { unmount } = render(<Dashboard />);
+    await waitFor(() => expect(screen.getByText(/common\.edit/)).toBeTruthy());
+    unmount();
+
+    expect(useAppStore.getState().dirty).toBe(false);
   });
 
   it("leaves the default layout alone: the grid's own compaction changes nothing", async () => {
