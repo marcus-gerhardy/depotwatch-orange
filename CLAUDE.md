@@ -303,6 +303,22 @@ The dashboard is a grid the user arranges themselves (`react-grid-layout` v2, lo
 
 **Keyboard and dialogs:** `:focus-visible` draws an accent outline globally — the UI is dense and made largely of icon buttons, table headers and disclosure headers that have no other affordance. Anything sortable or expandable is a real `<button>` with `aria-sort`/`aria-expanded`, never a clickable `<th>` or `<div>`. `Modal` is a `role="dialog" aria-modal` with its title as the accessible name; it takes focus when it opens, returns it where it was on close, closes on Escape, and freezes the page behind it.
 
+### 5.1 Easter Eggs
+
+A handful of small touches, under one rule: **none of them may get in the way of using the app seriously.** Nothing moves on its own, nothing blocks a click, nothing changes a number. `settings.easterEggs` (default on, `lib/easterEggs.ts`) switches every one of them off from the settings; with it off the app behaves entirely plainly.
+
+- **Day-of lines**, each only on its day and in the *user's own timezone*: 22 May adds a line to the portfolio-value widget expressing the holding in pizzas at the 2010 rate (10 000 BTC for two, so 5 000 apiece); 3 January puts the genesis-block headline in the footer, 10 January Hal Finney's "Running bitcoin".
+- **The first whole coin** (`components/Celebration.tsx`): crossing 1.0 BTC once triggers a short orange confetti animation, CSS only and `pointer-events: none`. `uiSettings.wholecoinerCelebrated` records it in the portfolio file, so it happens once per portfolio rather than once per page load — and a file that is *already* above one coin when it is opened records the flag without showing anything, because that moment has passed. `prefers-reduced-motion` (checked in JS *and* in the stylesheet) leaves the message and drops the motion.
+- **Laser eyes**: 21 clicks on the ₿ in the header unlock a cosmetic mode (brighter accent, laser eyes on the logo) — persisted as `uiSettings.laserEyes`, switchable off in the settings, and confirmed by a toast so an unexplained glow cannot read as a rendering bug. The logo is a real button, so it is reachable by keyboard.
+- **Sovereign badge**: with 0 % of the holding on exchange-type wallets, the custody widget's warning metric gives way to the acknowledgement — that state *is* the goal of the metric.
+- **Fee comment**: the network-fee widget adds one line per rate band about what one would actually do at that rate (consolidate while blocks are cheap, wait while they are not), which keeps it useful rather than loud.
+- **Empty transaction table**: "Nothing here yet. Every stack starts at zero sats." instead of the neutral sentence.
+- The **whitepaper** ships with the app (`public/bitcoin.pdf`) and is linked from "how it works" — served from the project, like the fonts, so reading it asks nobody else. That page also calls the chain the **timechain**, exactly once.
+
+Every string goes through the normal DE/EN dictionaries; there are no hard-coded texts.
+
+The **BTC display unit** (§6.3) is deliberately *not* one of these: it is a real display mode and stays available with the switch off. Only the "1 BTC = 1 BTC" line in the portfolio-value widget is the playful part of it.
+
 ## 6. Settings
 
 ### 6.1 Security & Privacy
@@ -325,7 +341,8 @@ The dashboard is a grid the user arranges themselves (`react-grid-layout` v2, lo
 
 - Colour theme (§5): `ocean` (default) or `night`, stored in the file and mirrored to a device preference like the language
 - Language (German/English toggle, German as default) — the choice lives in the portfolio file and is mirrored to a device preference (`localStorage`), so the pages that exist without an open file (start screen, "how it works", legal notice, privacy) follow it as well; those pages carry their own DE/EN switch and exist under a localized URL per language (`/so-funktionierts` ↔ `/how-it-works`, `/impressum` ↔ `/legal-notice`, `/datenschutz` ↔ `/privacy`; map in `lib/routes.ts`). Opening a page adopts the URL's language; switching the language rewrites the URL — except while a portfolio is open, where the file's language wins
-- Default display currency (EUR/USD toggle)
+- Display currency: EUR, USD, or **BTC** — a display *unit*, not a valuation currency. The ledger stays EUR (§3.2); amounts are shown in whole sats, fiat figures are converted at the current rate, and prices are still fetched in fiat (`priceCurrencyOf`). Sorting, rounding and every stored value are untouched by it: `lib/displayUnit.ts` only renders.
+- Easter eggs / playful touches (§5.1), on by default
 - Explorer source for on-chain queries: public API (default, e.g. mempool.space) or your own Electrum server/node (maximum privacy) — with a clear UI notice about the trade-off that public APIs transmit addresses to third parties
 - Change password / enable/disable encryption
 - Tax settings (holding period rule, FIFO as default, possibly LIFO selectable later)

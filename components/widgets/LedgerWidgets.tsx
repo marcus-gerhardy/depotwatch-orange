@@ -5,10 +5,11 @@
 
 import { useMemo } from "react";
 import { useAppStore } from "@/lib/store";
-import { Decimal, ZERO, formatBtc, formatPercent } from "@/lib/decimal";
+import { Decimal, ZERO, formatPercent } from "@/lib/decimal";
 import { formatDate } from "@/lib/i18n";
 import { daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
 import { countIssues, DATA_ISSUES } from "@/lib/dataQuality";
+import { useEasterEggs } from "@/lib/easterEggs";
 import type { WalletType } from "@/lib/types";
 import { Amount } from "../ui";
 import { useDashboardData } from "./context";
@@ -24,8 +25,10 @@ const SELF_CUSTODY: WalletType[] = ["hardware", "software", "paper"];
  * anything but zero.
  */
 export function CustodyWidget() {
-  const { t, loc, balances, balanceBtc, fmtDisplay, priceEur } = useDashboardData();
+  const { t, loc, balances, balanceBtc, fmtAmountPlain, fmtDisplay, priceEur } =
+    useDashboardData();
   const portfolio = useAppStore((s) => s.portfolio)!;
+  const eggs = useEasterEggs();
 
   const byType = useMemo(() => {
     const typeOf = new Map(portfolio.wallets.map((w) => [w.id, w.type]));
@@ -53,10 +56,23 @@ export function CustodyWidget() {
   return (
     <div className="flex h-full flex-col gap-3">
       <div>
-        <StatValue className={exchangeShare > 0 ? "text-warning" : "text-gain"}>
-          {formatPercent(exchangeShare, loc).replace("+", "")}
-        </StatValue>
-        <StatLabel>{t("dashboard.widgets.onExchanges")}</StatLabel>
+        {/* Nothing on an exchange is the point of the whole metric, so at 0 %
+            the warning gives way to the acknowledgement (§5.1). */}
+        {eggs && exchangeShare === 0 ? (
+          <>
+            <StatValue className="text-gain">
+              🔑 {t("dashboard.widgets.sovereignBadge")}
+            </StatValue>
+            <StatLabel>{t("dashboard.widgets.sovereignHint")}</StatLabel>
+          </>
+        ) : (
+          <>
+            <StatValue className={exchangeShare > 0 ? "text-warning" : "text-gain"}>
+              {formatPercent(exchangeShare, loc).replace("+", "")}
+            </StatValue>
+            <StatLabel>{t("dashboard.widgets.onExchanges")}</StatLabel>
+          </>
+        )}
       </div>
 
       <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-2">
@@ -86,7 +102,7 @@ export function CustodyWidget() {
                 {t(`wallets.types.${r.type}`)}
               </td>
               <td className="py-1 text-right font-mono whitespace-nowrap">
-                <Amount>{formatBtc(r.btc, loc)}</Amount>
+                <Amount>{fmtAmountPlain(r.btc)}</Amount>
               </td>
               <td className="py-1 pl-2 text-right text-muted whitespace-nowrap">
                 <Amount>
@@ -111,7 +127,7 @@ export function CustodyWidget() {
 
 /** Balance per wallet/account, each row a jump into the filtered table. */
 export function WalletBreakdownWidget() {
-  const { t, loc, balances, displayPrice, currency, openTransactions } =
+  const { t, loc, balances, displayPrice, currency, unit, fmtAmountPlain, openTransactions } =
     useDashboardData();
 
   if (balances.length === 0) {
@@ -124,8 +140,10 @@ export function WalletBreakdownWidget() {
         <tr className="border-b border-border-c text-left text-muted">
           <th className="py-1.5 pr-2 font-normal">{t("dashboard.wallet")}</th>
           <th className="py-1.5 pr-2 font-normal">{t("dashboard.account")}</th>
-          <th className="py-1.5 pr-2 text-right font-normal">BTC</th>
-          <th className="py-1.5 text-right font-normal">{currency}</th>
+          <th className="py-1.5 pr-2 text-right font-normal">{unit}</th>
+          <th className="py-1.5 text-right font-normal">
+            {currency === "BTC" ? "sats" : currency}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -141,7 +159,7 @@ export function WalletBreakdownWidget() {
             <td className="py-1.5 pr-2">{b.walletName}</td>
             <td className="py-1.5 pr-2 text-muted">{b.accountName}</td>
             <td className="py-1.5 pr-2 text-right font-mono whitespace-nowrap">
-              <Amount>{formatBtc(b.btc, loc)}</Amount>
+              <Amount>{fmtAmountPlain(b.btc)}</Amount>
             </td>
             <td className="py-1.5 text-right font-mono whitespace-nowrap">
               <Amount>
@@ -161,7 +179,7 @@ export function WalletBreakdownWidget() {
 
 /** The "how the holding is made up" table that used to be a collapsible panel. */
 export function HoldingCompositionWidget() {
-  const { t, loc, breakdown } = useDashboardData();
+  const { t, breakdown, fmtAmountPlain } = useDashboardData();
   const rows = [
     ["dashboard.breakdownBuys", breakdown.buys],
     ["dashboard.breakdownTransferIns", breakdown.transferIns],
@@ -181,20 +199,20 @@ export function HoldingCompositionWidget() {
             <tr key={key} className="border-b border-border-c/40">
               <td className="py-1 text-muted">{t(key)}</td>
               <td className="py-1 text-right font-mono whitespace-nowrap">
-                <Amount>{formatBtc(value, loc)}</Amount>
+                <Amount>{fmtAmountPlain(value)}</Amount>
               </td>
             </tr>
           ))}
           <tr className="border-b border-border-c/40">
             <td className="py-1 text-muted">{t("dashboard.breakdownFees")}</td>
             <td className="py-1 text-right font-mono whitespace-nowrap text-muted">
-              <Amount>{formatBtc(breakdown.feeBtc, loc)}</Amount>
+              <Amount>{fmtAmountPlain(breakdown.feeBtc)}</Amount>
             </td>
           </tr>
           <tr>
             <td className="py-1 font-semibold">{t("dashboard.breakdownTotal")}</td>
             <td className="py-1 text-right font-mono font-semibold whitespace-nowrap">
-              <Amount>{formatBtc(breakdown.total, loc)}</Amount>
+              <Amount>{fmtAmountPlain(breakdown.total)}</Amount>
             </td>
           </tr>
         </tbody>
@@ -212,7 +230,7 @@ export function HoldingCompositionWidget() {
  * This is tax-specific UI; see `TAX_FEATURES_ENABLED` in lib/features.ts.
  */
 export function HoldingPeriodWidget() {
-  const { t, loc, fifo } = useDashboardData();
+  const { t, loc, fifo, fmtAmountPlain } = useDashboardData();
   const now = new Date();
 
   const { free, pending, unresolved, upcoming } = useMemo(() => {
@@ -254,7 +272,7 @@ export function HoldingPeriodWidget() {
   return (
     <div className="flex h-full flex-col gap-3">
       <div>
-        <StatValue className="text-gain">{formatBtc(free, loc)}</StatValue>
+        <StatValue className="text-gain">{fmtAmountPlain(free)}</StatValue>
         <StatLabel>{t("dashboard.widgets.taxFreeNow")}</StatLabel>
       </div>
       <Meter value={total.gt(0) ? free.div(total).toNumber() : 0} color="bg-gain" />
@@ -262,7 +280,7 @@ export function HoldingPeriodWidget() {
         <p className="text-xs text-warning">
           ⚠{" "}
           {t("dashboard.widgets.holdingPeriodUnresolved", {
-            amount: formatBtc(unresolved, loc),
+            amount: fmtAmountPlain(unresolved),
           })}
         </p>
       )}
@@ -288,7 +306,7 @@ export function HoldingPeriodWidget() {
               <tr key={u.date.getTime()} className="border-b border-border-c/40 last:border-0">
                 <td className="py-1 pr-2 whitespace-nowrap">{formatDate(u.date, loc)}</td>
                 <td className="py-1 pr-2 text-right font-mono whitespace-nowrap">
-                  <Amount>{formatBtc(u.btc, loc)}</Amount>
+                  <Amount>{fmtAmountPlain(u.btc)}</Amount>
                 </td>
                 <td className="py-1 text-right font-mono text-muted">{u.days}</td>
               </tr>

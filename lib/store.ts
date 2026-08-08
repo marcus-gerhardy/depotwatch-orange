@@ -127,6 +127,15 @@ interface AppState {
    */
   saveDashboardLayout: (layout: DashboardWidgetPlacement[]) => void;
   saveTransactionColumns: (columns: string[]) => void;
+
+  /**
+   * The two flags the playful touches remember (CLAUDE.md §5.1): that the
+   * one-off whole-coin celebration has been shown, and whether laser eyes are
+   * on. Both live in the portfolio file, so they travel with it — and both are
+   * written only when they actually change, like every other UI setting.
+   */
+  setWholecoinerCelebrated: () => void;
+  setLaserEyes: (on: boolean) => void;
 }
 
 /** Structural comparison for values that are plain JSON (see the UI settings). */
@@ -596,6 +605,20 @@ export const useAppStore = create<AppState>((set, get) => {
         sameJson(p.uiSettings?.transactionColumns, columns)
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, transactionColumns: columns } },
+      ),
+
+    setWholecoinerCelebrated: () =>
+      mutate((p) =>
+        p.uiSettings?.wholecoinerCelebrated
+          ? p
+          : { ...p, uiSettings: { ...p.uiSettings, wholecoinerCelebrated: true } },
+      ),
+
+    setLaserEyes: (on) =>
+      mutate((p) =>
+        (p.uiSettings?.laserEyes ?? false) === on
+          ? p
+          : { ...p, uiSettings: { ...p.uiSettings, laserEyes: on } },
       ),
   };
 });

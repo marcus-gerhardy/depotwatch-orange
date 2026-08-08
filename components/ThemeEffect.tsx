@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { DEFAULT_THEME } from "@/lib/theme";
+import { useLaserEyes } from "@/lib/easterEggs";
 
 /**
  * Puts the chosen colour theme on <html> (`data-theme`), which is all the
@@ -17,11 +18,18 @@ import { DEFAULT_THEME } from "@/lib/theme";
 export default function ThemeEffect() {
   const theme = useAppStore((s) => s.uiTheme);
   const initUiTheme = useAppStore((s) => s.initUiTheme);
+  // Cosmetic laser-eyes mode rides along on the same element (§5.1): it only
+  // brightens the accent, so it is an attribute, not a second theme.
+  const laserEyes = useLaserEyes();
 
   useEffect(() => initUiTheme(), [initUiTheme]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme ?? DEFAULT_THEME;
   }, [theme]);
+  useEffect(() => {
+    if (laserEyes) document.documentElement.dataset.laserEyes = "on";
+    else delete document.documentElement.dataset.laserEyes;
+  }, [laserEyes]);
 
   return null;
 }

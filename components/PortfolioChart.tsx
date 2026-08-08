@@ -12,10 +12,12 @@ import {
   YAxis,
 } from "recharts";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
+import { formatInt } from "@/lib/decimal";
 import { useAppStore } from "@/lib/store";
 import { useDailyCloses } from "@/lib/marketData";
 import { dailyValueSeries } from "@/lib/portfolio";
-import type { LedgerEntry } from "@/lib/types";
+import { SATS_PER_BTC } from "@/lib/displayUnit";
+import { priceCurrencyOf, type LedgerEntry } from "@/lib/types";
 import { THEMES } from "@/lib/theme";
 import { Button } from "./ui";
 
@@ -27,6 +29,9 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
   const portfolio = useAppStore((s) => s.portfolio)!;
   const privacyMode = useAppStore((s) => s.privacyMode);
   const currency = portfolio.settings.currencyDisplay;
+  // Prices exist in fiat; displaying BTC charts the holding itself, in sats.
+  const priceCurrency = priceCurrencyOf(currency);
+  const inSats = currency === "BTC";
   // Recharts needs literal colours (SVG attributes take no CSS variables), so
   // the chart reads the active theme's tokens from the same table the
   // stylesheet is checked against (lib/theme.ts).
@@ -37,17 +42,19 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
 
   // Shared, cached fetch: several widgets chart the same daily closes.
   const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
-  const closes = useDailyCloses(currency, startTime);
+  const closes = useDailyCloses(priceCurrency, startTime);
 
   const data = useMemo(() => {
     if (!closes.data) return [];
     const points = dailyValueSeries(entries, closes.data).map((p) => ({
       time: p.time,
-      value: p.value,
+      // On a Bitcoin standard the portfolio's value is what it *is*: the stack
+      // itself, in sats — the fiat rate no longer moves the line.
+      value: inSats ? p.btc * SATS_PER_BTC : p.value,
       btcPrice: p.close,
     }));
     return range === 0 ? points : points.slice(-range);
-  }, [closes.data, entries, range]);
+  }, [closes.data, entries, range, inSats]);
 
   if (entries.length === 0) {
     return (
@@ -59,9 +66,18 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
   const fmtAxisDate = (ms: number) =>
     new Date(ms).toLocaleDateString(loc, { month: "short", day: "numeric", year: "2-digit" });
   const fmtMoney = (v: number) =>
+    inSats
+      ? `${formatInt(v, loc)} sats`
+      : new Intl.NumberFormat(loc, {
+          style: "currency",
+          currency,
+          maximumFractionDigits: 0,
+        }).format(v);
+  // The comparison line is always the fiat price — that is what it is for.
+  const fmtPrice = (v: number) =>
     new Intl.NumberFormat(loc, {
       style: "currency",
-      currency,
+      currency: priceCurrency,
       maximumFractionDigits: 0,
     }).format(v);
 
@@ -127,7 +143,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
                 <YAxis
                   yAxisId="btc"
                   orientation="right"
-                  tickFormatter={(v: number) => fmtMoney(v)}
+                  tickFormatter={(v: number) => fmtPrice(v)}
                   stroke={c.border}
                   fontSize={11}
                   tickLine={false}
@@ -143,7 +159,11 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
                 }}
                 labelFormatter={(ms) => formatDate(Number(ms), loc)}
                 formatter={(v, name) => [
-                  typeof v === "number" ? fmtMoney(v) : String(v ?? ""),
+                  typeof v !== "number"
+                    ? String(v ?? "")
+                    : name === "value"
+                      ? fmtMoney(v)
+                      : fmtPrice(v),
                   name === "value"
                     ? t("dashboard.chartPortfolio")
                     : t("dashboard.chartBtcPrice"),

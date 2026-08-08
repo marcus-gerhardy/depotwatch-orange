@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
+import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
+import Celebration from "./Celebration";
+import Toast from "./Toast";
 import Dashboard from "./Dashboard";
 import TransactionsView from "./TransactionsView";
 import WalletsView from "./WalletsView";
@@ -80,6 +83,23 @@ export default function AppShell() {
   const showFileSetup =
     fileSetupOpenedManually || (needsFileSetup && dirty && !fileSetupDismissed);
 
+  // Cosmetic only, persisted in the file, and switchable in the settings.
+  const laserEyes = useLaserEyes();
+  const setLaserEyes = useAppStore((s) => s.setLaserEyes);
+  const eggs = useEasterEggs();
+  const logoClicks = useRef(0);
+  const [toast, setToast] = useState<string | null>(null);
+
+  function countLogoClick() {
+    if (!eggs || laserEyes) return;
+    logoClicks.current += 1;
+    if (logoClicks.current < LASER_EYES_CLICKS) return;
+    logoClicks.current = 0;
+    setLaserEyes(true);
+    // Said out loud, so an unexplained glow cannot read as a rendering bug.
+    setToast(t("easterEggs.laserEyesUnlocked"));
+  }
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "dashboard", label: t("nav.dashboard") },
     { id: "transactions", label: t("nav.transactions") },
@@ -93,6 +113,8 @@ export default function AppShell() {
 
   return (
     <div className="flex flex-1 flex-col">
+      <Celebration />
+      <Toast message={toast} onDone={() => setToast(null)} />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4">
           {/* Row 1: logo left, file indicator + actions right */}
@@ -106,7 +128,18 @@ export default function AppShell() {
               ☰
             </button>
             <div className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight">
-              <span className="text-accent">₿</span>
+              {/* 21 clicks unlock the cosmetic laser eyes (§5.1). A plain
+                  button, so it is reachable by keyboard and says what it is;
+                  for everyone not counting, it is simply the logo. */}
+              <button
+                type="button"
+                className={`rounded-md px-0.5 text-accent ${laserEyes ? "laser-glow" : ""}`}
+                title={t("app.name")}
+                aria-label={t("app.name")}
+                onClick={countLogoClick}
+              >
+                {laserEyes ? "👀" : "₿"}
+              </button>
               <span className="hidden sm:inline">
                 DepotWatch <span className="text-accent">Orange</span>
               </span>

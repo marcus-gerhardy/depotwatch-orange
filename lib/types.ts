@@ -139,7 +139,21 @@ export interface UtxoLabel {
   tags: string[]; // e.g. "kyc", "non-kyc"
 }
 
-export type Currency = "EUR" | "USD";
+/**
+ * What figures are displayed in. "BTC" is a display unit, not a valuation
+ * currency: the ledger stays EUR (§3.2), amounts are shown in sats and fiat
+ * figures are converted at the current rate. Market data is always fetched in
+ * a fiat currency — see `FiatCurrency`.
+ */
+export type Currency = "EUR" | "USD" | "BTC";
+
+/** The currencies a price actually exists in. */
+export type FiatCurrency = "EUR" | "USD";
+
+/** The fiat currency behind a display currency (BTC prices in EUR). */
+export function priceCurrencyOf(currency: Currency): FiatCurrency {
+  return currency === "USD" ? "USD" : "EUR";
+}
 export type Locale = "de" | "en";
 
 export interface AppSettings {
@@ -151,6 +165,11 @@ export interface AppSettings {
    * the language, so the pages without an open file follow it too.
    */
   theme?: ThemeId;
+  /**
+   * The small playful touches (§5.1) — a master switch, on unless the file
+   * says otherwise. Off removes every one of them; nothing else changes.
+   */
+  easterEggs?: boolean;
   /** German rule: holdings become tax-free after this many days (default 365). */
   holdingPeriodDays: number;
   costBasisMethod: "FIFO";
@@ -183,6 +202,10 @@ export interface UiSettings {
   dashboardLayout?: DashboardWidgetPlacement[];
   /** Visible transaction-table columns, in display order. */
   transactionColumns?: string[];
+  /** The one-off "first whole coin" celebration has been shown (§5.1). */
+  wholecoinerCelebrated?: boolean;
+  /** Cosmetic laser-eyes mode, unlocked in the header and switchable in the settings. */
+  laserEyes?: boolean;
 }
 
 export interface PortfolioFile {
@@ -202,6 +225,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   locale: "de",
   currencyDisplay: "EUR",
   theme: DEFAULT_THEME,
+  easterEggs: true,
   holdingPeriodDays: 365,
   costBasisMethod: "FIFO",
   autosaveDebounceMs: 1500,

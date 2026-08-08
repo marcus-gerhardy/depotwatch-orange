@@ -80,6 +80,50 @@ h6 {
   outline-offset: 2px;
 }
 
+/* The one-off whole-coin confetti (§5.1). CSS only, above everything, and
+   pointer-events-none — it can neither be clicked nor block anything. Anyone
+   who asked for less motion never gets it rendered (see Celebration.tsx), and
+   the media query below is the second belt for that. */
+.confetti-piece {
+  position: absolute;
+  top: -5vh;
+  border-radius: 1px;
+  animation-name: confetti-fall;
+  animation-timing-function: cubic-bezier(0.25, 0.6, 0.4, 1);
+  animation-fill-mode: forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(var(--confetti-drift, 0), 105vh, 0)
+      rotate(var(--confetti-spin, 180deg));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece {
+    display: none;
+  }
+}
+
+/* Laser eyes (§5.1): a cosmetic glow, nothing else. */
+[data-laser-eyes="on"] {
+  --accent: #ff9d1c;
+}
+[data-laser-eyes="on"] .laser-glow {
+  text-shadow:
+    0 0 6px var(--accent),
+    0 0 18px var(--accent);
+}
+
 /* Privacy mode: blur amounts, e.g. for screenshots/screen sharing. */
 .privacy-blur {
   filter: blur(7px);

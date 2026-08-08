@@ -5,12 +5,25 @@
 
 import Link from "next/link";
 import { useAppLocale } from "@/lib/i18n";
+import { useAppStore } from "@/lib/store";
+import { isGenesisDay, isRunningBitcoinDay } from "@/lib/easterEggs";
 import { staticPagePath } from "@/lib/routes";
 
 const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
 
 export default function Footer() {
   const { t, locale } = useAppLocale();
+  // The switch lives in the portfolio file; without one open, the touches are
+  // on, like the default.
+  const eggs = useAppStore((s) => s.portfolio?.settings.easterEggs) !== false;
+  // Only on the day itself, in the reader's own timezone (§5.1).
+  const dayLine = !eggs
+    ? null
+    : isGenesisDay()
+      ? t("footer.genesisHeadline")
+      : isRunningBitcoinDay()
+        ? t("footer.runningBitcoin")
+        : null;
 
   const linkCls = "hover:text-accent transition-colors";
 
@@ -28,6 +41,11 @@ export default function Footer() {
             MIT
           </span>
         </div>
+        {dayLine && (
+          <p className="order-last w-full text-[11px] text-muted/80 italic sm:order-none sm:w-auto">
+            {dayLine}
+          </p>
+        )}
         <nav className="flex items-center gap-4">
           <a
             href={GITHUB_URL}

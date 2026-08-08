@@ -5,12 +5,16 @@ import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
 import { computeFifo, daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
-import { formatBtc, formatFiat } from "@/lib/decimal";
+import { formatFiat } from "@/lib/decimal";
+import { useAmountFormat } from "@/lib/displayUnit";
 import { Amount, Card, PnlValue, SectionTitle, inputCls } from "./ui";
 
 export default function TaxView() {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
+  // Holdings follow the display unit (BTC or sats, §6.3); the EUR figures
+  // below are tax figures and stay in the ledger's currency.
+  const amountFmt = useAmountFormat();
   const portfolio = useAppStore((s) => s.portfolio)!;
   const holdingDays = portfolio.settings.holdingPeriodDays;
 
@@ -57,7 +61,7 @@ export default function TaxView() {
         <Card className="border-warning/50">
           {uncovered.map((d) => (
             <p key={d.txId} className="text-sm text-warning">
-              ⚠ {t("tax.uncoveredWarning", { amount: formatBtc(d.uncoveredBtc, loc) })}
+              ⚠ {t("tax.uncoveredWarning", { amount: amountFmt.formatWithUnit(d.uncoveredBtc) })}
             </p>
           ))}
         </Card>
@@ -96,7 +100,7 @@ export default function TaxView() {
                         {lot.walletName} / {lot.accountName}
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
-                        <Amount>{formatBtc(lot.remainingBtc, loc)}</Amount>
+                        <Amount>{amountFmt.format(lot.remainingBtc)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         {lot.costPerBtcEur ? (
@@ -220,7 +224,7 @@ export default function TaxView() {
                             <span
                               className="cursor-help rounded bg-warning/15 px-2 py-0.5 text-[10px] whitespace-nowrap text-warning"
                               title={t("tax.unresolvedOriginHint", {
-                                amount: formatBtc(d.unresolvedOriginBtc, loc),
+                                amount: amountFmt.formatWithUnit(d.unresolvedOriginBtc),
                               })}
                             >
                               {t("tx.origin.badge")}
@@ -229,7 +233,7 @@ export default function TaxView() {
                         </span>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
-                        <Amount>{formatBtc(d.amountBtc, loc)}</Amount>
+                        <Amount>{amountFmt.format(d.amountBtc)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatFiat(d.proceedsEur, "EUR", loc)}</Amount>

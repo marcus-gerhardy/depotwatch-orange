@@ -19,7 +19,7 @@ import {
 import { formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { THEMES } from "@/lib/theme";
-import { dec, formatBtc, formatFiat, formatInt } from "@/lib/decimal";
+import { dec, formatBtc, formatInt } from "@/lib/decimal";
 import { useDailyCloses } from "@/lib/marketData";
 import { Amount, Button } from "../ui";
 import PortfolioChart from "../PortfolioChart";
@@ -74,7 +74,9 @@ interface TradeMarker {
  * Transfers are left out — they move coins, they are not entries or exits.
  */
 export function PriceEntriesWidget() {
-  const { t, loc, currency, entries } = useDashboardData();
+  // The BTC price only means something in fiat, so this chart stays in the
+  // fiat currency behind the display setting even on a Bitcoin standard.
+  const { t, loc, priceCurrency: currency, entries } = useDashboardData();
   const privacyMode = useAppStore((s) => s.privacyMode);
   const c = useThemeColors();
   const tooltipStyle = useTooltipStyle();
@@ -228,7 +230,7 @@ export function PriceEntriesWidget() {
  * was put in, so transfers and sells are deliberately not part of the average.
  */
 export function DcaWidget() {
-  const { t, loc, currency, entries, eurToDisplay } = useDashboardData();
+  const { t, loc, entries, fmtDisplay } = useDashboardData();
   const privacyMode = useAppStore((s) => s.privacyMode);
   const c = useThemeColors();
   const tooltipStyle = useTooltipStyle();
@@ -288,8 +290,7 @@ export function DcaWidget() {
 
   if (!stats) return <WidgetEmpty message={t("dashboard.widgets.dcaEmpty")} />;
 
-  const fmtEur = (v: number) =>
-    eurToDisplay === null ? "—" : formatFiat(v * eurToDisplay, currency, loc);
+  const fmtEur = (v: number) => fmtDisplay(v);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">

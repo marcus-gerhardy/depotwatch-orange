@@ -10,6 +10,7 @@ import { useNow } from "@/lib/clock";
 import { formatInt } from "@/lib/decimal";
 import { useBlockHeight, useFeeEstimates } from "@/lib/marketData";
 import { explorerBase } from "@/lib/esplora";
+import { feeMood, useEasterEggs } from "@/lib/easterEggs";
 import { useDashboardData } from "./context";
 import { Meter, StatLabel, StatValue, WidgetError, WidgetSkeleton } from "./WidgetFrame";
 
@@ -17,6 +18,7 @@ import { Meter, StatLabel, StatValue, WidgetError, WidgetSkeleton } from "./Widg
 export function NetworkFeesWidget() {
   const { t, explorerSettings } = useDashboardData();
   const fees = useFeeEstimates(explorerSettings);
+  const eggs = useEasterEggs();
 
   if (fees.loading) return <WidgetSkeleton lines={4} />;
   if (fees.error || !fees.data) {
@@ -45,6 +47,13 @@ export function NetworkFeesWidget() {
           {fees.data.halfHourFee} <span className="text-sm font-normal">sat/vB</span>
         </StatValue>
         <StatLabel>{t("dashboard.widgets.feeHalfHour")}</StatLabel>
+        {/* What one would actually do at this rate — consolidate while blocks
+            are cheap, wait while they are not (§5.1). */}
+        {eggs && (
+          <p className="mt-1 text-xs leading-snug text-muted">
+            {t(`dashboard.widgets.feeMood.${feeMood(fees.data.halfHourFee)}`)}
+          </p>
+        )}
       </div>
       <table className="mt-auto w-full text-xs">
         <tbody>

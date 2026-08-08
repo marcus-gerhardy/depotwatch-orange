@@ -6,7 +6,7 @@ import { useAppStore } from "@/lib/store";
 import type { Currency, ExplorerProvider, Locale } from "@/lib/types";
 import { DEFAULT_THEME, THEMES, THEME_IDS, type ThemeId } from "@/lib/theme";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
-import { Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
+import { Button, Card, Field, Modal, SectionTitle, Switch, inputCls } from "./ui";
 
 export default function SettingsView() {
   const { t } = useI18n();
@@ -15,6 +15,8 @@ export default function SettingsView() {
   const setPassword = useAppStore((s) => s.setPassword);
   const setUiLocale = useAppStore((s) => s.setUiLocale);
   const setUiTheme = useAppStore((s) => s.setUiTheme);
+  const setLaserEyes = useAppStore((s) => s.setLaserEyes);
+  const laserEyes = useAppStore((s) => s.portfolio?.uiSettings?.laserEyes) === true;
   const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
   const fileMode = useAppStore((s) => s.fileMode);
 
@@ -70,9 +72,45 @@ export default function SettingsView() {
             >
               <option value="EUR">EUR</option>
               <option value="USD">USD</option>
+              {/* A display unit, not a valuation currency: the ledger stays
+                  EUR and amounts are shown in sats (§6.3). */}
+              <option value="BTC">{t("settings.currencyBtc")}</option>
             </select>
           </Field>
         </div>
+
+        {/* The playful touches, all of them, in one switch (§5.1). */}
+        <label className="flex cursor-pointer items-start gap-3">
+          <Switch
+            checked={s.easterEggs !== false}
+            onChange={(on) => patchSettings({ easterEggs: on })}
+            label={t("settings.easterEggs")}
+          />
+          <span className="text-sm">
+            {t("settings.easterEggs")}
+            <span className="block text-xs text-muted">
+              {t("settings.easterEggsHint")}
+            </span>
+          </span>
+        </label>
+
+        {/* Only offered once it has been unlocked — otherwise it would give
+            itself away. */}
+        {s.easterEggs !== false && laserEyes && (
+          <label className="flex cursor-pointer items-start gap-3">
+            <Switch
+              checked={laserEyes}
+              onChange={setLaserEyes}
+              label={t("settings.laserEyes")}
+            />
+            <span className="text-sm">
+              {t("settings.laserEyes")}
+              <span className="block text-xs text-muted">
+                {t("settings.laserEyesHint")}
+              </span>
+            </span>
+          </label>
+        )}
 
         {/* Colour theme (§5). Written to the file and to the device preference,
             like the language, so the pages without an open file follow it. */}

@@ -92,6 +92,9 @@ const en: typeof de = {
     github: "Don't trust, verify on GitHub",
     imprint: "Legal Notice",
     privacy: "Privacy",
+    genesisHeadline:
+      "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks",
+    runningBitcoin: "Running bitcoin. (Hal Finney, 10 January 2009)",
   },
   howItWorks: {
     metaTitle: "How It Works | DepotWatch Orange",
@@ -113,8 +116,11 @@ const en: typeof de = {
       "Important: there is no password reset. Since nothing sits on a server, nobody can send you a new password or decrypt the file, not even us. If you lose the password or the file, the data is gone for good. Keep both safe and back the file up regularly (it is encrypted, so storing it on a USB stick, for example, is perfectly fine).",
     watchlistTitle: "Watchlist: deliberately separate from the portfolio",
     watchlistBody:
-      "The address watchlist (balances, UTXOs, privacy checks) is watch-only and kept apart from the portfolio ledger: watched addresses are never automatically part of your holdings, and your recorded transactions are never tied to on-chain lookups. There is a security and a privacy reason for that: live data comes from a configurable explorer source (your own node if you prefer). With public APIs, the provider sees the addresses you query. Your ledger, in contrast, needs no network access at all. So you decide per address what gets queried, and your portfolio stays completely private even if you never use the watchlist.",
+      "The address watchlist (balances, UTXOs, privacy checks) is watch-only and kept apart from the portfolio ledger: watched addresses are never automatically part of your holdings, and your recorded transactions are never tied to on-chain lookups. There is a security and a privacy reason for that: live data from the timechain comes from a configurable explorer source (your own node if you prefer). With public APIs, the provider sees the addresses you query. Your ledger, in contrast, needs no network access at all. So you decide per address what gets queried, and your portfolio stays completely private even if you never use the watchlist.",
     openSourceTitle: "Open source: don't trust, verify",
+    whitepaperBody:
+      "The Bitcoin whitepaper ships with this app: nine pages, served from the project itself, with no request to anyone else.",
+    whitepaperLink: "Bitcoin: A Peer-to-Peer Electronic Cash System (PDF)",
     openSourceBody:
       "You don't have to take our word for any of this. DepotWatch Orange is open source (MIT license). Anyone can check the code: whether nothing really is uploaded, how the encryption is implemented, and what else the app does.",
   },
@@ -245,6 +251,17 @@ const en: typeof de = {
       avgCostUnknown:
         "Without a cost basis or a current price the distance cannot be computed.",
       distance: "Distance",
+      oneBtc: "1 BTC = 1 BTC",
+      pizzaDay: "Bitcoin Pizza Day: {pizzas} pizzas at the 2010 rate (10,000 BTC for two)",
+      sovereignBadge: "Not your keys, not your coins. But these are yours.",
+      sovereignHint: "None of the holding sits on an exchange.",
+      feeMood: {
+        veryLow: "Very cheap blocks: a good moment to consolidate UTXOs.",
+        low: "Cheap. Larger transactions cost little right now.",
+        normal: "Normal load.",
+        high: "Elevated fees: anything that can wait, should.",
+        veryHigh: "Very expensive blocks. If it is not urgent, send later.",
+      },
       onExchanges: "on exchanges",
       selfCustody: "Self custody",
       exchangeWarning:
@@ -379,6 +396,13 @@ const en: typeof de = {
     deleteAccountConfirm:
       "Delete account “{name}” including all transactions?",
     empty: "No wallets yet. Create a wallet with an account first.",
+  },
+  celebration: {
+    wholecoinerTitle: "One whole coin.",
+    wholecoinerBody: "Your holding has reached 1.00000000 BTC.",
+  },
+  easterEggs: {
+    laserEyesUnlocked: "Laser eyes unlocked. You can switch them off in the settings.",
   },
   tx: {
     title: "Transactions",
@@ -527,6 +551,9 @@ const en: typeof de = {
     nextPage: "Next page",
     empty: "No transactions found.",
     emptyLedger: "No transactions recorded yet.",
+    emptyLedgerEgg: "Nothing here yet. Every stack starts at zero sats.",
+    amountColumn: "Amount ({unit})",
+    feeColumn: "Fee ({unit})",
     resetFilters: "Reset filters",
     amountRequired: "Amount must be greater than 0.",
     priceRequired: "Price or total (EUR) is required for buy/sell/spend.",
@@ -919,6 +946,12 @@ const en: typeof de = {
     title: "Settings",
     general: "General",
     language: "Language",
+    currencyBtc: "BTC (amounts in sats)",
+    easterEggs: "Easter eggs / playful touches",
+    easterEggsHint:
+      "Small extras: pizza day, the genesis line, confetti on the first whole coin, laser eyes, fee hints. Switched off, the app behaves entirely plainly.",
+    laserEyes: "Laser eyes",
+    laserEyesHint: "Purely cosmetic: a brighter orange and laser eyes in the logo.",
     theme: "Colour theme",
     themes: {
       ocean: "Ocean (default)",

@@ -1,15 +1,15 @@
 // Live and historical BTC prices from the Binance public API (CORS-enabled).
 
-import type { Currency } from "./types";
+import type { FiatCurrency } from "./types";
 
 const BASE = "https://api.binance.com/api/v3";
 
-const SYMBOLS: Record<Currency, string> = {
+const SYMBOLS: Record<FiatCurrency, string> = {
   EUR: "BTCEUR",
   USD: "BTCUSDT",
 };
 
-export async function fetchSpotPrice(currency: Currency): Promise<number> {
+export async function fetchSpotPrice(currency: FiatCurrency): Promise<number> {
   const res = await fetch(`${BASE}/ticker/price?symbol=${SYMBOLS[currency]}`);
   if (!res.ok) throw new Error(`Binance ticker failed: ${res.status}`);
   const data = (await res.json()) as { price: string };
@@ -36,7 +36,7 @@ type Kline = [number, string, string, string, string, ...unknown[]];
 
 export async function fetchDailyClose(
   isoDate: string,
-  currency: Currency = "EUR",
+  currency: FiatCurrency = "EUR",
 ): Promise<number | null> {
   const day = Date.parse(isoDate);
   if (Number.isNaN(day)) return null;
@@ -58,7 +58,7 @@ export async function fetchDailyClose(
 
 /** Daily closes, oldest first. Binance caps limit at 1000 (~2.7 years). */
 export async function fetchDailyCloses(
-  currency: Currency,
+  currency: FiatCurrency,
   startTime?: number,
 ): Promise<DailyClose[]> {
   const out: DailyClose[] = [];

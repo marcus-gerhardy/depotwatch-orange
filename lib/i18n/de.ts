@@ -89,6 +89,9 @@ const de = {
     github: "Don't trust, verify on GitHub",
     imprint: "Impressum",
     privacy: "Datenschutz",
+    genesisHeadline:
+      "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks",
+    runningBitcoin: "Running bitcoin. (Hal Finney, 10. Januar 2009)",
   },
   howItWorks: {
     metaTitle: "So funktioniert's | DepotWatch Orange",
@@ -110,8 +113,11 @@ const de = {
       "Wichtig: Es gibt keinen Passwort-Reset. Da nichts auf einem Server liegt, kann dir niemand ein neues Passwort schicken oder die Datei entschlüsseln, auch wir nicht. Verlierst du Passwort oder Datei, sind die Daten unwiederbringlich verloren. Verwahre beides sicher und lege regelmäßig Backups der Datei an (die Datei ist verschlüsselt, du kannst sie also bedenkenlos z. B. auf einem USB-Stick sichern).",
     watchlistTitle: "Watchlist: bewusst getrennt vom Portfolio",
     watchlistBody:
-      "Die Adress-Watchlist (Salden, UTXOs, Privacy-Checks) ist watch-only und vom Portfolio-Ledger getrennt: Beobachtete Adressen sind niemals automatisch Teil deiner Bestände, und deine erfassten Transaktionen werden nie mit On-Chain-Abfragen verknüpft. Das hat einen Sicherheits- und einen Privacy-Grund: Live-Daten kommen von einer konfigurierbaren Explorer-Quelle (auf Wunsch dein eigener Node). Bei öffentlichen APIs sieht der Anbieter die abgefragten Adressen. Dein Ledger dagegen braucht überhaupt keine Netzwerkzugriffe. So entscheidest du pro Adresse, was du abfragst, und dein Portfolio bleibt auch dann vollständig privat, wenn du die Watchlist gar nicht nutzt.",
+      "Die Adress-Watchlist (Salden, UTXOs, Privacy-Checks) ist watch-only und vom Portfolio-Ledger getrennt: Beobachtete Adressen sind niemals automatisch Teil deiner Bestände, und deine erfassten Transaktionen werden nie mit On-Chain-Abfragen verknüpft. Das hat einen Sicherheits- und einen Privacy-Grund: Live-Daten aus der Timechain kommen von einer konfigurierbaren Explorer-Quelle (auf Wunsch dein eigener Node). Bei öffentlichen APIs sieht der Anbieter die abgefragten Adressen. Dein Ledger dagegen braucht überhaupt keine Netzwerkzugriffe. So entscheidest du pro Adresse, was du abfragst, und dein Portfolio bleibt auch dann vollständig privat, wenn du die Watchlist gar nicht nutzt.",
     openSourceTitle: "Open Source: Don't trust, verify",
+    whitepaperBody:
+      "Das Bitcoin-Whitepaper ist in dieser App enthalten: neun Seiten, direkt aus dem Projekt geladen, ohne Anfrage an Dritte.",
+    whitepaperLink: "Bitcoin: A Peer-to-Peer Electronic Cash System (PDF)",
     openSourceBody:
       "All das musst du uns nicht glauben. DepotWatch Orange ist Open Source (MIT-Lizenz). Jeder kann den Code prüfen: ob wirklich nichts hochgeladen wird, wie die Verschlüsselung implementiert ist und was die App sonst tut.",
   },
@@ -242,6 +248,17 @@ const de = {
       avgCostUnknown:
         "Ohne Einstandskurs oder aktuellen Kurs lässt sich der Abstand nicht berechnen.",
       distance: "Abstand",
+      oneBtc: "1 BTC = 1 BTC",
+      pizzaDay: "Bitcoin Pizza Day: {pizzas} Pizzen zum Kurs von 2010 (10.000 BTC für zwei)",
+      sovereignBadge: "Not your keys, not your coins. Deine schon.",
+      sovereignHint: "Kein Anteil des Bestands liegt auf einer Börse.",
+      feeMood: {
+        veryLow: "Sehr günstige Blöcke: guter Moment, um UTXOs zu konsolidieren.",
+        low: "Günstig. Größere Transaktionen kosten gerade wenig.",
+        normal: "Normale Auslastung.",
+        high: "Erhöhte Gebühren: Unwichtiges kann warten.",
+        veryHigh: "Sehr teure Blöcke. Wenn es nicht eilt: später senden.",
+      },
       onExchanges: "auf Börsen",
       selfCustody: "Eigenverwahrung",
       exchangeWarning:
@@ -378,6 +395,13 @@ const de = {
     deleteAccountConfirm:
       "Konto „{name}“ inkl. aller Transaktionen löschen?",
     empty: "Noch keine Wallets. Lege zuerst ein Wallet mit einem Konto an.",
+  },
+  celebration: {
+    wholecoinerTitle: "Ein ganzer Coin.",
+    wholecoinerBody: "Dein Bestand hat 1,00000000 BTC erreicht.",
+  },
+  easterEggs: {
+    laserEyesUnlocked: "Laseraugen freigeschaltet. Abschaltbar in den Einstellungen.",
   },
   tx: {
     title: "Transaktionen",
@@ -527,6 +551,9 @@ const de = {
     nextPage: "Nächste Seite",
     empty: "Keine Transaktionen gefunden.",
     emptyLedger: "Noch keine Transaktionen erfasst.",
+    emptyLedgerEgg: "Noch nichts hier. Jeder Stack fängt bei null Sats an.",
+    amountColumn: "Menge ({unit})",
+    feeColumn: "Gebühr ({unit})",
     resetFilters: "Filter zurücksetzen",
     amountRequired: "Menge muss größer als 0 sein.",
     priceRequired:
@@ -923,6 +950,12 @@ const de = {
     title: "Einstellungen",
     general: "Allgemein",
     language: "Sprache",
+    currencyBtc: "BTC (Beträge in Sats)",
+    easterEggs: "Easter Eggs / Spielereien",
+    easterEggsHint:
+      "Kleine Extras: Pizza-Tag, Genesis-Zeile, Konfetti beim ersten ganzen Coin, Laseraugen, Gebühren-Hinweise. Ausgeschaltet verhält sich die App vollständig nüchtern.",
+    laserEyes: "Laseraugen",
+    laserEyesHint: "Rein kosmetisch: kräftigeres Orange und Laseraugen im Logo.",
     theme: "Farbschema",
     themes: {
       ocean: "Ozean (Standard)",

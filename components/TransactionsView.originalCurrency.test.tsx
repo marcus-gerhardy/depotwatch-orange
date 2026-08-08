@@ -65,14 +65,16 @@ describe("TransactionsView: opt-in columns", () => {
   it("keeps the BTC fee column hidden until it is switched on", () => {
     render(<TransactionsView />);
 
-    expect(headers().some((h) => h?.startsWith("tx.feeBtc"))).toBe(false);
+    // The amount and fee headers name the unit they are displayed in
+    // (BTC or sats), so their key differs from the form field's.
+    expect(headers().some((h) => h?.startsWith("tx.feeColumn"))).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "tx.columns" }));
-    fireEvent.click(screen.getByLabelText("tx.feeBtc"));
+    fireEvent.click(screen.getByLabelText("tx.feeColumn"));
 
     // Right after the amount column, and empty where no BTC fee was recorded.
     const shown = headers();
-    expect(shown.indexOf("tx.feeBtc")).toBe(shown.indexOf("tx.amountBtc") + 1);
+    expect(shown.indexOf("tx.feeColumn")).toBe(shown.indexOf("tx.amountColumn") + 1);
     expect(screen.getByText("0,00001000")).toBeTruthy();
   });
 });

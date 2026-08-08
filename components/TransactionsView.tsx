@@ -39,6 +39,8 @@ import {
   type DataIssue,
 } from "@/lib/dataQuality";
 import { effectiveOnChain, isLegPaired, pairedGroupIds } from "@/lib/transferLink";
+import { useEasterEggs } from "@/lib/easterEggs";
+import { useAmountFormat } from "@/lib/displayUnit";
 import {
   derivedTransferValues,
   recordedShareValue,
@@ -1721,6 +1723,8 @@ export default function TransactionsView({
   // Ledger-wide data-quality facts (origin resolution walks every link), so the
   // filter and the per-row badge read one shared computation.
   const issueCtx = useMemo(() => issueContext(all), [all]);
+  const eggs = useEasterEggs();
+  const amountFmt = useAmountFormat();
 
   // Kurs/value of the transfer legs that carry none of their own, derived from
   // the buys behind them (§3.2). Computed once for the whole ledger: sorting
@@ -1932,10 +1936,12 @@ export default function TransactionsView({
         return t("tx.taxStatus");
       case "walletAccount":
         return `${t("tx.wallet")} / ${t("tx.account")}`;
+      // The table follows the display unit (§6.3); the input fields elsewhere
+      // always stay in BTC, which is what the ledger stores.
       case "amount":
-        return t("tx.amountBtc");
+        return t("tx.amountColumn", { unit: amountFmt.unit });
       case "feeBtc":
-        return t("tx.feeBtc");
+        return t("tx.feeColumn", { unit: amountFmt.unit });
       case "price":
         return t("tx.priceEur");
       case "value":
@@ -2306,7 +2312,7 @@ export default function TransactionsView({
                         different offers: add something, or drop the filter. */}
                     {all.length === 0 ? (
                       <div className="space-y-3">
-                        <p>{t("tx.emptyLedger")}</p>
+                        <p>{eggs ? t("tx.emptyLedgerEgg") : t("tx.emptyLedger")}</p>
                         <Button variant="primary" onClick={() => openAdd()}>
                           + {t("tx.add")}
                         </Button>
@@ -2486,13 +2492,13 @@ export default function TransactionsView({
                     )}
                     {visibleCols.has("amount") && (
                       <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
-                        <Amount>{formatBtc(r.amountBtc, loc)}</Amount>
+                        <Amount>{amountFmt.format(r.amountBtc)}</Amount>
                       </td>
                     )}
                     {visibleCols.has("feeBtc") && (
                       <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
                         {r.feeBtc !== undefined && r.feeBtc !== "" ? (
-                          <Amount>{formatBtc(r.feeBtc, loc)}</Amount>
+                          <Amount>{amountFmt.format(r.feeBtc ?? "0")}</Amount>
                         ) : (
                           <span className="text-muted">—</span>
                         )}

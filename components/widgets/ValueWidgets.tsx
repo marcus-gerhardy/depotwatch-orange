@@ -5,9 +5,11 @@
 // anything of its own beyond the daily closes, which are cached per day.
 
 import { useMemo } from "react";
-import { formatBtc, formatFiat, formatInt, formatPercent } from "@/lib/decimal";
+import { formatInt, formatPercent } from "@/lib/decimal";
 import { dailyValueSeries } from "@/lib/portfolio";
 import { useDailyCloses } from "@/lib/marketData";
+import { SATS_PER_BTC } from "@/lib/displayUnit";
+import { formatPizzas, isPizzaDay, pizzasFor, useEasterEggs } from "@/lib/easterEggs";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { Amount, PnlValue } from "../ui";
 import { useDashboardData } from "./context";
@@ -58,13 +60,21 @@ function DeltaChip({
  * buying or selling that happened in between.
  */
 export function PortfolioValueWidget() {
-  const { t, loc, currency, entries, balanceBtc, displayPrice } = useDashboardData();
+  const { t, loc, currency, priceCurrency, entries, balanceBtc, displayPrice, fmtValue, fmtAmount } =
+    useDashboardData();
+  const eggs = useEasterEggs();
   const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
-  const closes = useDailyCloses(currency, startTime);
+  const closes = useDailyCloses(priceCurrency, startTime);
+  const inSats = currency === "BTC";
 
   const series = useMemo(
-    () => (closes.data ? dailyValueSeries(entries, closes.data) : []),
-    [entries, closes.data],
+    () =>
+      (closes.data ? dailyValueSeries(entries, closes.data) : []).map((p) => ({
+        ...p,
+        // On a Bitcoin standard the value of the stack is the stack.
+        value: inSats ? p.btc * SATS_PER_BTC : p.value,
+      })),
+    [entries, closes.data, inSats],
   );
 
   const totalBtc = balanceBtc.toNumber();
@@ -97,11 +107,23 @@ export function PortfolioValueWidget() {
     <div className="flex h-full flex-col gap-3">
       <div>
         <StatValue>
-          {totalValue !== null ? formatFiat(totalValue, currency, loc) : "—"}
+          {/* Measured in Bitcoin, a Bitcoin is worth a Bitcoin — the one figure
+              on this dashboard that never moves (§5.1). */}
+          {inSats && eggs ? t("dashboard.widgets.oneBtc") : fmtValue(totalValue)}
         </StatValue>
         <StatLabel>
-          <Amount>{formatBtc(balanceBtc, loc)} BTC</Amount>
+          <Amount>{fmtAmount(balanceBtc)}</Amount>
         </StatLabel>
+        {eggs && isPizzaDay() && balanceBtc.gt(0) && (
+          <StatLabel>
+            <Amount>
+              🍕{" "}
+              {t("dashboard.widgets.pizzaDay", {
+                pizzas: formatPizzas(pizzasFor(balanceBtc), loc),
+              })}
+            </Amount>
+          </StatLabel>
+        )}
       </div>
       {closes.loading && entries.length > 0 ? (
         <WidgetSkeleton lines={2} />
@@ -121,7 +143,7 @@ export function PortfolioValueWidget() {
                     ? null
                     : absolute / then
                 }
-                format={(v) => formatFiat(v, currency, loc)}
+                format={fmtValue}
               />
             );
           })}
@@ -143,7 +165,8 @@ export function PortfolioValueWidget() {
  * the average cost. What is left out is stated below the figure instead.
  */
 export function PnlWidget() {
-  const { t, loc, fifo, balanceBtc, priceEur, fmtDisplay } = useDashboardData();
+  const { t, loc, fifo, balanceBtc, priceEur, fmtDisplay, fmtAmount, fmtAmountPlain } =
+    useDashboardData();
   const openCostEur = fifo.openCostBasisEur.toNumber();
   const basisBtc = fifo.openBasisBtc;
   const unrealizedEur =
@@ -183,7 +206,7 @@ export function PnlWidget() {
         <div className="flex justify-between gap-2">
           <dt className="text-muted">{t("dashboard.widgets.pnlCoveredBtc")}</dt>
           <dd className="font-mono">
-            <Amount>{formatBtc(basisBtc, loc)}</Amount>
+            <Amount>{fmtAmountPlain(basisBtc)}</Amount>
           </dd>
         </div>
         <div className="flex justify-between gap-2 border-t border-border-c/40 pt-1">
@@ -206,7 +229,7 @@ export function PnlWidget() {
           ⚠{" "}
           <Amount>
             {t("dashboard.widgets.pnlWithoutBasisHint", {
-              amount: formatBtc(withoutBasisBtc, loc),
+              amount: fmtAmount(withoutBasisBtc),
             })}
           </Amount>
         </p>
@@ -217,7 +240,7 @@ export function PnlWidget() {
 
 /** The BTC spot price card the dashboard has always shown. */
 export function BtcPriceWidget() {
-  const { t, loc, currency, displayPrice, priceError, priceLoading, fifo, fmtDisplay } =
+  const { t, displayPrice, priceError, priceLoading, fifo, fmtDisplay, fmtValue } =
     useDashboardData();
 
   return (
@@ -225,7 +248,7 @@ export function BtcPriceWidget() {
       <div>
         <div className="text-2xl leading-tight font-bold text-accent">
           {displayPrice !== null
-            ? formatFiat(displayPrice, currency, loc)
+            ? fmtValue(displayPrice)
             : priceLoading
               ? "…"
               : priceError
@@ -311,7 +334,7 @@ export function SatsStackWidget() {
  * one scale so the distance is visible at a glance rather than only readable.
  */
 export function AvgCostWidget() {
-  const { t, loc, currency, fifo, displayPrice, eurToDisplay, fmtDisplay } =
+  const { t, loc, fifo, displayPrice, eurToDisplay, fmtDisplay, fmtValue } =
     useDashboardData();
   const avgEur = fifo.avgCostPerBtcEur?.toNumber() ?? null;
   const avgDisplay =
@@ -353,7 +376,7 @@ export function AvgCostWidget() {
             <PnlValue value={diff ?? 0}>
               <span className="font-mono">
                 {diff !== null && diff > 0 ? "+" : ""}
-                {diff === null ? "—" : formatFiat(diff, currency, loc)}
+                {fmtValue(diff)}
                 {diffPct !== null && ` (${formatPercent(diffPct, loc)})`}
               </span>
             </PnlValue>
@@ -363,7 +386,7 @@ export function AvgCostWidget() {
               ▎{t("dashboard.avgCost")}: {fmtDisplay(avgEur)}
             </span>
             <span className="text-accent">
-              ▎{t("dashboard.price")}: {formatFiat(displayPrice, currency, loc)}
+              ▎{t("dashboard.price")}: {fmtValue(displayPrice)}
             </span>
           </div>
         </div>

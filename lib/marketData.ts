@@ -18,7 +18,7 @@ import {
   explorerBase,
   type FeeEstimates,
 } from "./esplora";
-import type { Currency, ExplorerSettings } from "./types";
+import type { ExplorerSettings, FiatCurrency } from "./types";
 
 interface CacheEntry {
   /** Resolved value, when the last attempt succeeded. */
@@ -190,7 +190,7 @@ export function useSpotPrices(): Resource<SpotPrices> {
  * callers with timestamps a second apart would each fetch their own copy.
  */
 export function useDailyCloses(
-  currency: Currency,
+  currency: FiatCurrency,
   startTime: number | null,
 ): Resource<DailyClose[]> {
   const day =

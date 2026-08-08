@@ -57,6 +57,19 @@ export default function HowItWorksPage() {
               {t("footer.github")}&nbsp;↗
             </a>
           </p>
+          {/* Nine pages, shipped with the app like everything else here — no
+              request to anyone else to read them. */}
+          <p className="mt-3 text-sm text-muted">
+            {t("howItWorks.whitepaperBody")}{" "}
+            <a
+              href="/bitcoin.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              {t("howItWorks.whitepaperLink")}&nbsp;↗
+            </a>
+          </p>
         </Section>
       </section>
     </StaticPage>
