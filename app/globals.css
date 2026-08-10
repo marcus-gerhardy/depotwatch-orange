@@ -1,39 +1,7 @@
 @import "tailwindcss";
 
-/* Colour themes (spec §5/§6.3). Both are dark and keep the Bitcoin orange as
-   the accent; only the neutrals change, so every component keeps working off
-   the same tokens and nothing needs a per-theme branch.
-
-   "ocean" (default): deep navy with warm cream text.
-   "night": orange on near-black, maximum contrast. */
-[data-theme="night"] {
-  --background: #0b0b0d;
-  --surface: #151518;
-  --surface-2: #1d1d21;
-  --border: #2a2a30;
-  --foreground: #ececec;
-  --muted: #98989f;
-  --accent: #f7931a;
-  --accent-dim: #b96f14;
-  --gain: #26a269;
-  --loss: #e01b24;
-  --warning: #e5a50a;
-}
-
-:root,
-[data-theme="ocean"] {
-  --background: #050b14;
-  --surface: #07111f;
-  --surface-2: #0d2138;
-  --border: #17304a;
-  --foreground: #fff9ef;
-  --muted: #93a7bd;
-  --accent: #f7931a;
-  --accent-dim: #d97512;
-  --gain: #2fb37f;
-  --loss: #ef5350;
-  --warning: #f3a13d;
-}
+/* The themes themselves live in themes.css, generated from lib/theme.ts. */
+@import "./themes.css";
 
 @theme inline {
   --color-background: var(--background);
@@ -50,12 +18,20 @@
   --font-sans: var(--font-outfit);
   --font-heading: var(--font-space-grotesk);
   --font-mono: var(--font-geist-mono);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-accent-contrast: var(--accent-contrast);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-outfit), system-ui, sans-serif;
+  /* A theme may bring its own typeface (the terminal one is monospaced); the
+     app's own fonts are the fallback. */
+  font-family: var(--theme-font-body, var(--font-outfit)), system-ui, sans-serif;
 }
 
 /* Headings in Space Grotesk, body text in Outfit (§5). Set on the elements
@@ -67,7 +43,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-space-grotesk), var(--font-outfit), system-ui, sans-serif;
+  font-family: var(--theme-font-heading, var(--font-space-grotesk)),
+    var(--font-outfit), system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
 
@@ -114,14 +91,52 @@ h6 {
   }
 }
 
-/* Laser eyes (§5.1): a cosmetic glow, nothing else. */
-[data-laser-eyes="on"] {
-  --accent: #ff9d1c;
-}
+/* Laser eyes (§5.1). The face and its flares are drawn in LaserAvatar.tsx;
+   what is left here is the heat around them — a bloom in the active theme's
+   accent, which is also the only colour the effect uses, so it works in all
+   nine themes including the light ones. drop-shadow rather than text-shadow,
+   because what glows is an SVG and not a glyph. Nothing moves, and nothing
+   here can take a click. */
 [data-laser-eyes="on"] .laser-glow {
-  text-shadow:
-    0 0 6px var(--accent),
-    0 0 18px var(--accent);
+  filter: drop-shadow(0 0 4px var(--accent)) drop-shadow(0 0 14px var(--accent));
+}
+
+/* Terminal theme: a very quiet scanline texture over the whole page. Static,
+   not animated, and behind everything — it cannot be clicked and nothing moves.
+   Contrast is unaffected at this opacity, and it is dropped entirely when the
+   user asks for reduced motion or more contrast. */
+[data-theme="terminal"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.22) 0px,
+    rgba(0, 0, 0, 0.22) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce), (prefers-contrast: more) {
+  [data-theme="terminal"] body::after {
+    display: none;
+  }
+}
+
+/* The print tokens themselves come from themes.css (the paper theme); this is
+   what a page still has to drop when it goes on paper. */
+@media print {
+  body::after {
+    display: none;
+  }
+  .react-grid-item {
+    position: static !important;
+    transform: none !important;
+  }
 }
 
 /* Privacy mode: blur amounts, e.g. for screenshots/screen sharing. */

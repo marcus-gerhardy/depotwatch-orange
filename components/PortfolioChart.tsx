@@ -18,7 +18,7 @@ import { useDailyCloses } from "@/lib/marketData";
 import { dailyValueSeries } from "@/lib/portfolio";
 import { SATS_PER_BTC } from "@/lib/displayUnit";
 import { priceCurrencyOf, type LedgerEntry } from "@/lib/types";
-import { THEMES } from "@/lib/theme";
+import { useThemeColors } from "@/lib/appearance";
 import { Button } from "./ui";
 
 type Range = 90 | 365 | 0; // 0 = all
@@ -35,7 +35,7 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
   // Recharts needs literal colours (SVG attributes take no CSS variables), so
   // the chart reads the active theme's tokens from the same table the
   // stylesheet is checked against (lib/theme.ts).
-  const c = THEMES[useAppStore((s) => s.uiTheme)];
+  const c = useThemeColors();
 
   const [range, setRange] = useState<Range>(365);
   const [compare, setCompare] = useState(false);

@@ -85,6 +85,18 @@ describe("sats display", () => {
     expect(amountUnit("USD")).toBe("BTC");
   });
 
+  it("reads the price as moscow time, and says nothing when it is not a clock", async () => {
+    const { moscowTime } = await import("./displayUnit");
+    expect(moscowTime(50_000)?.clock).toBe("20:00"); // 2 000 sats per unit
+    expect(moscowTime(50_000)?.sats).toBe(2_000);
+    expect(moscowTime(103_000)?.clock).toBe("09:71"); // 971 sats: minutes past 59 exist here
+    expect(moscowTime(1_000_000)?.clock).toBe("01:00");
+    expect(moscowTime(9_999)).toBeNull(); // 10 000 sats and up is no longer a clock
+    expect(moscowTime(300_000_000)).toBeNull(); // below half a sat per unit
+    expect(moscowTime(null)).toBeNull();
+    expect(moscowTime(0)).toBeNull();
+  });
+
   it("never lets the display unit touch a stored value", async () => {
     // The ledger keeps BTC decimal strings; sats are a rendering, so the value
     // a comparison or a sum sees is the same in either mode.

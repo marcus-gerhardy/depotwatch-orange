@@ -2,7 +2,7 @@
 // All BTC/fiat amounts are decimal strings — never JS numbers (see CLAUDE.md §10).
 
 import type { UserImportPreset } from "./importPresets";
-import { DEFAULT_THEME, type ThemeId } from "./theme";
+import { DEFAULT_THEME, type ThemeId, type ThemeMode } from "./theme";
 
 export type WalletType = "exchange" | "hardware" | "software" | "paper";
 
@@ -160,9 +160,9 @@ export interface AppSettings {
   locale: Locale;
   currencyDisplay: Currency;
   /**
-   * Interface colour theme (§5). Optional: files written before it existed
-   * fall back to the default, and it is mirrored to a device preference like
-   * the language, so the pages without an open file follow it too.
+   * Where the colour theme used to live. Files written before it moved to
+   * `uiSettings` still carry it, and it is still read from here as a fallback
+   * — nothing writes it any more (§5).
    */
   theme?: ThemeId;
   /**
@@ -202,6 +202,18 @@ export interface UiSettings {
   dashboardLayout?: DashboardWidgetPlacement[];
   /** Visible transaction-table columns, in display order. */
   transactionColumns?: string[];
+  /**
+   * Appearance (§5). Kept here rather than in `settings`, next to the other
+   * things about how the interface is arranged, and mirrored to a device
+   * preference so the start screen is themed before a file is open.
+   */
+  theme?: ThemeId;
+  /** "fixed" uses `theme`; "system" picks `themeLight`/`themeDark`. */
+  themeMode?: ThemeMode;
+  themeLight?: ThemeId;
+  themeDark?: ThemeId;
+  /** Gain switches from green to blue, for red/green colour blindness. */
+  colorBlindSafe?: boolean;
   /** The one-off "first whole coin" celebration has been shown (§5.1). */
   wholecoinerCelebrated?: boolean;
   /** Cosmetic laser-eyes mode, unlocked in the header and switchable in the settings. */

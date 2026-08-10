@@ -187,17 +187,43 @@ export function HoldingCompositionWidget() {
     ["dashboard.breakdownTransferOuts", breakdown.transferOuts],
     ["dashboard.breakdownSpends", breakdown.spends],
   ] as const;
+  const total = rows.reduce((sum, [, value]) => sum.plus(value.abs()), ZERO);
 
   return (
     <div className="space-y-2">
       <p className="text-[0.65rem] leading-relaxed text-muted">
         {t("dashboard.breakdownIntro")}
       </p>
+      {/* One bar, five parts, in the theme's chart series — the only place the
+          app needs categorical colours, and it takes them from the tokens like
+          everything else (CLAUDE.md §5). */}
+      {total.gt(0) && (
+        <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-2">
+          {rows.map(([key, value], i) => (
+            <div
+              key={key}
+              className="h-full"
+              style={{
+                width: `${value.abs().div(total).toNumber() * 100}%`,
+                background: `var(--chart-${i + 1})`,
+              }}
+              title={t(key)}
+            />
+          ))}
+        </div>
+      )}
       <table className="w-full text-xs">
         <tbody>
-          {rows.map(([key, value]) => (
+          {rows.map(([key, value], i) => (
             <tr key={key} className="border-b border-border-c/40">
-              <td className="py-1 text-muted">{t(key)}</td>
+              <td className="py-1 text-muted">
+                <span
+                  aria-hidden
+                  className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+                  style={{ background: `var(--chart-${i + 1})` }}
+                />
+                {t(key)}
+              </td>
               <td className="py-1 text-right font-mono whitespace-nowrap">
                 <Amount>{fmtAmountPlain(value)}</Amount>
               </td>

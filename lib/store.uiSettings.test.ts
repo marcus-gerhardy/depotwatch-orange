@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { deserializePortfolio, serializePortfolio, useAppStore } from "./store";
 import { emptyPortfolio, type DashboardWidgetPlacement } from "./types";
+import { DEFAULT_APPEARANCE } from "./appearance";
 
 const layout: DashboardWidgetPlacement[] = [
   { i: "pnl-1", widgetId: "pnl", x: 0, y: 0, w: 4, h: 4 },
@@ -14,7 +15,7 @@ beforeEach(() => {
     fileMode: "fallback",
     fileHandle: null,
     dirty: false,
-    uiTheme: "ocean",
+    appearance: DEFAULT_APPEARANCE,
   });
 });
 
@@ -65,19 +66,34 @@ describe("uiSettings in the file format", () => {
   });
 });
 
-describe("colour theme in the store", () => {
+describe("appearance in the store", () => {
   it("writes the choice to the file and to the device preference", () => {
-    useAppStore.getState().setUiTheme("night");
+    useAppStore.getState().setAppearance({ theme: "night" });
 
-    expect(useAppStore.getState().uiTheme).toBe("night");
-    expect(useAppStore.getState().portfolio?.settings.theme).toBe("night");
-    expect(localStorage.getItem("depotwatch.theme")).toBe("night");
+    expect(useAppStore.getState().appearance.theme).toBe("night");
+    expect(useAppStore.getState().portfolio?.uiSettings?.theme).toBe("night");
+    expect(JSON.parse(localStorage.getItem("depotwatch.appearance")!).theme).toBe("night");
     expect(useAppStore.getState().dirty).toBe(true);
   });
 
-  it("adopts the theme of a file that is opened", () => {
+  it("keeps the colour-vision option with the rest of the appearance", () => {
+    useAppStore.getState().setAppearance({ colorBlindSafe: true });
+
+    expect(useAppStore.getState().appearance.colorBlindSafe).toBe(true);
+    expect(useAppStore.getState().portfolio?.uiSettings?.colorBlindSafe).toBe(true);
+    // Independent of the theme: the theme itself is untouched.
+    expect(useAppStore.getState().appearance.theme).toBe("ocean");
+  });
+
+  it("adopts the appearance of a file that is opened", () => {
     const portfolio = emptyPortfolio();
-    portfolio.settings.theme = "night";
+    portfolio.uiSettings = {
+      theme: "terminal",
+      themeMode: "system",
+      themeLight: "sunrise",
+      themeDark: "mono",
+      colorBlindSafe: true,
+    };
     useAppStore.getState().openPortfolio({
       portfolio,
       handle: null,
@@ -85,15 +101,19 @@ describe("colour theme in the store", () => {
       password: null,
     });
 
-    expect(useAppStore.getState().uiTheme).toBe("night");
-    expect(localStorage.getItem("depotwatch.theme")).toBe("night");
+    expect(useAppStore.getState().appearance).toEqual({
+      mode: "system",
+      theme: "terminal",
+      light: "sunrise",
+      dark: "mono",
+      colorBlindSafe: true,
+    });
+    expect(JSON.parse(localStorage.getItem("depotwatch.appearance")!).mode).toBe("system");
   });
 
-  it("keeps the current theme for a file written before themes existed", () => {
-    useAppStore.getState().setUiTheme("night");
+  it("still reads the theme of a file written before it moved to uiSettings", () => {
     const portfolio = emptyPortfolio();
-    delete portfolio.settings.theme;
-
+    portfolio.settings.theme = "night";
     useAppStore.getState().openPortfolio({
       portfolio,
       handle: null,
@@ -101,16 +121,39 @@ describe("colour theme in the store", () => {
       password: null,
     });
 
-    expect(useAppStore.getState().uiTheme).toBe("night");
+    expect(useAppStore.getState().appearance.theme).toBe("night");
   });
 
-  it("reads the remembered theme on start, ignoring junk", () => {
-    localStorage.setItem("depotwatch.theme", "sepia");
-    useAppStore.getState().initUiTheme();
-    expect(useAppStore.getState().uiTheme).toBe("ocean");
+  it("keeps the current look for a file that says nothing about it", () => {
+    useAppStore.getState().setAppearance({ theme: "gold" });
+    const portfolio = emptyPortfolio();
+    delete portfolio.settings.theme;
 
-    localStorage.setItem("depotwatch.theme", "night");
-    useAppStore.getState().initUiTheme();
-    expect(useAppStore.getState().uiTheme).toBe("night");
+    useAppStore.getState().openPortfolio({
+      portfolio,
+      handle: null,
+      fileName: "plain.dwp",
+      password: null,
+    });
+
+    expect(useAppStore.getState().appearance.theme).toBe("gold");
+  });
+
+  it("reads the remembered appearance on start, ignoring junk", () => {
+    localStorage.setItem("depotwatch.appearance", '{"theme":"sepia","mode":"weird"}');
+    useAppStore.getState().initAppearance();
+    expect(useAppStore.getState().appearance.theme).toBe("ocean");
+    expect(useAppStore.getState().appearance.mode).toBe("fixed");
+
+    localStorage.setItem("depotwatch.appearance", '{"theme":"paper"}');
+    useAppStore.getState().initAppearance();
+    expect(useAppStore.getState().appearance.theme).toBe("paper");
+  });
+
+  it("still understands the key that only held a theme id", () => {
+    localStorage.removeItem("depotwatch.appearance");
+    localStorage.setItem("depotwatch.theme", "mempool");
+    useAppStore.getState().initAppearance();
+    expect(useAppStore.getState().appearance.theme).toBe("mempool");
   });
 });

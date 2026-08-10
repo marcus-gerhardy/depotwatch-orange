@@ -6,6 +6,7 @@ import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
 import Celebration from "./Celebration";
+import LaserAvatar from "./LaserAvatar";
 import Toast from "./Toast";
 import Dashboard from "./Dashboard";
 import TransactionsView from "./TransactionsView";
@@ -138,7 +139,9 @@ export default function AppShell() {
                 aria-label={t("app.name")}
                 onClick={countLogoClick}
               >
-                {laserEyes ? "👀" : "₿"}
+                {/* Unlocked, the ₿ gives way to the face the flares need
+                    (LaserAvatar) — a pair of eyes has to sit in something. */}
+                {laserEyes ? <LaserAvatar className="h-[1.5em] w-[1.5em]" /> : "₿"}
               </button>
               <span className="hidden sm:inline">
                 DepotWatch <span className="text-accent">Orange</span>

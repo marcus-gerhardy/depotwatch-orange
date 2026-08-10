@@ -5,10 +5,10 @@
 // anything of its own beyond the daily closes, which are cached per day.
 
 import { useMemo } from "react";
-import { formatInt, formatPercent } from "@/lib/decimal";
+import { formatFiat, formatInt, formatPercent } from "@/lib/decimal";
 import { dailyValueSeries } from "@/lib/portfolio";
 import { useDailyCloses } from "@/lib/marketData";
-import { SATS_PER_BTC } from "@/lib/displayUnit";
+import { SATS_PER_BTC, moscowTime } from "@/lib/displayUnit";
 import { formatPizzas, isPizzaDay, pizzasFor, useEasterEggs } from "@/lib/easterEggs";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { Amount, PnlValue } from "../ui";
@@ -36,9 +36,9 @@ function DeltaChip({
       {absolute === null ? (
         <div className="text-xs text-muted">—</div>
       ) : (
-        <PnlValue value={absolute}>
+        <PnlValue value={absolute} showArrow={false}>
           <span className="block truncate text-xs font-medium">
-            {absolute > 0 ? "+" : ""}
+            {absolute > 0 ? "+" : "−"}
             {format(absolute)}
           </span>
           {relative !== null && (
@@ -240,31 +240,87 @@ export function PnlWidget() {
 
 /** The BTC spot price card the dashboard has always shown. */
 export function BtcPriceWidget() {
-  const { t, displayPrice, priceError, priceLoading, fifo, fmtDisplay, fmtValue } =
+  const { t, loc, currency, displayPrice, priceEur, priceUsd, priceError, priceLoading, fmtValue } =
     useDashboardData();
+  // Moscow time is a dollar figure by convention — sats per US dollar, wherever
+  // one reads it — so it stays on the USD price no matter what the file
+  // displays. A "moscow time" that meant something else per user would not be
+  // comparable to the one everybody else quotes.
+  const moscow = moscowTime(priceUsd);
+  // The display currency first, then the fiat it does not already show. Both
+  // fiat prices come from the spot request that runs anyway (the EUR/USD cross
+  // rate needs them), so naming the second one costs nothing; displaying BTC
+  // puts the first row in sats, which leaves both fiat prices worth listing.
+  const placeholder = priceLoading ? "…" : priceError ? t("dashboard.priceUnavailable") : "—";
+  const rows: { code: string; value: string }[] = [
+    {
+      code: currency,
+      value: displayPrice === null ? placeholder : fmtValue(displayPrice),
+    },
+    ...(
+      [
+        ["EUR", priceEur],
+        ["USD", priceUsd],
+      ] as const
+    )
+      .filter(([code]) => code !== currency)
+      .map(([code, price]) => ({
+        code,
+        value: price === null ? placeholder : formatFiat(price, code, loc),
+      })),
+  ];
 
   return (
     <div className="flex h-full flex-col gap-3">
-      <div>
-        <div className="text-2xl leading-tight font-bold text-accent">
-          {displayPrice !== null
-            ? fmtValue(displayPrice)
-            : priceLoading
-              ? "…"
-              : priceError
-                ? t("dashboard.priceUnavailable")
-                : "—"}
+      <div className="space-y-1">
+        {/* One row per currency, identical in every respect but colour: the
+            displayed one in the accent, the rest muted. */}
+        <div className="space-y-0.5">
+          {rows.map(({ code, value }, i) => (
+            <div key={code} className="flex items-baseline gap-2">
+              <span className="w-8 shrink-0 text-[0.6rem] font-semibold tracking-[0.12em] text-muted uppercase">
+                {code}
+              </span>
+              <span
+                className={`truncate font-mono text-xl leading-tight font-semibold tabular-nums ${
+                  i === 0 ? "text-accent" : "text-muted"
+                }`}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
         </div>
         <StatLabel>{t("dashboard.widgets.spotPriceSource")}</StatLabel>
       </div>
-      <div className="mt-auto flex justify-between gap-2 text-xs">
-        <span className="text-muted">{t("dashboard.avgCost")}</span>
-        <span className="font-mono">
-          <Amount>
-            {fifo.avgCostPerBtcEur
-              ? fmtDisplay(fifo.avgCostPerBtcEur.toNumber())
-              : "—"}
-          </Amount>
+      <div
+        className="mt-auto flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/5 px-2.5 py-1.5"
+        title={t("dashboard.widgets.moscowTimeHint")}
+      >
+        <span className="font-mono text-xl leading-none font-semibold tracking-wider text-accent tabular-nums">
+          {moscow ? (
+            <>
+              {moscow.clock.slice(0, 2)}
+              <span className="text-accent/50">:</span>
+              {moscow.clock.slice(3)}
+            </>
+          ) : priceLoading ? (
+            "…"
+          ) : (
+            "—"
+          )}
+        </span>
+        <span className="ml-auto min-w-0 text-right">
+          <span className="block truncate text-[0.6rem] font-semibold tracking-[0.12em] text-muted uppercase">
+            {t("dashboard.widgets.moscowTime")}
+          </span>
+          {moscow && (
+            <span className="block truncate text-[0.65rem] text-muted">
+              {t("dashboard.widgets.moscowTimeSats", {
+                sats: formatInt(moscow.sats, loc),
+              })}
+            </span>
+          )}
         </span>
       </div>
     </div>
@@ -373,9 +429,9 @@ export function AvgCostWidget() {
           </div>
           <div className="flex items-baseline justify-between gap-2 text-xs">
             <span className="text-muted">{t("dashboard.widgets.distance")}</span>
-            <PnlValue value={diff ?? 0}>
+            <PnlValue value={diff ?? 0} showArrow={false}>
               <span className="font-mono">
-                {diff !== null && diff > 0 ? "+" : ""}
+                {diff !== null && diff > 0 ? "+" : diff !== null && diff < 0 ? "−" : ""}
                 {fmtValue(diff)}
                 {diffPct !== null && ` (${formatPercent(diffPct, loc)})`}
               </span>

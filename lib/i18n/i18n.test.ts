@@ -110,6 +110,8 @@ describe("every key the app uses exists", () => {
     ["wallets.types", ["exchange", "hardware", "software", "paper"]],
     ["dashboard.widgets.issues", DATA_ISSUES],
     ["settings.themes", THEME_IDS],
+    ["settings.themeMode", ["fixed", "system"]],
+    ["dashboard.widgets.feeMood", ["veryLow", "low", "normal", "high", "veryHigh"]],
   ] as [string, string[]][])("covers every %s", (prefix, values) => {
     const missing = values.filter(
       (v) => !deFlat.has(`${prefix}.${v}`) || !enFlat.has(`${prefix}.${v}`),

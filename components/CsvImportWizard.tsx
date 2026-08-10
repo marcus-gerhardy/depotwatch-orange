@@ -828,7 +828,7 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                   <span
                     className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
                       done
-                        ? "bg-accent text-black"
+                        ? "bg-accent text-accent-contrast"
                         : active
                           ? "border-2 border-accent text-accent"
                           : "border border-border-c text-muted"

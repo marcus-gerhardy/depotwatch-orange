@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Footer from "@/components/Footer";
 import ThemeEffect from "@/components/ThemeEffect";
+import { THEME_BOOT_SCRIPT } from "@/lib/themeBoot";
 import "./globals.css";
 
 // Self-hosted, not pulled from Google — see app/fonts/README.md. One variable
@@ -46,6 +47,12 @@ export default function RootLayout({
       lang="de"
       className={`${outfit.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Sets the theme attributes from the remembered preference before the
+            first paint, so nothing flashes in the wrong colours. It runs
+            before React and only touches <html>, which React does not own. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeEffect />
         {children}

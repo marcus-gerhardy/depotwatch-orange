@@ -59,6 +59,8 @@ export interface DashboardData {
 
   /** Live BTC price in EUR / in the display currency; null while unavailable. */
   priceEur: number | null;
+  /** The same in USD — both are fetched anyway, for the EUR/USD cross rate. */
+  priceUsd: number | null;
   displayPrice: number | null;
   priceLoading: boolean;
   priceError: boolean;
@@ -147,6 +149,7 @@ export function DashboardDataProvider({
       breakdown,
       balanceBtc,
       priceEur,
+      priceUsd,
       displayPrice,
       priceLoading: prices.loading,
       priceError: prices.error,

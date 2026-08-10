@@ -239,6 +239,10 @@ const en: typeof de = {
       pnlWithoutBasisHint:
         "{amount} BTC of your holding have no cost basis, for example receives from outside without a price. That amount is part of neither the cost basis nor the gain, because its full market value would otherwise show up as profit.",
       spotPriceSource: "Spot price (Binance)",
+      moscowTime: "Moscow time",
+      moscowTimeSats: "{sats} sats per dollar",
+      moscowTimeHint:
+        "Moscow time: how many sats one US dollar buys, read as a clock (2,000 sats = 20:00). Just another way of writing the price, always in dollars by convention.",
       sats: "Sats held",
       nextMilestone: "Next milestone",
       satsToGo: "{amount} sats to go",
@@ -315,7 +319,7 @@ const en: typeof de = {
       },
       btcPrice: {
         title: "BTC price",
-        description: "Current price compared with your average cost basis.",
+        description: "Spot price from Binance in EUR and USD, plus Moscow time.",
       },
       holdingPeriod: {
         title: "Holding period",
@@ -947,16 +951,31 @@ const en: typeof de = {
     general: "General",
     language: "Language",
     currencyBtc: "BTC (amounts in sats)",
-    easterEggs: "Easter eggs / playful touches",
-    easterEggsHint:
-      "Small extras: pizza day, the genesis line, confetti on the first whole coin, laser eyes, fee hints. Switched off, the app behaves entirely plainly.",
     laserEyes: "Laser eyes",
-    laserEyesHint: "Purely cosmetic: a brighter orange and laser eyes in the logo.",
+    laserEyesHint: "Purely cosmetic: the logo runs hot.",
     theme: "Colour theme",
     themes: {
       ocean: "Ocean (default)",
       night: "Night",
+      terminal: "Terminal",
+      gold: "Gold",
+      paper: "Paper",
+      sunrise: "Sunrise",
+      nord: "Nord",
+      mono: "Monochrome",
+      mempool: "Mempool",
     },
+    themeMode: {
+      fixed: "Fixed theme",
+      system: "Follow the system",
+    },
+    themeSystemHint:
+      "Switches automatically when your operating system changes between light and dark. Pick a theme for each case.",
+    themeForLight: "When the system is light",
+    themeForDark: "When the system is dark",
+    colorBlindSafe: "Colour-vision friendly",
+    colorBlindSafeHint:
+      "Gains are shown in blue instead of green, losses stay red. Independent of the chosen theme; the app always shows direction arrows anyway.",
     currency: "Display currency",
     security: "Security & file",
     changePassword: "Change password",

@@ -67,10 +67,12 @@ export function Button({
     default:
       "border border-border-c bg-surface-2 hover:border-accent-dim text-foreground",
     primary:
-      "bg-accent text-black font-semibold hover:bg-accent-dim",
+      // The text on a filled accent button is a token too: on a light theme's
+      // accent, black would be the wrong answer (CLAUDE.md §5).
+      "bg-accent text-accent-contrast font-semibold hover:bg-accent-dim",
     danger:
       "border border-loss/50 text-loss hover:bg-loss/10",
-    dangerSolid: "bg-loss text-white font-semibold hover:bg-loss/90",
+    dangerSolid: "bg-loss text-background font-semibold hover:bg-loss/90",
     ghost: "text-muted hover:text-foreground",
   }[variant];
   return (
@@ -149,7 +151,7 @@ export function Switch({
         }`}
       />
       <span
-        className={`absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+        className={`absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-foreground transition-transform ${
           checked ? "translate-x-4" : indeterminate ? "translate-x-2" : "translate-x-0"
         }`}
       />
@@ -342,10 +344,26 @@ export function Amount({
 export function PnlValue({
   value,
   children,
+  /** Set where the sign is already part of the text (a "+1,2 %" chip). */
+  showArrow = true,
 }: {
   value: number;
   children: React.ReactNode;
+  showArrow?: boolean;
 }) {
   const color = value > 0 ? "text-gain" : value < 0 ? "text-loss" : "text-muted";
-  return <Amount className={color}>{children}</Amount>;
+  // Direction is never carried by colour alone: an arrow says the same thing
+  // to anyone who cannot tell the two colours apart, and it survives a
+  // greyscale printout (CLAUDE.md §5).
+  const arrow = value > 0 ? "▲" : value < 0 ? "▼" : "•";
+  return (
+    <Amount className={color}>
+      {showArrow && (
+        <span aria-hidden className="mr-0.5">
+          {arrow}
+        </span>
+      )}
+      {children}
+    </Amount>
+  );
 }

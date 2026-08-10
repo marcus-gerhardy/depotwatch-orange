@@ -84,7 +84,7 @@ export const WIDGETS: WidgetDefinition[] = [
     defaultSize: { w: 4, h: 4 },
     minSize: { w: 2, h: 3 },
     maxSize: { w: 12, h: 5 },
-    dataSources: ["price", "ledger"],
+    dataSources: ["price"],
     component: BtcPriceWidget,
   },
   {

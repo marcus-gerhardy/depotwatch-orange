@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
 // The playful touches must never get in the way (CLAUDE.md §5.1), which mostly
-// means: the master switch really does switch all of them off, and nothing
-// appears on a day it does not belong to.
+// means: the file's switch really does switch all of them off, nothing appears
+// on a day it does not belong to, and the settings never let on that any of
+// this exists.
 
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
@@ -13,6 +14,7 @@ import Footer from "./Footer";
 import TransactionsView from "./TransactionsView";
 import SettingsView from "./SettingsView";
 import Celebration from "./Celebration";
+import ThemeEffect from "./ThemeEffect";
 
 const tx = (t: Partial<Transaction> & Pick<Transaction, "id" | "type">): Transaction => ({
   date: "2026-01-01T00:00:00.000Z",
@@ -136,23 +138,25 @@ describe("the first whole coin", () => {
 });
 
 describe("the settings", () => {
-  it("offers the master switch and hides laser eyes until they are unlocked", () => {
+  it("never advertises that there are any", () => {
+    // A row labelled "playful touches" gives away the whole game, so the
+    // settings say nothing about them at all — including about laser eyes,
+    // for as long as they are locked.
     render(<SettingsView />);
-    expect(screen.getByLabelText("settings.easterEggs")).toBeTruthy();
+    expect(screen.queryByLabelText("settings.easterEggs")).toBeNull();
     expect(screen.queryByLabelText("settings.laserEyes")).toBeNull();
+  });
 
+  it("offers the laser eyes switch once they are unlocked", () => {
+    // By then the user has seen them; an unexplained glow needs a way off.
     const p = portfolio();
     p.uiSettings = { laserEyes: true };
     load(p);
-    cleanup();
     render(<SettingsView />);
-    expect(screen.getByLabelText("settings.laserEyes")).toBeTruthy();
-  });
 
-  it("switches every touch off from one place", () => {
-    render(<SettingsView />);
-    fireEvent.click(screen.getByLabelText("settings.easterEggs"));
-    expect(useAppStore.getState().portfolio!.settings.easterEggs).toBe(false);
+    expect(screen.getByLabelText("settings.laserEyes")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("settings.laserEyes"));
+    expect(useAppStore.getState().portfolio!.uiSettings?.laserEyes).toBe(false);
   });
 
   it("offers BTC as a display unit next to the fiat currencies", () => {
@@ -225,5 +229,80 @@ describe("the BTC display unit is a real feature, not a joke", () => {
     render(<TransactionsView />);
 
     expect(screen.getByText("61.800.000")).toBeTruthy();
+  });
+});
+
+describe("appearance on the document", () => {
+  /** matchMedia is not implemented in jsdom; the theme effect needs it. */
+  function systemPrefers(dark: boolean) {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("prefers-color-scheme: dark") ? dark : false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.documentElement.removeAttribute("data-theme");
+    document.documentElement.removeAttribute("data-colorblind");
+  });
+
+  it("puts the chosen theme on <html>", () => {
+    systemPrefers(true);
+    useAppStore.getState().setAppearance({ mode: "fixed", theme: "terminal" });
+    render(<ThemeEffect />);
+    expect(document.documentElement.dataset.theme).toBe("terminal");
+  });
+
+  it("follows the system preference when asked to", () => {
+    systemPrefers(false);
+    useAppStore.getState().setAppearance({
+      mode: "system",
+      light: "paper",
+      dark: "mono",
+    });
+    render(<ThemeEffect />);
+    expect(document.documentElement.dataset.theme).toBe("paper");
+
+    cleanup();
+    systemPrefers(true);
+    render(<ThemeEffect />);
+    expect(document.documentElement.dataset.theme).toBe("mono");
+  });
+
+  it("marks the colour-vision option, which the stylesheet acts on", () => {
+    systemPrefers(true);
+    useAppStore.getState().setAppearance({ colorBlindSafe: true });
+    render(<ThemeEffect />);
+    expect(document.documentElement.dataset.colorblind).toBe("safe");
+  });
+});
+
+describe("gain and loss are never colour alone", () => {
+  it("marks the direction with an arrow", async () => {
+    const { PnlValue } = await import("./ui");
+    const { container } = render(
+      <>
+        <PnlValue value={5}>5 €</PnlValue>
+        <PnlValue value={-5}>-5 €</PnlValue>
+        <PnlValue value={0}>0 €</PnlValue>
+      </>,
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain("▲");
+    expect(text).toContain("▼");
+    // The arrows are decoration; the value itself carries the meaning.
+    expect(container.querySelectorAll("[aria-hidden]").length).toBe(3);
+  });
+
+  it("leaves the arrow out where the text already carries a sign", async () => {
+    const { PnlValue } = await import("./ui");
+    const { container } = render(
+      <PnlValue value={5} showArrow={false}>
+        +5 €
+      </PnlValue>,
+    );
+    expect(container.textContent).toBe("+5 €");
   });
 });

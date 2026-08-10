@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import { formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import { THEMES } from "@/lib/theme";
+import { useThemeColors as themeColors } from "@/lib/appearance";
 import { dec, formatBtc, formatInt } from "@/lib/decimal";
 import { useDailyCloses } from "@/lib/marketData";
 import { Amount, Button } from "../ui";
@@ -34,7 +34,7 @@ const DAY = 86_400_000;
  * checked against (lib/theme.ts) instead of the tokens.
  */
 function useThemeColors() {
-  return THEMES[useAppStore((s) => s.uiTheme)];
+  return themeColors();
 }
 
 /** Tooltip styling in those colours. */

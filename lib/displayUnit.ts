@@ -24,6 +24,28 @@ export function formatSats(v: Decimal | string, locale: string): string {
   return formatInt(satsOf(v), locale);
 }
 
+/**
+ * "Moscow time": the sats one unit of fiat buys, read as a clock — 2 000 sats
+ * per euro is "20:00". A price display, not a conversion: it only ever
+ * restates the spot price, so nothing stored or calculated depends on it.
+ *
+ * Returns null when the price is unusable or the figure no longer reads as a
+ * time (a fiat unit buying 10 000 sats or more, i.e. a price below 10 000) —
+ * "100:00" is not a clock, and inventing one would be worse than showing the
+ * plain sats figure.
+ */
+export function moscowTime(pricePerBtc: number | null): {
+  sats: number;
+  clock: string;
+} | null {
+  if (pricePerBtc === null || !Number.isFinite(pricePerBtc) || pricePerBtc <= 0)
+    return null;
+  const sats = Math.round(SATS_PER_BTC / pricePerBtc);
+  if (sats < 1 || sats >= 10_000) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { sats, clock: `${pad(Math.floor(sats / 100))}:${pad(sats % 100)}` };
+}
+
 /** "BTC" or "sats" — the unit a column header or a label has to name. */
 export function amountUnit(currency: Currency): "BTC" | "sats" {
   return currency === "BTC" ? "sats" : "BTC";

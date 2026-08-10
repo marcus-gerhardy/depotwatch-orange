@@ -8,7 +8,7 @@ import { useAppStore } from "@/lib/store";
 import { useEasterEggs } from "@/lib/easterEggs";
 import { totalBalance } from "@/lib/portfolio";
 import { flattenLedger } from "@/lib/types";
-import { THEMES } from "@/lib/theme";
+import { useThemeColors } from "@/lib/appearance";
 
 /** Everything about the animation, so it can be tuned in one place. */
 const PIECES = 60;
@@ -94,7 +94,7 @@ export default function Celebration() {
 
 /** Orange confetti, CSS only — no library, no canvas, no layout impact. */
 function Confetti() {
-  const accent = THEMES[useAppStore((s) => s.uiTheme)].accent;
+  const accent = useThemeColors().accent;
   const pieces = useMemo(
     () =>
       Array.from({ length: PIECES }, (_, i) => ({

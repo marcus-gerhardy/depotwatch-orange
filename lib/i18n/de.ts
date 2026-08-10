@@ -236,6 +236,10 @@ const de = {
       pnlWithoutBasisHint:
         "{amount} BTC deines Bestands haben keinen Einstandswert, etwa Zugänge von außen ohne Kurs. Diese Menge steckt weder im Einstandswert noch im Gewinn, sonst würde ihr voller Kurswert als Gewinn erscheinen.",
       spotPriceSource: "Aktueller Kurs (Binance)",
+      moscowTime: "Moscow Time",
+      moscowTimeSats: "{sats} Sats je Dollar",
+      moscowTimeHint:
+        "Moscow Time: wie viele Sats ein US-Dollar kauft, als Uhrzeit gelesen (2.000 Sats = 20:00). Nur eine andere Schreibweise des Kurses, per Konvention immer in Dollar.",
       sats: "Sats im Bestand",
       nextMilestone: "Nächster Meilenstein",
       satsToGo: "Noch {amount} Sats",
@@ -314,7 +318,7 @@ const de = {
       },
       btcPrice: {
         title: "BTC-Kurs",
-        description: "Aktueller Kurs im Vergleich zu deinem Einstandskurs.",
+        description: "Aktueller Kurs von Binance in EUR und USD, dazu die Moscow Time.",
       },
       holdingPeriod: {
         title: "Haltefrist",
@@ -951,16 +955,31 @@ const de = {
     general: "Allgemein",
     language: "Sprache",
     currencyBtc: "BTC (Beträge in Sats)",
-    easterEggs: "Easter Eggs / Spielereien",
-    easterEggsHint:
-      "Kleine Extras: Pizza-Tag, Genesis-Zeile, Konfetti beim ersten ganzen Coin, Laseraugen, Gebühren-Hinweise. Ausgeschaltet verhält sich die App vollständig nüchtern.",
     laserEyes: "Laseraugen",
-    laserEyesHint: "Rein kosmetisch: kräftigeres Orange und Laseraugen im Logo.",
+    laserEyesHint: "Rein kosmetisch: das Logo glüht.",
     theme: "Farbschema",
     themes: {
       ocean: "Ozean (Standard)",
       night: "Nacht",
+      terminal: "Terminal",
+      gold: "Gold",
+      paper: "Papier",
+      sunrise: "Sonnenaufgang",
+      nord: "Nord",
+      mono: "Monochrom",
+      mempool: "Mempool",
     },
+    themeMode: {
+      fixed: "Festes Theme",
+      system: "Systemeinstellung folgen",
+    },
+    themeSystemHint:
+      "Wechselt automatisch, wenn dein Betriebssystem zwischen hell und dunkel umschaltet. Wähle je ein Theme für beide Fälle.",
+    themeForLight: "Wenn das System hell ist",
+    themeForDark: "Wenn das System dunkel ist",
+    colorBlindSafe: "Farbfehlsichtigkeits-freundlich",
+    colorBlindSafeHint:
+      "Gewinne werden blau statt grün dargestellt, Verluste bleiben rot. Unabhängig vom gewählten Theme; Richtungspfeile zeigt die App ohnehin immer.",
     currency: "Anzeigewährung",
     security: "Sicherheit & Datei",
     changePassword: "Passwort ändern",

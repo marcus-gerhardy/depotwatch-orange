@@ -13,7 +13,14 @@ import type {
 } from "./types";
 import type { UserImportPreset } from "./importPresets";
 import { emptyPortfolio } from "./types";
-import { DEFAULT_THEME, isThemeId, type ThemeId } from "./theme";
+import { isThemeId } from "./theme";
+import { APPEARANCE_KEY } from "./themeBoot";
+import {
+  DEFAULT_APPEARANCE,
+  appearanceOf,
+  parseAppearance,
+  type Appearance,
+} from "./appearance";
 import { deleteAndRelease } from "./deletion";
 import { Decimal, dec, ZERO } from "./decimal";
 import {
@@ -63,15 +70,19 @@ interface AppState {
   setUiLocale: (locale: Locale) => void;
 
   /**
-   * Interface colour theme — the same arrangement as the language: it travels
-   * with the portfolio (`settings.theme`) and is mirrored to a device
-   * preference, so the start screen and the legal pages are themed too.
+   * How the app looks (§5): theme, system-preference pairing and the colour
+   * vision option. The same arrangement as the language — it travels with the
+   * portfolio (`uiSettings`) and is mirrored to a device preference, so the
+   * start screen and the legal pages are themed before a file is open.
    */
-  uiTheme: ThemeId;
-  /** Read the remembered theme; call from an effect (never during SSR). */
-  initUiTheme: () => void;
-  /** Switch the theme, incl. the open portfolio's setting. */
-  setUiTheme: (theme: ThemeId) => void;
+  appearance: Appearance;
+  /** What the OS currently asks for; kept in sync by ThemeEffect. */
+  systemPrefersDark: boolean;
+  /** Read the remembered appearance; call from an effect (never during SSR). */
+  initAppearance: () => void;
+  setSystemPrefersDark: (dark: boolean) => void;
+  /** Change part of the appearance, incl. the open portfolio's settings. */
+  setAppearance: (patch: Partial<Appearance>) => void;
 
   initFileMode: () => void;
   openPortfolio: (opts: {
@@ -240,7 +251,9 @@ export async function deserializePortfolio(
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const UI_LOCALE_KEY = "depotwatch.locale";
+// The old key held a bare theme id; the new one holds the whole appearance.
 const UI_THEME_KEY = "depotwatch.theme";
+export { APPEARANCE_KEY } from "./themeBoot";
 
 function readStoredUiLocale(): Locale | null {
   try {
@@ -259,20 +272,25 @@ function storeUiLocale(locale: Locale): void {
   }
 }
 
-function readStoredUiTheme(): ThemeId | null {
+function readStoredAppearance(): Appearance {
   try {
-    const v = localStorage.getItem(UI_THEME_KEY);
-    return isThemeId(v) ? v : null;
+    const raw = localStorage.getItem(APPEARANCE_KEY);
+    if (raw) return parseAppearance(JSON.parse(raw), DEFAULT_APPEARANCE);
+    // The key this replaced held the theme id on its own.
+    const legacy = localStorage.getItem(UI_THEME_KEY);
+    return isThemeId(legacy)
+      ? { ...DEFAULT_APPEARANCE, theme: legacy }
+      : DEFAULT_APPEARANCE;
   } catch {
-    return null; // storage unavailable (private mode) — stay on the default
+    return DEFAULT_APPEARANCE; // storage unavailable (private mode)
   }
 }
 
-function storeUiTheme(theme: ThemeId): void {
+function storeAppearance(appearance: Appearance): void {
   try {
-    localStorage.setItem(UI_THEME_KEY, theme);
+    localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appearance));
   } catch {
-    // The theme just won't survive a reload.
+    // The look just won't survive a reload.
   }
 }
 
@@ -341,7 +359,8 @@ export const useAppStore = create<AppState>((set, get) => {
     needsFileSetup: false,
     privacyMode: false,
     uiLocale: "de",
-    uiTheme: DEFAULT_THEME,
+    appearance: DEFAULT_APPEARANCE,
+    systemPrefersDark: true,
 
     initFileMode: () => set({ fileMode: detectFileMode() }),
 
@@ -350,19 +369,28 @@ export const useAppStore = create<AppState>((set, get) => {
       if (stored && stored !== get().uiLocale) set({ uiLocale: stored });
     },
 
-    initUiTheme: () => {
-      const stored = readStoredUiTheme();
-      if (stored && stored !== get().uiTheme) set({ uiTheme: stored });
-    },
+    initAppearance: () => set({ appearance: readStoredAppearance() }),
 
-    setUiTheme: (theme) => {
-      storeUiTheme(theme);
-      set({ uiTheme: theme });
-      // Keep the open file in sync: its settings.theme is the value that
-      // travels with the portfolio.
-      if (get().portfolio?.settings.theme !== theme) {
-        mutate((p) => ({ ...p, settings: { ...p.settings, theme } }));
-      }
+    setSystemPrefersDark: (dark) =>
+      get().systemPrefersDark === dark ? undefined : set({ systemPrefersDark: dark }),
+
+    setAppearance: (patch) => {
+      const appearance = { ...get().appearance, ...patch };
+      storeAppearance(appearance);
+      set({ appearance });
+      // Keep the open file in sync: uiSettings is what travels with it.
+      if (!get().portfolio) return;
+      mutate((p) => ({
+        ...p,
+        uiSettings: {
+          ...p.uiSettings,
+          theme: appearance.theme,
+          themeMode: appearance.mode,
+          themeLight: appearance.light,
+          themeDark: appearance.dark,
+          colorBlindSafe: appearance.colorBlindSafe,
+        },
+      }));
     },
 
     setUiLocale: (locale) => {
@@ -376,11 +404,12 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     openPortfolio: ({ portfolio, handle, fileName, password, isDemo }) => {
-      // The file's own language and theme win on open and become the device
-      // defaults; a file written before themes existed keeps the current one.
+      // The file's own language and appearance win on open and become the
+      // device defaults; whatever a file does not say keeps its current value,
+      // so an older file simply carries less over.
       storeUiLocale(portfolio.settings.locale);
-      const theme = portfolio.settings.theme ?? get().uiTheme;
-      storeUiTheme(theme);
+      const appearance = appearanceOf(portfolio, get().appearance);
+      storeAppearance(appearance);
       set({
         portfolio,
         fileHandle: handle,
@@ -391,7 +420,7 @@ export const useAppStore = create<AppState>((set, get) => {
         lastSavedAt: null,
         needsFileSetup: !!isDemo,
         uiLocale: portfolio.settings.locale,
-        uiTheme: theme,
+        appearance,
       });
     },
 
