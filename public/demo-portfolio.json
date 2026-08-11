@@ -150,6 +150,25 @@
               "counterpartyAccountId": "a-sparrow-hot",
               "transferGroupId": "g-open-1",
               "note": "Beispiel: Zuordnung fehlt noch — welche Käufe hier abgehen, entscheidet ausschließlich die manuelle Zuordnung im Dialog"
+            },
+            {
+              "id": "k-out-partial",
+              "type": "transfer_out",
+              "date": "2026-05-12T08:05:00.000Z",
+              "amountBtc": "0.01",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00004",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "k-buy-3",
+                  "amountBtc": "0.01004"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-partial-1",
+              "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              "note": "Auszahlung mit Adresse, aber ohne Txid im Export — die Txid trägt das Gegenstück nach"
             }
           ]
         },
@@ -388,6 +407,39 @@
               "transferGroupId": "g-sparrow-1",
               "txid": "3ab7e1c95d0426f8b1c73e9a5d20f4681e7c3b95a2d08f461c9e75b3a0d26f84",
               "note": "Abzug von der Börse in die eigene Software-Wallet"
+            },
+            {
+              "id": "b-buy-usd",
+              "type": "buy",
+              "date": "2026-01-08T11:12:00.000Z",
+              "amountBtc": "0.012",
+              "pricePerBtcEur": "92367",
+              "totalFiatEur": "1108.40",
+              "originalCurrency": "USD",
+              "originalAmount": "1180",
+              "originalPricePerBtc": "98500",
+              "eurValuationSource": "binance-klines",
+              "note": "Kauf gegen USD; der EUR-Wert stammt aus dem Tageskurs, die Originalwährung ist nur Dokumentation"
+            },
+            {
+              "id": "b-sell-usd",
+              "type": "sell",
+              "date": "2026-04-22T09:30:00.000Z",
+              "amountBtc": "0.012",
+              "pricePerBtcEur": "111583",
+              "totalFiatEur": "1339.00",
+              "feeFiatEur": "1.10",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "b-buy-usd",
+                  "amountBtc": "0.012"
+                }
+              ],
+              "originalCurrency": "USDT",
+              "originalAmount": "1420",
+              "originalPricePerBtc": "118000",
+              "eurValuationSource": "binance-klines",
+              "note": "Verkauf gegen USDT innerhalb der Haltefrist — steuerpflichtig, Bewertung in EUR"
             }
           ]
         }
@@ -616,6 +668,5222 @@
           ]
         }
       ]
+    },
+    {
+      "id": "w-relai",
+      "name": "Relai",
+      "type": "exchange",
+      "accounts": [
+        {
+          "id": "a-relai-weekly",
+          "name": "Wochen-Sparplan",
+          "transactions": [
+            {
+              "id": "r-week-001",
+              "type": "buy",
+              "date": "2023-07-03T07:00:00.000Z",
+              "amountBtc": "0.00214777",
+              "pricePerBtcEur": "25608",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 1"
+            },
+            {
+              "id": "r-week-002",
+              "type": "buy",
+              "date": "2023-07-10T07:00:00.000Z",
+              "amountBtc": "0.00221873",
+              "pricePerBtcEur": "24789",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 2"
+            },
+            {
+              "id": "r-week-003",
+              "type": "buy",
+              "date": "2023-07-17T07:00:00.000Z",
+              "amountBtc": "0.00215932",
+              "pricePerBtcEur": "25471",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 3"
+            },
+            {
+              "id": "r-week-004",
+              "type": "buy",
+              "date": "2023-07-24T07:00:00.000Z",
+              "amountBtc": "0.00210245",
+              "pricePerBtcEur": "26160",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 4"
+            },
+            {
+              "id": "r-week-005",
+              "type": "buy",
+              "date": "2023-07-31T07:00:00.000Z",
+              "amountBtc": "0.00217237",
+              "pricePerBtcEur": "25318",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 5"
+            },
+            {
+              "id": "r-week-006",
+              "type": "buy",
+              "date": "2023-08-07T07:00:00.000Z",
+              "amountBtc": "0.00217822",
+              "pricePerBtcEur": "25250",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 6"
+            },
+            {
+              "id": "r-week-007",
+              "type": "buy",
+              "date": "2023-08-14T07:00:00.000Z",
+              "amountBtc": "0.00211995",
+              "pricePerBtcEur": "25944",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 7"
+            },
+            {
+              "id": "r-week-008",
+              "type": "buy",
+              "date": "2023-08-21T07:00:00.000Z",
+              "amountBtc": "0.00206410",
+              "pricePerBtcEur": "26646",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 8"
+            },
+            {
+              "id": "r-week-009",
+              "type": "buy",
+              "date": "2023-08-28T07:00:00.000Z",
+              "amountBtc": "0.00213410",
+              "pricePerBtcEur": "25772",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 9"
+            },
+            {
+              "id": "r-week-010",
+              "type": "buy",
+              "date": "2023-09-04T07:00:00.000Z",
+              "amountBtc": "0.00199073",
+              "pricePerBtcEur": "27628",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 10"
+            },
+            {
+              "id": "r-week-011",
+              "type": "buy",
+              "date": "2023-09-11T07:00:00.000Z",
+              "amountBtc": "0.00200087",
+              "pricePerBtcEur": "27488",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 11"
+            },
+            {
+              "id": "r-week-012",
+              "type": "buy",
+              "date": "2023-09-18T07:00:00.000Z",
+              "amountBtc": "0.00189655",
+              "pricePerBtcEur": "29000",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 12"
+            },
+            {
+              "id": "r-week-013",
+              "type": "buy",
+              "date": "2023-09-25T07:00:00.000Z",
+              "amountBtc": "0.00180033",
+              "pricePerBtcEur": "30550",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 13"
+            },
+            {
+              "id": "r-week-014",
+              "type": "buy",
+              "date": "2023-10-02T07:00:00.000Z",
+              "amountBtc": "0.00177832",
+              "pricePerBtcEur": "30928",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 14"
+            },
+            {
+              "id": "r-week-015",
+              "type": "buy",
+              "date": "2023-10-09T07:00:00.000Z",
+              "amountBtc": "0.00169158",
+              "pricePerBtcEur": "32514",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 15"
+            },
+            {
+              "id": "r-week-016",
+              "type": "buy",
+              "date": "2023-10-16T07:00:00.000Z",
+              "amountBtc": "0.00170972",
+              "pricePerBtcEur": "32169",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 16"
+            },
+            {
+              "id": "r-week-017",
+              "type": "buy",
+              "date": "2023-10-23T07:00:00.000Z",
+              "amountBtc": "0.00162857",
+              "pricePerBtcEur": "33772",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 17"
+            },
+            {
+              "id": "r-week-018",
+              "type": "buy",
+              "date": "2023-10-30T07:00:00.000Z",
+              "amountBtc": "0.00155310",
+              "pricePerBtcEur": "35413",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 18"
+            },
+            {
+              "id": "r-week-019",
+              "type": "buy",
+              "date": "2023-11-06T07:00:00.000Z",
+              "amountBtc": "0.00153820",
+              "pricePerBtcEur": "35756",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 19"
+            },
+            {
+              "id": "r-week-020",
+              "type": "buy",
+              "date": "2023-11-13T07:00:00.000Z",
+              "amountBtc": "0.00148520",
+              "pricePerBtcEur": "37032",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 20"
+            },
+            {
+              "id": "r-week-021",
+              "type": "buy",
+              "date": "2023-11-20T07:00:00.000Z",
+              "amountBtc": "0.00152194",
+              "pricePerBtcEur": "36138",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 21"
+            },
+            {
+              "id": "r-week-022",
+              "type": "buy",
+              "date": "2023-11-27T07:00:00.000Z",
+              "amountBtc": "0.00146965",
+              "pricePerBtcEur": "37424",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 22"
+            },
+            {
+              "id": "r-week-023",
+              "type": "buy",
+              "date": "2023-12-04T07:00:00.000Z",
+              "amountBtc": "0.00148001",
+              "pricePerBtcEur": "37162",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 23"
+            },
+            {
+              "id": "r-week-024",
+              "type": "buy",
+              "date": "2023-12-11T07:00:00.000Z",
+              "amountBtc": "0.00142969",
+              "pricePerBtcEur": "38470",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 24"
+            },
+            {
+              "id": "r-week-025",
+              "type": "buy",
+              "date": "2023-12-18T07:00:00.000Z",
+              "amountBtc": "0.00138194",
+              "pricePerBtcEur": "39799",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 25"
+            },
+            {
+              "id": "r-week-026",
+              "type": "buy",
+              "date": "2023-12-25T07:00:00.000Z",
+              "amountBtc": "0.00141807",
+              "pricePerBtcEur": "38785",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 26"
+            },
+            {
+              "id": "r-week-027",
+              "type": "buy",
+              "date": "2024-01-01T07:00:00.000Z",
+              "amountBtc": "0.00134586",
+              "pricePerBtcEur": "40866",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 27"
+            },
+            {
+              "id": "r-week-028",
+              "type": "buy",
+              "date": "2024-01-08T07:00:00.000Z",
+              "amountBtc": "0.00131929",
+              "pricePerBtcEur": "41689",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 28"
+            },
+            {
+              "id": "r-week-029",
+              "type": "buy",
+              "date": "2024-01-15T07:00:00.000Z",
+              "amountBtc": "0.00122200",
+              "pricePerBtcEur": "45008",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 29"
+            },
+            {
+              "id": "r-week-030",
+              "type": "buy",
+              "date": "2024-01-22T07:00:00.000Z",
+              "amountBtc": "0.00113578",
+              "pricePerBtcEur": "48425",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 30"
+            },
+            {
+              "id": "r-week-031",
+              "type": "buy",
+              "date": "2024-01-29T07:00:00.000Z",
+              "amountBtc": "0.00112373",
+              "pricePerBtcEur": "48944",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 31"
+            },
+            {
+              "id": "r-week-032",
+              "type": "buy",
+              "date": "2024-02-05T07:00:00.000Z",
+              "amountBtc": "0.00108134",
+              "pricePerBtcEur": "50863",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 32"
+            },
+            {
+              "id": "r-week-033",
+              "type": "buy",
+              "date": "2024-02-12T07:00:00.000Z",
+              "amountBtc": "0.00101196",
+              "pricePerBtcEur": "54350",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 33"
+            },
+            {
+              "id": "r-week-034",
+              "type": "buy",
+              "date": "2024-02-19T07:00:00.000Z",
+              "amountBtc": "0.00094934",
+              "pricePerBtcEur": "57935",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 34"
+            },
+            {
+              "id": "r-week-035",
+              "type": "buy",
+              "date": "2024-02-26T07:00:00.000Z",
+              "amountBtc": "0.00089261",
+              "pricePerBtcEur": "61617",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 35"
+            },
+            {
+              "id": "r-week-036",
+              "type": "buy",
+              "date": "2024-03-04T07:00:00.000Z",
+              "amountBtc": "0.00090111",
+              "pricePerBtcEur": "61036",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 36"
+            },
+            {
+              "id": "r-week-037",
+              "type": "buy",
+              "date": "2024-03-11T07:00:00.000Z",
+              "amountBtc": "0.00089674",
+              "pricePerBtcEur": "61333",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 37"
+            },
+            {
+              "id": "r-week-038",
+              "type": "buy",
+              "date": "2024-03-18T07:00:00.000Z",
+              "amountBtc": "0.00089296",
+              "pricePerBtcEur": "61593",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 38"
+            },
+            {
+              "id": "r-week-039",
+              "type": "buy",
+              "date": "2024-03-25T07:00:00.000Z",
+              "amountBtc": "0.00094364",
+              "pricePerBtcEur": "58285",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 39"
+            },
+            {
+              "id": "r-week-040",
+              "type": "buy",
+              "date": "2024-04-01T07:00:00.000Z",
+              "amountBtc": "0.00096797",
+              "pricePerBtcEur": "56820",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 40"
+            },
+            {
+              "id": "r-week-041",
+              "type": "buy",
+              "date": "2024-04-08T07:00:00.000Z",
+              "amountBtc": "0.00095392",
+              "pricePerBtcEur": "57657",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 41"
+            },
+            {
+              "id": "r-week-042",
+              "type": "buy",
+              "date": "2024-04-15T07:00:00.000Z",
+              "amountBtc": "0.00094044",
+              "pricePerBtcEur": "58483",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 42"
+            },
+            {
+              "id": "r-week-043",
+              "type": "buy",
+              "date": "2024-04-22T07:00:00.000Z",
+              "amountBtc": "0.00098443",
+              "pricePerBtcEur": "55870",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 43"
+            },
+            {
+              "id": "r-week-044",
+              "type": "buy",
+              "date": "2024-04-29T07:00:00.000Z",
+              "amountBtc": "0.00097019",
+              "pricePerBtcEur": "56690",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 44"
+            },
+            {
+              "id": "r-week-045",
+              "type": "buy",
+              "date": "2024-05-06T07:00:00.000Z",
+              "amountBtc": "0.00100033",
+              "pricePerBtcEur": "54982",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 45"
+            },
+            {
+              "id": "r-week-046",
+              "type": "buy",
+              "date": "2024-05-13T07:00:00.000Z",
+              "amountBtc": "0.00098584",
+              "pricePerBtcEur": "55790",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 46"
+            },
+            {
+              "id": "r-week-047",
+              "type": "buy",
+              "date": "2024-05-20T07:00:00.000Z",
+              "amountBtc": "0.00097195",
+              "pricePerBtcEur": "56587",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 47"
+            },
+            {
+              "id": "r-week-048",
+              "type": "buy",
+              "date": "2024-05-27T07:00:00.000Z",
+              "amountBtc": "0.00101778",
+              "pricePerBtcEur": "54039",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 48"
+            },
+            {
+              "id": "r-week-049",
+              "type": "buy",
+              "date": "2024-06-03T07:00:00.000Z",
+              "amountBtc": "0.00097316",
+              "pricePerBtcEur": "56517",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 49"
+            },
+            {
+              "id": "r-week-050",
+              "type": "buy",
+              "date": "2024-06-10T07:00:00.000Z",
+              "amountBtc": "0.00101871",
+              "pricePerBtcEur": "53990",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 50"
+            },
+            {
+              "id": "r-week-051",
+              "type": "buy",
+              "date": "2024-06-17T07:00:00.000Z",
+              "amountBtc": "0.00100427",
+              "pricePerBtcEur": "54766",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 51"
+            },
+            {
+              "id": "r-week-052",
+              "type": "buy",
+              "date": "2024-06-24T07:00:00.000Z",
+              "amountBtc": "0.00099044",
+              "pricePerBtcEur": "55531",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 52"
+            },
+            {
+              "id": "r-week-053",
+              "type": "buy",
+              "date": "2024-07-01T07:00:00.000Z",
+              "amountBtc": "0.00102090",
+              "pricePerBtcEur": "53874",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 53"
+            },
+            {
+              "id": "r-week-054",
+              "type": "buy",
+              "date": "2024-07-08T07:00:00.000Z",
+              "amountBtc": "0.00099705",
+              "pricePerBtcEur": "55163",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 54"
+            },
+            {
+              "id": "r-week-055",
+              "type": "buy",
+              "date": "2024-07-15T07:00:00.000Z",
+              "amountBtc": "0.00103395",
+              "pricePerBtcEur": "53194",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 55"
+            },
+            {
+              "id": "r-week-056",
+              "type": "buy",
+              "date": "2024-07-22T07:00:00.000Z",
+              "amountBtc": "0.00100942",
+              "pricePerBtcEur": "54487",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 56"
+            },
+            {
+              "id": "r-week-057",
+              "type": "buy",
+              "date": "2024-07-29T07:00:00.000Z",
+              "amountBtc": "0.00098586",
+              "pricePerBtcEur": "55789",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 57"
+            },
+            {
+              "id": "r-week-058",
+              "type": "buy",
+              "date": "2024-08-05T07:00:00.000Z",
+              "amountBtc": "0.00099142",
+              "pricePerBtcEur": "55476",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 58"
+            },
+            {
+              "id": "r-week-059",
+              "type": "buy",
+              "date": "2024-08-12T07:00:00.000Z",
+              "amountBtc": "0.00096848",
+              "pricePerBtcEur": "56790",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 59"
+            },
+            {
+              "id": "r-week-060",
+              "type": "buy",
+              "date": "2024-08-19T07:00:00.000Z",
+              "amountBtc": "0.00100407",
+              "pricePerBtcEur": "54777",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 60"
+            },
+            {
+              "id": "r-week-061",
+              "type": "buy",
+              "date": "2024-08-26T07:00:00.000Z",
+              "amountBtc": "0.00098050",
+              "pricePerBtcEur": "56094",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 61"
+            },
+            {
+              "id": "r-week-062",
+              "type": "buy",
+              "date": "2024-09-02T07:00:00.000Z",
+              "amountBtc": "0.00098223",
+              "pricePerBtcEur": "55995",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 62"
+            },
+            {
+              "id": "r-week-063",
+              "type": "buy",
+              "date": "2024-09-09T07:00:00.000Z",
+              "amountBtc": "0.00093328",
+              "pricePerBtcEur": "58932",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 63"
+            },
+            {
+              "id": "r-week-064",
+              "type": "buy",
+              "date": "2024-09-16T07:00:00.000Z",
+              "amountBtc": "0.00094262",
+              "pricePerBtcEur": "58348",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 64"
+            },
+            {
+              "id": "r-week-065",
+              "type": "buy",
+              "date": "2024-09-23T07:00:00.000Z",
+              "amountBtc": "0.00089696",
+              "pricePerBtcEur": "61318",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 65"
+            },
+            {
+              "id": "r-week-066",
+              "type": "buy",
+              "date": "2024-09-30T07:00:00.000Z",
+              "amountBtc": "0.00085457",
+              "pricePerBtcEur": "64360",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 66"
+            },
+            {
+              "id": "r-week-067",
+              "type": "buy",
+              "date": "2024-10-07T07:00:00.000Z",
+              "amountBtc": "0.00084788",
+              "pricePerBtcEur": "64868",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 67"
+            },
+            {
+              "id": "r-week-068",
+              "type": "buy",
+              "date": "2024-10-14T07:00:00.000Z",
+              "amountBtc": "0.00080910",
+              "pricePerBtcEur": "67977",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 68"
+            },
+            {
+              "id": "r-week-069",
+              "type": "buy",
+              "date": "2024-10-21T07:00:00.000Z",
+              "amountBtc": "0.00077294",
+              "pricePerBtcEur": "71157",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 69"
+            },
+            {
+              "id": "r-week-070",
+              "type": "buy",
+              "date": "2024-10-28T07:00:00.000Z",
+              "amountBtc": "0.00078403",
+              "pricePerBtcEur": "70150",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 70"
+            },
+            {
+              "id": "r-week-071",
+              "type": "buy",
+              "date": "2024-11-04T07:00:00.000Z",
+              "amountBtc": "0.00077021",
+              "pricePerBtcEur": "71409",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 71"
+            },
+            {
+              "id": "r-week-072",
+              "type": "buy",
+              "date": "2024-11-11T07:00:00.000Z",
+              "amountBtc": "0.00073241",
+              "pricePerBtcEur": "75095",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 72"
+            },
+            {
+              "id": "r-week-073",
+              "type": "buy",
+              "date": "2024-11-18T07:00:00.000Z",
+              "amountBtc": "0.00069736",
+              "pricePerBtcEur": "78869",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 73"
+            },
+            {
+              "id": "r-week-074",
+              "type": "buy",
+              "date": "2024-11-25T07:00:00.000Z",
+              "amountBtc": "0.00070560",
+              "pricePerBtcEur": "77948",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 74"
+            },
+            {
+              "id": "r-week-075",
+              "type": "buy",
+              "date": "2024-12-02T07:00:00.000Z",
+              "amountBtc": "0.00065932",
+              "pricePerBtcEur": "83419",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 75"
+            },
+            {
+              "id": "r-week-076",
+              "type": "buy",
+              "date": "2024-12-09T07:00:00.000Z",
+              "amountBtc": "0.00066835",
+              "pricePerBtcEur": "82292",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 76"
+            },
+            {
+              "id": "r-week-077",
+              "type": "buy",
+              "date": "2024-12-16T07:00:00.000Z",
+              "amountBtc": "0.00063810",
+              "pricePerBtcEur": "86193",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 77"
+            },
+            {
+              "id": "r-week-078",
+              "type": "buy",
+              "date": "2024-12-23T07:00:00.000Z",
+              "amountBtc": "0.00060988",
+              "pricePerBtcEur": "90182",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 78"
+            },
+            {
+              "id": "r-week-079",
+              "type": "buy",
+              "date": "2024-12-30T07:00:00.000Z",
+              "amountBtc": "0.00061952",
+              "pricePerBtcEur": "88779",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 79"
+            },
+            {
+              "id": "r-week-080",
+              "type": "buy",
+              "date": "2025-01-06T07:00:00.000Z",
+              "amountBtc": "0.00059716",
+              "pricePerBtcEur": "92102",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 80"
+            },
+            {
+              "id": "r-week-081",
+              "type": "buy",
+              "date": "2025-01-13T07:00:00.000Z",
+              "amountBtc": "0.00059313",
+              "pricePerBtcEur": "92729",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 81"
+            },
+            {
+              "id": "r-week-082",
+              "type": "buy",
+              "date": "2025-01-20T07:00:00.000Z",
+              "amountBtc": "0.00062518",
+              "pricePerBtcEur": "87975",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 82"
+            },
+            {
+              "id": "r-week-083",
+              "type": "buy",
+              "date": "2025-01-27T07:00:00.000Z",
+              "amountBtc": "0.00062090",
+              "pricePerBtcEur": "88581",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 83"
+            },
+            {
+              "id": "r-week-084",
+              "type": "buy",
+              "date": "2025-02-03T07:00:00.000Z",
+              "amountBtc": "0.00063518",
+              "pricePerBtcEur": "86589",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 84"
+            },
+            {
+              "id": "r-week-085",
+              "type": "buy",
+              "date": "2025-02-10T07:00:00.000Z",
+              "amountBtc": "0.00063117",
+              "pricePerBtcEur": "87140",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 85"
+            },
+            {
+              "id": "r-week-086",
+              "type": "buy",
+              "date": "2025-02-17T07:00:00.000Z",
+              "amountBtc": "0.00066601",
+              "pricePerBtcEur": "82581",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 86"
+            },
+            {
+              "id": "r-week-087",
+              "type": "buy",
+              "date": "2025-02-24T07:00:00.000Z",
+              "amountBtc": "0.00066177",
+              "pricePerBtcEur": "83110",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 87"
+            },
+            {
+              "id": "r-week-088",
+              "type": "buy",
+              "date": "2025-03-03T07:00:00.000Z",
+              "amountBtc": "0.00066531",
+              "pricePerBtcEur": "82668",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 88"
+            },
+            {
+              "id": "r-week-089",
+              "type": "buy",
+              "date": "2025-03-10T07:00:00.000Z",
+              "amountBtc": "0.00064549",
+              "pricePerBtcEur": "85207",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 89"
+            },
+            {
+              "id": "r-week-090",
+              "type": "buy",
+              "date": "2025-03-17T07:00:00.000Z",
+              "amountBtc": "0.00066475",
+              "pricePerBtcEur": "82738",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 90"
+            },
+            {
+              "id": "r-week-091",
+              "type": "buy",
+              "date": "2025-03-24T07:00:00.000Z",
+              "amountBtc": "0.00064483",
+              "pricePerBtcEur": "85294",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 91"
+            },
+            {
+              "id": "r-week-092",
+              "type": "buy",
+              "date": "2025-03-31T07:00:00.000Z",
+              "amountBtc": "0.00062581",
+              "pricePerBtcEur": "87886",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 92"
+            },
+            {
+              "id": "r-week-093",
+              "type": "buy",
+              "date": "2025-04-07T07:00:00.000Z",
+              "amountBtc": "0.00062531",
+              "pricePerBtcEur": "87956",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 93"
+            },
+            {
+              "id": "r-week-094",
+              "type": "buy",
+              "date": "2025-04-14T07:00:00.000Z",
+              "amountBtc": "0.00064455",
+              "pricePerBtcEur": "85331",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 94"
+            },
+            {
+              "id": "r-week-095",
+              "type": "buy",
+              "date": "2025-04-21T07:00:00.000Z",
+              "amountBtc": "0.00062537",
+              "pricePerBtcEur": "87948",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 95"
+            },
+            {
+              "id": "r-week-096",
+              "type": "buy",
+              "date": "2025-04-28T07:00:00.000Z",
+              "amountBtc": "0.00060706",
+              "pricePerBtcEur": "90601",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 96"
+            },
+            {
+              "id": "r-week-097",
+              "type": "buy",
+              "date": "2025-05-05T07:00:00.000Z",
+              "amountBtc": "0.00061394",
+              "pricePerBtcEur": "89585",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 97"
+            },
+            {
+              "id": "r-week-098",
+              "type": "buy",
+              "date": "2025-05-12T07:00:00.000Z",
+              "amountBtc": "0.00059459",
+              "pricePerBtcEur": "92501",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 98"
+            },
+            {
+              "id": "r-week-099",
+              "type": "buy",
+              "date": "2025-05-19T07:00:00.000Z",
+              "amountBtc": "0.00057615",
+              "pricePerBtcEur": "95462",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 99"
+            },
+            {
+              "id": "r-week-100",
+              "type": "buy",
+              "date": "2025-05-26T07:00:00.000Z",
+              "amountBtc": "0.00059251",
+              "pricePerBtcEur": "92825",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 100"
+            },
+            {
+              "id": "r-week-101",
+              "type": "buy",
+              "date": "2025-06-02T07:00:00.000Z",
+              "amountBtc": "0.00059198",
+              "pricePerBtcEur": "92908",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 101"
+            },
+            {
+              "id": "r-week-102",
+              "type": "buy",
+              "date": "2025-06-09T07:00:00.000Z",
+              "amountBtc": "0.00057759",
+              "pricePerBtcEur": "95224",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 102"
+            },
+            {
+              "id": "r-week-103",
+              "type": "buy",
+              "date": "2025-06-16T07:00:00.000Z",
+              "amountBtc": "0.00056377",
+              "pricePerBtcEur": "97557",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 103"
+            },
+            {
+              "id": "r-week-104",
+              "type": "buy",
+              "date": "2025-06-23T07:00:00.000Z",
+              "amountBtc": "0.00058434",
+              "pricePerBtcEur": "94123",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 104"
+            },
+            {
+              "id": "r-week-105",
+              "type": "buy",
+              "date": "2025-06-30T07:00:00.000Z",
+              "amountBtc": "0.00057016",
+              "pricePerBtcEur": "96464",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 105"
+            },
+            {
+              "id": "r-week-106",
+              "type": "buy",
+              "date": "2025-07-07T07:00:00.000Z",
+              "amountBtc": "0.00058125",
+              "pricePerBtcEur": "94623",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 106"
+            },
+            {
+              "id": "r-week-107",
+              "type": "buy",
+              "date": "2025-07-14T07:00:00.000Z",
+              "amountBtc": "0.00056712",
+              "pricePerBtcEur": "96982",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 107"
+            },
+            {
+              "id": "r-week-108",
+              "type": "buy",
+              "date": "2025-07-21T07:00:00.000Z",
+              "amountBtc": "0.00055355",
+              "pricePerBtcEur": "99358",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 108"
+            },
+            {
+              "id": "r-week-109",
+              "type": "buy",
+              "date": "2025-07-28T07:00:00.000Z",
+              "amountBtc": "0.00057395",
+              "pricePerBtcEur": "95827",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 109"
+            },
+            {
+              "id": "r-week-110",
+              "type": "buy",
+              "date": "2025-08-04T07:00:00.000Z",
+              "amountBtc": "0.00054115",
+              "pricePerBtcEur": "101636",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 110"
+            },
+            {
+              "id": "r-week-111",
+              "type": "buy",
+              "date": "2025-08-11T07:00:00.000Z",
+              "amountBtc": "0.00055588",
+              "pricePerBtcEur": "98943",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 111"
+            },
+            {
+              "id": "r-week-112",
+              "type": "buy",
+              "date": "2025-08-18T07:00:00.000Z",
+              "amountBtc": "0.00053775",
+              "pricePerBtcEur": "102278",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 112"
+            },
+            {
+              "id": "r-week-113",
+              "type": "buy",
+              "date": "2025-08-25T07:00:00.000Z",
+              "amountBtc": "0.00052051",
+              "pricePerBtcEur": "105666",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 113"
+            },
+            {
+              "id": "r-week-114",
+              "type": "buy",
+              "date": "2025-09-01T07:00:00.000Z",
+              "amountBtc": "0.00051880",
+              "pricePerBtcEur": "106014",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 114"
+            },
+            {
+              "id": "r-week-115",
+              "type": "buy",
+              "date": "2025-09-08T07:00:00.000Z",
+              "amountBtc": "0.00051388",
+              "pricePerBtcEur": "107029",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 115"
+            },
+            {
+              "id": "r-week-116",
+              "type": "buy",
+              "date": "2025-09-15T07:00:00.000Z",
+              "amountBtc": "0.00054014",
+              "pricePerBtcEur": "101825",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 116"
+            },
+            {
+              "id": "r-week-117",
+              "type": "buy",
+              "date": "2025-09-22T07:00:00.000Z",
+              "amountBtc": "0.00053492",
+              "pricePerBtcEur": "102820",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 117"
+            },
+            {
+              "id": "r-week-118",
+              "type": "buy",
+              "date": "2025-09-29T07:00:00.000Z",
+              "amountBtc": "0.00052999",
+              "pricePerBtcEur": "103776",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 118"
+            },
+            {
+              "id": "r-week-119",
+              "type": "buy",
+              "date": "2025-10-06T07:00:00.000Z",
+              "amountBtc": "0.00054907",
+              "pricePerBtcEur": "100169",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 119"
+            },
+            {
+              "id": "r-week-120",
+              "type": "buy",
+              "date": "2025-10-13T07:00:00.000Z",
+              "amountBtc": "0.00054409",
+              "pricePerBtcEur": "101087",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 120"
+            },
+            {
+              "id": "r-week-121",
+              "type": "buy",
+              "date": "2025-10-20T07:00:00.000Z",
+              "amountBtc": "0.00057232",
+              "pricePerBtcEur": "96100",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 121"
+            },
+            {
+              "id": "r-week-122",
+              "type": "buy",
+              "date": "2025-10-27T07:00:00.000Z",
+              "amountBtc": "0.00056702",
+              "pricePerBtcEur": "96999",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 122"
+            },
+            {
+              "id": "r-week-123",
+              "type": "buy",
+              "date": "2025-11-03T07:00:00.000Z",
+              "amountBtc": "0.00058008",
+              "pricePerBtcEur": "94814",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 123"
+            },
+            {
+              "id": "r-week-124",
+              "type": "buy",
+              "date": "2025-11-10T07:00:00.000Z",
+              "amountBtc": "0.00057981",
+              "pricePerBtcEur": "94858",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 124"
+            },
+            {
+              "id": "r-week-125",
+              "type": "buy",
+              "date": "2025-11-17T07:00:00.000Z",
+              "amountBtc": "0.00061577",
+              "pricePerBtcEur": "89319",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 125"
+            },
+            {
+              "id": "r-week-126",
+              "type": "buy",
+              "date": "2025-11-24T07:00:00.000Z",
+              "amountBtc": "0.00061569",
+              "pricePerBtcEur": "89330",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 126"
+            },
+            {
+              "id": "r-week-127",
+              "type": "buy",
+              "date": "2025-12-01T07:00:00.000Z",
+              "amountBtc": "0.00060818",
+              "pricePerBtcEur": "90434",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 127"
+            },
+            {
+              "id": "r-week-128",
+              "type": "buy",
+              "date": "2025-12-08T07:00:00.000Z",
+              "amountBtc": "0.00062504",
+              "pricePerBtcEur": "87995",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 128"
+            },
+            {
+              "id": "r-week-129",
+              "type": "buy",
+              "date": "2025-12-15T07:00:00.000Z",
+              "amountBtc": "0.00060519",
+              "pricePerBtcEur": "90881",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 129"
+            },
+            {
+              "id": "r-week-130",
+              "type": "buy",
+              "date": "2025-12-22T07:00:00.000Z",
+              "amountBtc": "0.00058629",
+              "pricePerBtcEur": "93811",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 130"
+            },
+            {
+              "id": "r-week-131",
+              "type": "buy",
+              "date": "2025-12-29T07:00:00.000Z",
+              "amountBtc": "0.00060285",
+              "pricePerBtcEur": "91234",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 131"
+            },
+            {
+              "id": "r-week-132",
+              "type": "buy",
+              "date": "2026-01-05T07:00:00.000Z",
+              "amountBtc": "0.00057339",
+              "pricePerBtcEur": "95921",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 132"
+            },
+            {
+              "id": "r-week-133",
+              "type": "buy",
+              "date": "2026-01-12T07:00:00.000Z",
+              "amountBtc": "0.00058981",
+              "pricePerBtcEur": "93250",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 133"
+            },
+            {
+              "id": "r-week-134",
+              "type": "buy",
+              "date": "2026-01-19T07:00:00.000Z",
+              "amountBtc": "0.00057147",
+              "pricePerBtcEur": "96243",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 134"
+            },
+            {
+              "id": "r-week-135",
+              "type": "buy",
+              "date": "2026-01-26T07:00:00.000Z",
+              "amountBtc": "0.00055399",
+              "pricePerBtcEur": "99280",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 135"
+            },
+            {
+              "id": "r-week-136",
+              "type": "buy",
+              "date": "2026-02-02T07:00:00.000Z",
+              "amountBtc": "0.00055257",
+              "pricePerBtcEur": "99534",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 136"
+            },
+            {
+              "id": "r-week-137",
+              "type": "buy",
+              "date": "2026-02-09T07:00:00.000Z",
+              "amountBtc": "0.00056639",
+              "pricePerBtcEur": "97106",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 137"
+            },
+            {
+              "id": "r-week-138",
+              "type": "buy",
+              "date": "2026-02-16T07:00:00.000Z",
+              "amountBtc": "0.00054654",
+              "pricePerBtcEur": "100633",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 138"
+            },
+            {
+              "id": "r-week-139",
+              "type": "buy",
+              "date": "2026-02-23T07:00:00.000Z",
+              "amountBtc": "0.00052772",
+              "pricePerBtcEur": "104222",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 139"
+            },
+            {
+              "id": "r-week-140",
+              "type": "buy",
+              "date": "2026-03-02T07:00:00.000Z",
+              "amountBtc": "0.00051278",
+              "pricePerBtcEur": "107259",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 140"
+            },
+            {
+              "id": "r-week-141",
+              "type": "buy",
+              "date": "2026-03-09T07:00:00.000Z",
+              "amountBtc": "0.00052603",
+              "pricePerBtcEur": "104557",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 141"
+            },
+            {
+              "id": "r-week-142",
+              "type": "buy",
+              "date": "2026-03-16T07:00:00.000Z",
+              "amountBtc": "0.00050817",
+              "pricePerBtcEur": "108231",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 142"
+            },
+            {
+              "id": "r-week-143",
+              "type": "buy",
+              "date": "2026-03-23T07:00:00.000Z",
+              "amountBtc": "0.00049122",
+              "pricePerBtcEur": "111967",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 143"
+            },
+            {
+              "id": "r-week-144",
+              "type": "buy",
+              "date": "2026-03-30T07:00:00.000Z",
+              "amountBtc": "0.00050425",
+              "pricePerBtcEur": "109072",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 144"
+            },
+            {
+              "id": "r-week-145",
+              "type": "buy",
+              "date": "2026-04-06T07:00:00.000Z",
+              "amountBtc": "0.00047566",
+              "pricePerBtcEur": "115629",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 145"
+            },
+            {
+              "id": "r-week-146",
+              "type": "buy",
+              "date": "2026-04-13T07:00:00.000Z",
+              "amountBtc": "0.00049214",
+              "pricePerBtcEur": "111756",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 146"
+            },
+            {
+              "id": "r-week-147",
+              "type": "buy",
+              "date": "2026-04-20T07:00:00.000Z",
+              "amountBtc": "0.00047969",
+              "pricePerBtcEur": "114658",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 147"
+            },
+            {
+              "id": "r-week-148",
+              "type": "buy",
+              "date": "2026-04-27T07:00:00.000Z",
+              "amountBtc": "0.00046774",
+              "pricePerBtcEur": "117587",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 148"
+            },
+            {
+              "id": "r-week-149",
+              "type": "buy",
+              "date": "2026-05-04T07:00:00.000Z",
+              "amountBtc": "0.00047580",
+              "pricePerBtcEur": "115595",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 149"
+            },
+            {
+              "id": "r-week-150",
+              "type": "buy",
+              "date": "2026-05-11T07:00:00.000Z",
+              "amountBtc": "0.00046394",
+              "pricePerBtcEur": "118549",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 150"
+            },
+            {
+              "id": "r-week-151",
+              "type": "buy",
+              "date": "2026-05-18T07:00:00.000Z",
+              "amountBtc": "0.00048022",
+              "pricePerBtcEur": "114532",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 151"
+            },
+            {
+              "id": "r-week-152",
+              "type": "buy",
+              "date": "2026-05-25T07:00:00.000Z",
+              "amountBtc": "0.00046809",
+              "pricePerBtcEur": "117499",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 152"
+            },
+            {
+              "id": "r-week-153",
+              "type": "buy",
+              "date": "2026-06-01T07:00:00.000Z",
+              "amountBtc": "0.00047002",
+              "pricePerBtcEur": "117016",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 153"
+            },
+            {
+              "id": "r-week-154",
+              "type": "buy",
+              "date": "2026-06-08T07:00:00.000Z",
+              "amountBtc": "0.00045827",
+              "pricePerBtcEur": "120016",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 154"
+            },
+            {
+              "id": "r-week-155",
+              "type": "buy",
+              "date": "2026-06-15T07:00:00.000Z",
+              "amountBtc": "0.00047462",
+              "pricePerBtcEur": "115882",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 155"
+            },
+            {
+              "id": "r-week-156",
+              "type": "buy",
+              "date": "2026-06-22T07:00:00.000Z",
+              "amountBtc": "0.00046260",
+              "pricePerBtcEur": "118894",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 156"
+            },
+            {
+              "id": "r-week-157",
+              "type": "buy",
+              "date": "2026-06-29T07:00:00.000Z",
+              "amountBtc": "0.00045106",
+              "pricePerBtcEur": "121934",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 157"
+            },
+            {
+              "id": "r-week-158",
+              "type": "buy",
+              "date": "2026-07-06T07:00:00.000Z",
+              "amountBtc": "0.00045918",
+              "pricePerBtcEur": "119778",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 158"
+            },
+            {
+              "id": "r-week-159",
+              "type": "buy",
+              "date": "2026-07-13T07:00:00.000Z",
+              "amountBtc": "0.00044773",
+              "pricePerBtcEur": "122843",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 159"
+            },
+            {
+              "id": "r-week-160",
+              "type": "buy",
+              "date": "2026-07-20T07:00:00.000Z",
+              "amountBtc": "0.00043674",
+              "pricePerBtcEur": "125934",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 160"
+            },
+            {
+              "id": "r-week-161",
+              "type": "buy",
+              "date": "2026-07-27T07:00:00.000Z",
+              "amountBtc": "0.00045215",
+              "pricePerBtcEur": "121641",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 161"
+            },
+            {
+              "id": "r-week-162",
+              "type": "buy",
+              "date": "2026-08-03T07:00:00.000Z",
+              "amountBtc": "0.00045470",
+              "pricePerBtcEur": "120960",
+              "totalFiatEur": "55.00",
+              "feeFiatEur": "0.55",
+              "note": "Wochen-Sparplan, Ausführung 162"
+            },
+            {
+              "id": "r-sweep-out-1",
+              "type": "transfer_out",
+              "date": "2024-01-15T10:00:00.000Z",
+              "amountBtc": "0.04967663",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00006",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-week-001",
+                  "amountBtc": "0.00214777"
+                },
+                {
+                  "lotTransactionId": "r-week-002",
+                  "amountBtc": "0.00221873"
+                },
+                {
+                  "lotTransactionId": "r-week-003",
+                  "amountBtc": "0.00215932"
+                },
+                {
+                  "lotTransactionId": "r-week-004",
+                  "amountBtc": "0.00210245"
+                },
+                {
+                  "lotTransactionId": "r-week-005",
+                  "amountBtc": "0.00217237"
+                },
+                {
+                  "lotTransactionId": "r-week-006",
+                  "amountBtc": "0.00217822"
+                },
+                {
+                  "lotTransactionId": "r-week-007",
+                  "amountBtc": "0.00211995"
+                },
+                {
+                  "lotTransactionId": "r-week-008",
+                  "amountBtc": "0.00206410"
+                },
+                {
+                  "lotTransactionId": "r-week-009",
+                  "amountBtc": "0.00213410"
+                },
+                {
+                  "lotTransactionId": "r-week-010",
+                  "amountBtc": "0.00199073"
+                },
+                {
+                  "lotTransactionId": "r-week-011",
+                  "amountBtc": "0.00200087"
+                },
+                {
+                  "lotTransactionId": "r-week-012",
+                  "amountBtc": "0.00189655"
+                },
+                {
+                  "lotTransactionId": "r-week-013",
+                  "amountBtc": "0.00180033"
+                },
+                {
+                  "lotTransactionId": "r-week-014",
+                  "amountBtc": "0.00177832"
+                },
+                {
+                  "lotTransactionId": "r-week-015",
+                  "amountBtc": "0.00169158"
+                },
+                {
+                  "lotTransactionId": "r-week-016",
+                  "amountBtc": "0.00170972"
+                },
+                {
+                  "lotTransactionId": "r-week-017",
+                  "amountBtc": "0.00162857"
+                },
+                {
+                  "lotTransactionId": "r-week-018",
+                  "amountBtc": "0.00155310"
+                },
+                {
+                  "lotTransactionId": "r-week-019",
+                  "amountBtc": "0.00153820"
+                },
+                {
+                  "lotTransactionId": "r-week-020",
+                  "amountBtc": "0.00148520"
+                },
+                {
+                  "lotTransactionId": "r-week-021",
+                  "amountBtc": "0.00152194"
+                },
+                {
+                  "lotTransactionId": "r-week-022",
+                  "amountBtc": "0.00146965"
+                },
+                {
+                  "lotTransactionId": "r-week-023",
+                  "amountBtc": "0.00148001"
+                },
+                {
+                  "lotTransactionId": "r-week-024",
+                  "amountBtc": "0.00142969"
+                },
+                {
+                  "lotTransactionId": "r-week-025",
+                  "amountBtc": "0.00138194"
+                },
+                {
+                  "lotTransactionId": "r-week-026",
+                  "amountBtc": "0.00141807"
+                },
+                {
+                  "lotTransactionId": "r-week-027",
+                  "amountBtc": "0.00134586"
+                },
+                {
+                  "lotTransactionId": "r-week-028",
+                  "amountBtc": "0.00131929"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-1",
+              "note": "Halbjahres-Abzug: 28 Sparplan-Käufe in einer Transaktion"
+            },
+            {
+              "id": "r-sweep-out-2",
+              "type": "transfer_out",
+              "date": "2024-07-15T10:00:00.000Z",
+              "amountBtc": "0.02580859",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00004",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-week-029",
+                  "amountBtc": "0.00122200"
+                },
+                {
+                  "lotTransactionId": "r-week-030",
+                  "amountBtc": "0.00113578"
+                },
+                {
+                  "lotTransactionId": "r-week-031",
+                  "amountBtc": "0.00112373"
+                },
+                {
+                  "lotTransactionId": "r-week-032",
+                  "amountBtc": "0.00108134"
+                },
+                {
+                  "lotTransactionId": "r-week-033",
+                  "amountBtc": "0.00101196"
+                },
+                {
+                  "lotTransactionId": "r-week-034",
+                  "amountBtc": "0.00094934"
+                },
+                {
+                  "lotTransactionId": "r-week-035",
+                  "amountBtc": "0.00089261"
+                },
+                {
+                  "lotTransactionId": "r-week-036",
+                  "amountBtc": "0.00090111"
+                },
+                {
+                  "lotTransactionId": "r-week-037",
+                  "amountBtc": "0.00089674"
+                },
+                {
+                  "lotTransactionId": "r-week-038",
+                  "amountBtc": "0.00089296"
+                },
+                {
+                  "lotTransactionId": "r-week-039",
+                  "amountBtc": "0.00094364"
+                },
+                {
+                  "lotTransactionId": "r-week-040",
+                  "amountBtc": "0.00096797"
+                },
+                {
+                  "lotTransactionId": "r-week-041",
+                  "amountBtc": "0.00095392"
+                },
+                {
+                  "lotTransactionId": "r-week-042",
+                  "amountBtc": "0.00094044"
+                },
+                {
+                  "lotTransactionId": "r-week-043",
+                  "amountBtc": "0.00098443"
+                },
+                {
+                  "lotTransactionId": "r-week-044",
+                  "amountBtc": "0.00097019"
+                },
+                {
+                  "lotTransactionId": "r-week-045",
+                  "amountBtc": "0.00100033"
+                },
+                {
+                  "lotTransactionId": "r-week-046",
+                  "amountBtc": "0.00098584"
+                },
+                {
+                  "lotTransactionId": "r-week-047",
+                  "amountBtc": "0.00097195"
+                },
+                {
+                  "lotTransactionId": "r-week-048",
+                  "amountBtc": "0.00101778"
+                },
+                {
+                  "lotTransactionId": "r-week-049",
+                  "amountBtc": "0.00097316"
+                },
+                {
+                  "lotTransactionId": "r-week-050",
+                  "amountBtc": "0.00101871"
+                },
+                {
+                  "lotTransactionId": "r-week-051",
+                  "amountBtc": "0.00100427"
+                },
+                {
+                  "lotTransactionId": "r-week-052",
+                  "amountBtc": "0.00099044"
+                },
+                {
+                  "lotTransactionId": "r-week-053",
+                  "amountBtc": "0.00102090"
+                },
+                {
+                  "lotTransactionId": "r-week-054",
+                  "amountBtc": "0.00099705"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-2",
+              "note": "Halbjahres-Abzug: 26 Sparplan-Käufe in einer Transaktion"
+            },
+            {
+              "id": "r-sweep-out-3",
+              "type": "transfer_out",
+              "date": "2025-01-13T10:00:00.000Z",
+              "amountBtc": "0.02140522",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00009",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-week-055",
+                  "amountBtc": "0.00103395"
+                },
+                {
+                  "lotTransactionId": "r-week-056",
+                  "amountBtc": "0.00100942"
+                },
+                {
+                  "lotTransactionId": "r-week-057",
+                  "amountBtc": "0.00098586"
+                },
+                {
+                  "lotTransactionId": "r-week-058",
+                  "amountBtc": "0.00099142"
+                },
+                {
+                  "lotTransactionId": "r-week-059",
+                  "amountBtc": "0.00096848"
+                },
+                {
+                  "lotTransactionId": "r-week-060",
+                  "amountBtc": "0.00100407"
+                },
+                {
+                  "lotTransactionId": "r-week-061",
+                  "amountBtc": "0.00098050"
+                },
+                {
+                  "lotTransactionId": "r-week-062",
+                  "amountBtc": "0.00098223"
+                },
+                {
+                  "lotTransactionId": "r-week-063",
+                  "amountBtc": "0.00093328"
+                },
+                {
+                  "lotTransactionId": "r-week-064",
+                  "amountBtc": "0.00094262"
+                },
+                {
+                  "lotTransactionId": "r-week-065",
+                  "amountBtc": "0.00089696"
+                },
+                {
+                  "lotTransactionId": "r-week-066",
+                  "amountBtc": "0.00085457"
+                },
+                {
+                  "lotTransactionId": "r-week-067",
+                  "amountBtc": "0.00084788"
+                },
+                {
+                  "lotTransactionId": "r-week-068",
+                  "amountBtc": "0.00080910"
+                },
+                {
+                  "lotTransactionId": "r-week-069",
+                  "amountBtc": "0.00077294"
+                },
+                {
+                  "lotTransactionId": "r-week-070",
+                  "amountBtc": "0.00078403"
+                },
+                {
+                  "lotTransactionId": "r-week-071",
+                  "amountBtc": "0.00077021"
+                },
+                {
+                  "lotTransactionId": "r-week-072",
+                  "amountBtc": "0.00073241"
+                },
+                {
+                  "lotTransactionId": "r-week-073",
+                  "amountBtc": "0.00069736"
+                },
+                {
+                  "lotTransactionId": "r-week-074",
+                  "amountBtc": "0.00070560"
+                },
+                {
+                  "lotTransactionId": "r-week-075",
+                  "amountBtc": "0.00065932"
+                },
+                {
+                  "lotTransactionId": "r-week-076",
+                  "amountBtc": "0.00066835"
+                },
+                {
+                  "lotTransactionId": "r-week-077",
+                  "amountBtc": "0.00063810"
+                },
+                {
+                  "lotTransactionId": "r-week-078",
+                  "amountBtc": "0.00060988"
+                },
+                {
+                  "lotTransactionId": "r-week-079",
+                  "amountBtc": "0.00061952"
+                },
+                {
+                  "lotTransactionId": "r-week-080",
+                  "amountBtc": "0.00059716"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-3",
+              "note": "Halbjahres-Abzug: 26 Sparplan-Käufe in einer Transaktion"
+            },
+            {
+              "id": "r-sweep-out-4",
+              "type": "transfer_out",
+              "date": "2025-07-14T10:00:00.000Z",
+              "amountBtc": "0.01472698",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00005",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-week-081",
+                  "amountBtc": "0.00059313"
+                },
+                {
+                  "lotTransactionId": "r-week-082",
+                  "amountBtc": "0.00062518"
+                },
+                {
+                  "lotTransactionId": "r-week-083",
+                  "amountBtc": "0.00062090"
+                },
+                {
+                  "lotTransactionId": "r-week-084",
+                  "amountBtc": "0.00063518"
+                },
+                {
+                  "lotTransactionId": "r-week-085",
+                  "amountBtc": "0.00063117"
+                },
+                {
+                  "lotTransactionId": "r-week-086",
+                  "amountBtc": "0.00066601"
+                },
+                {
+                  "lotTransactionId": "r-week-087",
+                  "amountBtc": "0.00066177"
+                },
+                {
+                  "lotTransactionId": "r-week-088",
+                  "amountBtc": "0.00066531"
+                },
+                {
+                  "lotTransactionId": "r-week-089",
+                  "amountBtc": "0.00064549"
+                },
+                {
+                  "lotTransactionId": "r-week-090",
+                  "amountBtc": "0.00066475"
+                },
+                {
+                  "lotTransactionId": "r-week-091",
+                  "amountBtc": "0.00064483"
+                },
+                {
+                  "lotTransactionId": "r-week-094",
+                  "amountBtc": "0.00064455"
+                },
+                {
+                  "lotTransactionId": "r-week-095",
+                  "amountBtc": "0.00062537"
+                },
+                {
+                  "lotTransactionId": "r-week-096",
+                  "amountBtc": "0.00060706"
+                },
+                {
+                  "lotTransactionId": "r-week-097",
+                  "amountBtc": "0.00061394"
+                },
+                {
+                  "lotTransactionId": "r-week-098",
+                  "amountBtc": "0.00059459"
+                },
+                {
+                  "lotTransactionId": "r-week-099",
+                  "amountBtc": "0.00057615"
+                },
+                {
+                  "lotTransactionId": "r-week-100",
+                  "amountBtc": "0.00059251"
+                },
+                {
+                  "lotTransactionId": "r-week-101",
+                  "amountBtc": "0.00059198"
+                },
+                {
+                  "lotTransactionId": "r-week-102",
+                  "amountBtc": "0.00057759"
+                },
+                {
+                  "lotTransactionId": "r-week-103",
+                  "amountBtc": "0.00056377"
+                },
+                {
+                  "lotTransactionId": "r-week-104",
+                  "amountBtc": "0.00058434"
+                },
+                {
+                  "lotTransactionId": "r-week-105",
+                  "amountBtc": "0.00057016"
+                },
+                {
+                  "lotTransactionId": "r-week-106",
+                  "amountBtc": "0.00058125"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-4",
+              "note": "Halbjahres-Abzug: 24 Sparplan-Käufe in einer Transaktion"
+            },
+            {
+              "id": "r-sweep-out-5",
+              "type": "transfer_out",
+              "date": "2026-01-12T10:00:00.000Z",
+              "amountBtc": "0.01360312",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00007",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-week-107",
+                  "amountBtc": "0.00056712"
+                },
+                {
+                  "lotTransactionId": "r-week-108",
+                  "amountBtc": "0.00055355"
+                },
+                {
+                  "lotTransactionId": "r-week-109",
+                  "amountBtc": "0.00057395"
+                },
+                {
+                  "lotTransactionId": "r-week-110",
+                  "amountBtc": "0.00054115"
+                },
+                {
+                  "lotTransactionId": "r-week-111",
+                  "amountBtc": "0.00055588"
+                },
+                {
+                  "lotTransactionId": "r-week-112",
+                  "amountBtc": "0.00053775"
+                },
+                {
+                  "lotTransactionId": "r-week-115",
+                  "amountBtc": "0.00051388"
+                },
+                {
+                  "lotTransactionId": "r-week-116",
+                  "amountBtc": "0.00054014"
+                },
+                {
+                  "lotTransactionId": "r-week-117",
+                  "amountBtc": "0.00053492"
+                },
+                {
+                  "lotTransactionId": "r-week-118",
+                  "amountBtc": "0.00052999"
+                },
+                {
+                  "lotTransactionId": "r-week-119",
+                  "amountBtc": "0.00054907"
+                },
+                {
+                  "lotTransactionId": "r-week-120",
+                  "amountBtc": "0.00054409"
+                },
+                {
+                  "lotTransactionId": "r-week-121",
+                  "amountBtc": "0.00057232"
+                },
+                {
+                  "lotTransactionId": "r-week-122",
+                  "amountBtc": "0.00056702"
+                },
+                {
+                  "lotTransactionId": "r-week-123",
+                  "amountBtc": "0.00058008"
+                },
+                {
+                  "lotTransactionId": "r-week-124",
+                  "amountBtc": "0.00057981"
+                },
+                {
+                  "lotTransactionId": "r-week-125",
+                  "amountBtc": "0.00061577"
+                },
+                {
+                  "lotTransactionId": "r-week-126",
+                  "amountBtc": "0.00061569"
+                },
+                {
+                  "lotTransactionId": "r-week-127",
+                  "amountBtc": "0.00060818"
+                },
+                {
+                  "lotTransactionId": "r-week-128",
+                  "amountBtc": "0.00062504"
+                },
+                {
+                  "lotTransactionId": "r-week-129",
+                  "amountBtc": "0.00060519"
+                },
+                {
+                  "lotTransactionId": "r-week-130",
+                  "amountBtc": "0.00058629"
+                },
+                {
+                  "lotTransactionId": "r-week-131",
+                  "amountBtc": "0.00060285"
+                },
+                {
+                  "lotTransactionId": "r-week-132",
+                  "amountBtc": "0.00057339"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-5",
+              "note": "Halbjahres-Abzug: 24 Sparplan-Käufe in einer Transaktion"
+            },
+            {
+              "id": "r-sell-2025",
+              "type": "sell",
+              "date": "2025-11-14T12:00:00.000Z",
+              "amountBtc": "0.00103931",
+              "pricePerBtcEur": "94057",
+              "totalFiatEur": "97.75",
+              "feeFiatEur": "0.85",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-week-114",
+                  "amountBtc": "0.00051880"
+                },
+                {
+                  "lotTransactionId": "r-week-113",
+                  "amountBtc": "0.00052051"
+                }
+              ],
+              "note": "Verkauf innerhalb der Haltefrist — steuerpflichtiger Gewinn im Steuerjahr 2025"
+            },
+            {
+              "id": "r-sell-2026",
+              "type": "sell",
+              "date": "2026-06-02T12:00:00.000Z",
+              "amountBtc": "0.00125112",
+              "pricePerBtcEur": "115418",
+              "totalFiatEur": "144.40",
+              "feeFiatEur": "0.90",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-week-092",
+                  "amountBtc": "0.00062581"
+                },
+                {
+                  "lotTransactionId": "r-week-093",
+                  "amountBtc": "0.00062531"
+                }
+              ],
+              "note": "Verkauf nach über einem Jahr Haltedauer — steuerfrei"
+            }
+          ]
+        },
+        {
+          "id": "a-relai-daily",
+          "name": "Tages-Sparplan",
+          "transactions": [
+            {
+              "id": "r-day-001",
+              "type": "buy",
+              "date": "2025-08-01T06:15:00.000Z",
+              "amountBtc": "0.00012077",
+              "pricePerBtcEur": "99362",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-004",
+              "type": "buy",
+              "date": "2025-08-04T06:15:00.000Z",
+              "amountBtc": "0.00011807",
+              "pricePerBtcEur": "101636",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-005",
+              "type": "buy",
+              "date": "2025-08-05T06:15:00.000Z",
+              "amountBtc": "0.00011952",
+              "pricePerBtcEur": "100403",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-007",
+              "type": "buy",
+              "date": "2025-08-07T06:15:00.000Z",
+              "amountBtc": "0.00012255",
+              "pricePerBtcEur": "97920",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-008",
+              "type": "buy",
+              "date": "2025-08-08T06:15:00.000Z",
+              "amountBtc": "0.00011686",
+              "pricePerBtcEur": "102691",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-011",
+              "type": "buy",
+              "date": "2025-08-11T06:15:00.000Z",
+              "amountBtc": "0.00012128",
+              "pricePerBtcEur": "98943",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-012",
+              "type": "buy",
+              "date": "2025-08-12T06:15:00.000Z",
+              "amountBtc": "0.00011566",
+              "pricePerBtcEur": "103750",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-014",
+              "type": "buy",
+              "date": "2025-08-14T06:15:00.000Z",
+              "amountBtc": "0.00011853",
+              "pricePerBtcEur": "101236",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-015",
+              "type": "buy",
+              "date": "2025-08-15T06:15:00.000Z",
+              "amountBtc": "0.00012004",
+              "pricePerBtcEur": "99970",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-018",
+              "type": "buy",
+              "date": "2025-08-18T06:15:00.000Z",
+              "amountBtc": "0.00011733",
+              "pricePerBtcEur": "102278",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-019",
+              "type": "buy",
+              "date": "2025-08-19T06:15:00.000Z",
+              "amountBtc": "0.00011881",
+              "pricePerBtcEur": "101002",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-021",
+              "type": "buy",
+              "date": "2025-08-21T06:15:00.000Z",
+              "amountBtc": "0.00011472",
+              "pricePerBtcEur": "104605",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-022",
+              "type": "buy",
+              "date": "2025-08-22T06:15:00.000Z",
+              "amountBtc": "0.00011614",
+              "pricePerBtcEur": "103324",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-025",
+              "type": "buy",
+              "date": "2025-08-25T06:15:00.000Z",
+              "amountBtc": "0.00011357",
+              "pricePerBtcEur": "105666",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-026",
+              "type": "buy",
+              "date": "2025-08-26T06:15:00.000Z",
+              "amountBtc": "0.00011497",
+              "pricePerBtcEur": "104375",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-028",
+              "type": "buy",
+              "date": "2025-08-28T06:15:00.000Z",
+              "amountBtc": "0.00011791",
+              "pricePerBtcEur": "101774",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-029",
+              "type": "buy",
+              "date": "2025-08-29T06:15:00.000Z",
+              "amountBtc": "0.00011243",
+              "pricePerBtcEur": "106731",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-032",
+              "type": "buy",
+              "date": "2025-09-01T06:15:00.000Z",
+              "amountBtc": "0.00011319",
+              "pricePerBtcEur": "106014",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-033",
+              "type": "buy",
+              "date": "2025-09-02T06:15:00.000Z",
+              "amountBtc": "0.00011498",
+              "pricePerBtcEur": "104364",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-035",
+              "type": "buy",
+              "date": "2025-09-04T06:15:00.000Z",
+              "amountBtc": "0.00011178",
+              "pricePerBtcEur": "107350",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-036",
+              "type": "buy",
+              "date": "2025-09-05T06:15:00.000Z",
+              "amountBtc": "0.00011352",
+              "pricePerBtcEur": "105704",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-039",
+              "type": "buy",
+              "date": "2025-09-08T06:15:00.000Z",
+              "amountBtc": "0.00011212",
+              "pricePerBtcEur": "107029",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-040",
+              "type": "buy",
+              "date": "2025-09-09T06:15:00.000Z",
+              "amountBtc": "0.00011386",
+              "pricePerBtcEur": "105390",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-042",
+              "type": "buy",
+              "date": "2025-09-11T06:15:00.000Z",
+              "amountBtc": "0.00011750",
+              "pricePerBtcEur": "102126",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-043",
+              "type": "buy",
+              "date": "2025-09-12T06:15:00.000Z",
+              "amountBtc": "0.00011940",
+              "pricePerBtcEur": "100500",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-046",
+              "type": "buy",
+              "date": "2025-09-15T06:15:00.000Z",
+              "amountBtc": "0.00011785",
+              "pricePerBtcEur": "101825",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-047",
+              "type": "buy",
+              "date": "2025-09-16T06:15:00.000Z",
+              "amountBtc": "0.00011975",
+              "pricePerBtcEur": "100207",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-049",
+              "type": "buy",
+              "date": "2025-09-18T06:15:00.000Z",
+              "amountBtc": "0.00011635",
+              "pricePerBtcEur": "103135",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-050",
+              "type": "buy",
+              "date": "2025-09-19T06:15:00.000Z",
+              "amountBtc": "0.00011820",
+              "pricePerBtcEur": "101521",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-053",
+              "type": "buy",
+              "date": "2025-09-22T06:15:00.000Z",
+              "amountBtc": "0.00011671",
+              "pricePerBtcEur": "102820",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-054",
+              "type": "buy",
+              "date": "2025-09-23T06:15:00.000Z",
+              "amountBtc": "0.00011856",
+              "pricePerBtcEur": "101214",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-056",
+              "type": "buy",
+              "date": "2025-09-25T06:15:00.000Z",
+              "amountBtc": "0.00011527",
+              "pricePerBtcEur": "104105",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-057",
+              "type": "buy",
+              "date": "2025-09-26T06:15:00.000Z",
+              "amountBtc": "0.00011707",
+              "pricePerBtcEur": "102502",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-060",
+              "type": "buy",
+              "date": "2025-09-29T06:15:00.000Z",
+              "amountBtc": "0.00011563",
+              "pricePerBtcEur": "103776",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-061",
+              "type": "buy",
+              "date": "2025-09-30T06:15:00.000Z",
+              "amountBtc": "0.00011744",
+              "pricePerBtcEur": "102181",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-063",
+              "type": "buy",
+              "date": "2025-10-02T06:15:00.000Z",
+              "amountBtc": "0.00011942",
+              "pricePerBtcEur": "100487",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-064",
+              "type": "buy",
+              "date": "2025-10-03T06:15:00.000Z",
+              "amountBtc": "0.00012133",
+              "pricePerBtcEur": "98905",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-067",
+              "type": "buy",
+              "date": "2025-10-06T06:15:00.000Z",
+              "amountBtc": "0.00011980",
+              "pricePerBtcEur": "100169",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-068",
+              "type": "buy",
+              "date": "2025-10-07T06:15:00.000Z",
+              "amountBtc": "0.00012171",
+              "pricePerBtcEur": "98595",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-070",
+              "type": "buy",
+              "date": "2025-10-09T06:15:00.000Z",
+              "amountBtc": "0.00011832",
+              "pricePerBtcEur": "101419",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-071",
+              "type": "buy",
+              "date": "2025-10-10T06:15:00.000Z",
+              "amountBtc": "0.00012018",
+              "pricePerBtcEur": "99848",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-074",
+              "type": "buy",
+              "date": "2025-10-13T06:15:00.000Z",
+              "amountBtc": "0.00011871",
+              "pricePerBtcEur": "101087",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-075",
+              "type": "buy",
+              "date": "2025-10-14T06:15:00.000Z",
+              "amountBtc": "0.00012057",
+              "pricePerBtcEur": "99524",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-077",
+              "type": "buy",
+              "date": "2025-10-16T06:15:00.000Z",
+              "amountBtc": "0.00012447",
+              "pricePerBtcEur": "96411",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-078",
+              "type": "buy",
+              "date": "2025-10-17T06:15:00.000Z",
+              "amountBtc": "0.00011910",
+              "pricePerBtcEur": "100752",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-081",
+              "type": "buy",
+              "date": "2025-10-20T06:15:00.000Z",
+              "amountBtc": "0.00012487",
+              "pricePerBtcEur": "96100",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-082",
+              "type": "buy",
+              "date": "2025-10-21T06:15:00.000Z",
+              "amountBtc": "0.00011951",
+              "pricePerBtcEur": "100413",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-084",
+              "type": "buy",
+              "date": "2025-10-23T06:15:00.000Z",
+              "amountBtc": "0.00012330",
+              "pricePerBtcEur": "97324",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-085",
+              "type": "buy",
+              "date": "2025-10-24T06:15:00.000Z",
+              "amountBtc": "0.00012528",
+              "pricePerBtcEur": "95785",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-088",
+              "type": "buy",
+              "date": "2025-10-27T06:15:00.000Z",
+              "amountBtc": "0.00012371",
+              "pricePerBtcEur": "96999",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-089",
+              "type": "buy",
+              "date": "2025-10-28T06:15:00.000Z",
+              "amountBtc": "0.00012570",
+              "pricePerBtcEur": "95468",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-091",
+              "type": "buy",
+              "date": "2025-10-30T06:15:00.000Z",
+              "amountBtc": "0.00012220",
+              "pricePerBtcEur": "98197",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-092",
+              "type": "buy",
+              "date": "2025-10-31T06:15:00.000Z",
+              "amountBtc": "0.00012413",
+              "pricePerBtcEur": "96670",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-095",
+              "type": "buy",
+              "date": "2025-11-03T06:15:00.000Z",
+              "amountBtc": "0.00012656",
+              "pricePerBtcEur": "94814",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-096",
+              "type": "buy",
+              "date": "2025-11-04T06:15:00.000Z",
+              "amountBtc": "0.00012877",
+              "pricePerBtcEur": "93192",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-098",
+              "type": "buy",
+              "date": "2025-11-06T06:15:00.000Z",
+              "amountBtc": "0.00012545",
+              "pricePerBtcEur": "95653",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-099",
+              "type": "buy",
+              "date": "2025-11-07T06:15:00.000Z",
+              "amountBtc": "0.00012761",
+              "pricePerBtcEur": "94038",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-102",
+              "type": "buy",
+              "date": "2025-11-10T06:15:00.000Z",
+              "amountBtc": "0.00012650",
+              "pricePerBtcEur": "94858",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-103",
+              "type": "buy",
+              "date": "2025-11-11T06:15:00.000Z",
+              "amountBtc": "0.00012868",
+              "pricePerBtcEur": "93257",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-105",
+              "type": "buy",
+              "date": "2025-11-13T06:15:00.000Z",
+              "amountBtc": "0.00012546",
+              "pricePerBtcEur": "95651",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-106",
+              "type": "buy",
+              "date": "2025-11-14T06:15:00.000Z",
+              "amountBtc": "0.00012758",
+              "pricePerBtcEur": "94057",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-109",
+              "type": "buy",
+              "date": "2025-11-17T06:15:00.000Z",
+              "amountBtc": "0.00013435",
+              "pricePerBtcEur": "89319",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-110",
+              "type": "buy",
+              "date": "2025-11-18T06:15:00.000Z",
+              "amountBtc": "0.00012868",
+              "pricePerBtcEur": "93251",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-112",
+              "type": "buy",
+              "date": "2025-11-20T06:15:00.000Z",
+              "amountBtc": "0.00013317",
+              "pricePerBtcEur": "90113",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-113",
+              "type": "buy",
+              "date": "2025-11-21T06:15:00.000Z",
+              "amountBtc": "0.00013551",
+              "pricePerBtcEur": "88555",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-116",
+              "type": "buy",
+              "date": "2025-11-24T06:15:00.000Z",
+              "amountBtc": "0.00013433",
+              "pricePerBtcEur": "89330",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-117",
+              "type": "buy",
+              "date": "2025-11-25T06:15:00.000Z",
+              "amountBtc": "0.00013670",
+              "pricePerBtcEur": "87786",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-119",
+              "type": "buy",
+              "date": "2025-11-27T06:15:00.000Z",
+              "amountBtc": "0.00013322",
+              "pricePerBtcEur": "90078",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-120",
+              "type": "buy",
+              "date": "2025-11-28T06:15:00.000Z",
+              "amountBtc": "0.00013553",
+              "pricePerBtcEur": "88541",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-123",
+              "type": "buy",
+              "date": "2025-12-01T06:15:00.000Z",
+              "amountBtc": "0.00013269",
+              "pricePerBtcEur": "90434",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-124",
+              "type": "buy",
+              "date": "2025-12-02T06:15:00.000Z",
+              "amountBtc": "0.00013432",
+              "pricePerBtcEur": "89336",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-126",
+              "type": "buy",
+              "date": "2025-12-04T06:15:00.000Z",
+              "amountBtc": "0.00013773",
+              "pricePerBtcEur": "87125",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-127",
+              "type": "buy",
+              "date": "2025-12-05T06:15:00.000Z",
+              "amountBtc": "0.00013952",
+              "pricePerBtcEur": "86012",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-130",
+              "type": "buy",
+              "date": "2025-12-08T06:15:00.000Z",
+              "amountBtc": "0.00013637",
+              "pricePerBtcEur": "87995",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-131",
+              "type": "buy",
+              "date": "2025-12-09T06:15:00.000Z",
+              "amountBtc": "0.00013813",
+              "pricePerBtcEur": "86874",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-133",
+              "type": "buy",
+              "date": "2025-12-11T06:15:00.000Z",
+              "amountBtc": "0.00013334",
+              "pricePerBtcEur": "89995",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-134",
+              "type": "buy",
+              "date": "2025-12-12T06:15:00.000Z",
+              "amountBtc": "0.00013503",
+              "pricePerBtcEur": "88869",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-137",
+              "type": "buy",
+              "date": "2025-12-15T06:15:00.000Z",
+              "amountBtc": "0.00013204",
+              "pricePerBtcEur": "90881",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-138",
+              "type": "buy",
+              "date": "2025-12-16T06:15:00.000Z",
+              "amountBtc": "0.00013371",
+              "pricePerBtcEur": "89747",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-140",
+              "type": "buy",
+              "date": "2025-12-18T06:15:00.000Z",
+              "amountBtc": "0.00012916",
+              "pricePerBtcEur": "92909",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-141",
+              "type": "buy",
+              "date": "2025-12-19T06:15:00.000Z",
+              "amountBtc": "0.00013076",
+              "pricePerBtcEur": "91770",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-144",
+              "type": "buy",
+              "date": "2025-12-22T06:15:00.000Z",
+              "amountBtc": "0.00012792",
+              "pricePerBtcEur": "93811",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-145",
+              "type": "buy",
+              "date": "2025-12-23T06:15:00.000Z",
+              "amountBtc": "0.00012950",
+              "pricePerBtcEur": "92663",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-147",
+              "type": "buy",
+              "date": "2025-12-25T06:15:00.000Z",
+              "amountBtc": "0.00013281",
+              "pricePerBtcEur": "90355",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-148",
+              "type": "buy",
+              "date": "2025-12-26T06:15:00.000Z",
+              "amountBtc": "0.00012669",
+              "pricePerBtcEur": "94716",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-151",
+              "type": "buy",
+              "date": "2025-12-29T06:15:00.000Z",
+              "amountBtc": "0.00013153",
+              "pricePerBtcEur": "91234",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-152",
+              "type": "buy",
+              "date": "2025-12-30T06:15:00.000Z",
+              "amountBtc": "0.00013324",
+              "pricePerBtcEur": "90064",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-154",
+              "type": "buy",
+              "date": "2026-01-01T06:15:00.000Z",
+              "amountBtc": "0.00012630",
+              "pricePerBtcEur": "95014",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-155",
+              "type": "buy",
+              "date": "2026-01-02T06:15:00.000Z",
+              "amountBtc": "0.00012787",
+              "pricePerBtcEur": "93843",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-158",
+              "type": "buy",
+              "date": "2026-01-05T06:15:00.000Z",
+              "amountBtc": "0.00012510",
+              "pricePerBtcEur": "95921",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-159",
+              "type": "buy",
+              "date": "2026-01-06T06:15:00.000Z",
+              "amountBtc": "0.00012666",
+              "pricePerBtcEur": "94741",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-161",
+              "type": "buy",
+              "date": "2026-01-08T06:15:00.000Z",
+              "amountBtc": "0.00012992",
+              "pricePerBtcEur": "92367",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-162",
+              "type": "buy",
+              "date": "2026-01-09T06:15:00.000Z",
+              "amountBtc": "0.00012393",
+              "pricePerBtcEur": "96831",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-165",
+              "type": "buy",
+              "date": "2026-01-12T06:15:00.000Z",
+              "amountBtc": "0.00012869",
+              "pricePerBtcEur": "93250",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-166",
+              "type": "buy",
+              "date": "2026-01-13T06:15:00.000Z",
+              "amountBtc": "0.00012277",
+              "pricePerBtcEur": "97744",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-168",
+              "type": "buy",
+              "date": "2026-01-15T06:15:00.000Z",
+              "amountBtc": "0.00012586",
+              "pricePerBtcEur": "95344",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-169",
+              "type": "buy",
+              "date": "2026-01-16T06:15:00.000Z",
+              "amountBtc": "0.00012747",
+              "pricePerBtcEur": "94137",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-172",
+              "type": "buy",
+              "date": "2026-01-19T06:15:00.000Z",
+              "amountBtc": "0.00012468",
+              "pricePerBtcEur": "96243",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-173",
+              "type": "buy",
+              "date": "2026-01-20T06:15:00.000Z",
+              "amountBtc": "0.00012628",
+              "pricePerBtcEur": "95027",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-175",
+              "type": "buy",
+              "date": "2026-01-22T06:15:00.000Z",
+              "amountBtc": "0.00012199",
+              "pricePerBtcEur": "98365",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-176",
+              "type": "buy",
+              "date": "2026-01-23T06:15:00.000Z",
+              "amountBtc": "0.00012353",
+              "pricePerBtcEur": "97145",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-179",
+              "type": "buy",
+              "date": "2026-01-26T06:15:00.000Z",
+              "amountBtc": "0.00012087",
+              "pricePerBtcEur": "99280",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-180",
+              "type": "buy",
+              "date": "2026-01-27T06:15:00.000Z",
+              "amountBtc": "0.00012239",
+              "pricePerBtcEur": "98051",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-182",
+              "type": "buy",
+              "date": "2026-01-29T06:15:00.000Z",
+              "amountBtc": "0.00012555",
+              "pricePerBtcEur": "95579",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-183",
+              "type": "buy",
+              "date": "2026-01-30T06:15:00.000Z",
+              "amountBtc": "0.00011976",
+              "pricePerBtcEur": "100197",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-186",
+              "type": "buy",
+              "date": "2026-02-02T06:15:00.000Z",
+              "amountBtc": "0.00012056",
+              "pricePerBtcEur": "99534",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-187",
+              "type": "buy",
+              "date": "2026-02-03T06:15:00.000Z",
+              "amountBtc": "0.00012201",
+              "pricePerBtcEur": "98351",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-189",
+              "type": "buy",
+              "date": "2026-02-05T06:15:00.000Z",
+              "amountBtc": "0.00012504",
+              "pricePerBtcEur": "95966",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-190",
+              "type": "buy",
+              "date": "2026-02-06T06:15:00.000Z",
+              "amountBtc": "0.00011915",
+              "pricePerBtcEur": "100711",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-193",
+              "type": "buy",
+              "date": "2026-02-09T06:15:00.000Z",
+              "amountBtc": "0.00012358",
+              "pricePerBtcEur": "97106",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-194",
+              "type": "buy",
+              "date": "2026-02-10T06:15:00.000Z",
+              "amountBtc": "0.00011777",
+              "pricePerBtcEur": "101893",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-196",
+              "type": "buy",
+              "date": "2026-02-12T06:15:00.000Z",
+              "amountBtc": "0.00012064",
+              "pricePerBtcEur": "99471",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-197",
+              "type": "buy",
+              "date": "2026-02-13T06:15:00.000Z",
+              "amountBtc": "0.00012214",
+              "pricePerBtcEur": "98250",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-200",
+              "type": "buy",
+              "date": "2026-02-16T06:15:00.000Z",
+              "amountBtc": "0.00011925",
+              "pricePerBtcEur": "100633",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-201",
+              "type": "buy",
+              "date": "2026-02-17T06:15:00.000Z",
+              "amountBtc": "0.00012072",
+              "pricePerBtcEur": "99400",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-203",
+              "type": "buy",
+              "date": "2026-02-19T06:15:00.000Z",
+              "amountBtc": "0.00011646",
+              "pricePerBtcEur": "103038",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-204",
+              "type": "buy",
+              "date": "2026-02-20T06:15:00.000Z",
+              "amountBtc": "0.00011788",
+              "pricePerBtcEur": "101799",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-207",
+              "type": "buy",
+              "date": "2026-02-23T06:15:00.000Z",
+              "amountBtc": "0.00011514",
+              "pricePerBtcEur": "104222",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-208",
+              "type": "buy",
+              "date": "2026-02-24T06:15:00.000Z",
+              "amountBtc": "0.00011654",
+              "pricePerBtcEur": "102971",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-210",
+              "type": "buy",
+              "date": "2026-02-26T06:15:00.000Z",
+              "amountBtc": "0.00011250",
+              "pricePerBtcEur": "106667",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-211",
+              "type": "buy",
+              "date": "2026-02-27T06:15:00.000Z",
+              "amountBtc": "0.00011384",
+              "pricePerBtcEur": "105410",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-214",
+              "type": "buy",
+              "date": "2026-03-02T06:15:00.000Z",
+              "amountBtc": "0.00011188",
+              "pricePerBtcEur": "107259",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-215",
+              "type": "buy",
+              "date": "2026-03-03T06:15:00.000Z",
+              "amountBtc": "0.00011323",
+              "pricePerBtcEur": "105977",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-217",
+              "type": "buy",
+              "date": "2026-03-05T06:15:00.000Z",
+              "amountBtc": "0.00011606",
+              "pricePerBtcEur": "103393",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-218",
+              "type": "buy",
+              "date": "2026-03-06T06:15:00.000Z",
+              "amountBtc": "0.00011064",
+              "pricePerBtcEur": "108460",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-221",
+              "type": "buy",
+              "date": "2026-03-09T06:15:00.000Z",
+              "amountBtc": "0.00011477",
+              "pricePerBtcEur": "104557",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-222",
+              "type": "buy",
+              "date": "2026-03-10T06:15:00.000Z",
+              "amountBtc": "0.00010942",
+              "pricePerBtcEur": "109665",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-224",
+              "type": "buy",
+              "date": "2026-03-12T06:15:00.000Z",
+              "amountBtc": "0.00011210",
+              "pricePerBtcEur": "107045",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-225",
+              "type": "buy",
+              "date": "2026-03-13T06:15:00.000Z",
+              "amountBtc": "0.00011350",
+              "pricePerBtcEur": "105726",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-228",
+              "type": "buy",
+              "date": "2026-03-16T06:15:00.000Z",
+              "amountBtc": "0.00011087",
+              "pricePerBtcEur": "108231",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-229",
+              "type": "buy",
+              "date": "2026-03-17T06:15:00.000Z",
+              "amountBtc": "0.00011226",
+              "pricePerBtcEur": "106899",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-231",
+              "type": "buy",
+              "date": "2026-03-19T06:15:00.000Z",
+              "amountBtc": "0.00010834",
+              "pricePerBtcEur": "110759",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-232",
+              "type": "buy",
+              "date": "2026-03-20T06:15:00.000Z",
+              "amountBtc": "0.00010967",
+              "pricePerBtcEur": "109421",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-235",
+              "type": "buy",
+              "date": "2026-03-23T06:15:00.000Z",
+              "amountBtc": "0.00010717",
+              "pricePerBtcEur": "111967",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-236",
+              "type": "buy",
+              "date": "2026-03-24T06:15:00.000Z",
+              "amountBtc": "0.00010848",
+              "pricePerBtcEur": "110617",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-238",
+              "type": "buy",
+              "date": "2026-03-26T06:15:00.000Z",
+              "amountBtc": "0.00011122",
+              "pricePerBtcEur": "107897",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-239",
+              "type": "buy",
+              "date": "2026-03-27T06:15:00.000Z",
+              "amountBtc": "0.00010603",
+              "pricePerBtcEur": "113179",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-242",
+              "type": "buy",
+              "date": "2026-03-30T06:15:00.000Z",
+              "amountBtc": "0.00011002",
+              "pricePerBtcEur": "109072",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-243",
+              "type": "buy",
+              "date": "2026-03-31T06:15:00.000Z",
+              "amountBtc": "0.00010490",
+              "pricePerBtcEur": "114396",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-245",
+              "type": "buy",
+              "date": "2026-04-02T06:15:00.000Z",
+              "amountBtc": "0.00010441",
+              "pricePerBtcEur": "114935",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-246",
+              "type": "buy",
+              "date": "2026-04-03T06:15:00.000Z",
+              "amountBtc": "0.00010580",
+              "pricePerBtcEur": "113425",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-249",
+              "type": "buy",
+              "date": "2026-04-06T06:15:00.000Z",
+              "amountBtc": "0.00010378",
+              "pricePerBtcEur": "115629",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-250",
+              "type": "buy",
+              "date": "2026-04-07T06:15:00.000Z",
+              "amountBtc": "0.00010516",
+              "pricePerBtcEur": "114114",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-252",
+              "type": "buy",
+              "date": "2026-04-09T06:15:00.000Z",
+              "amountBtc": "0.00010803",
+              "pricePerBtcEur": "111076",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-253",
+              "type": "buy",
+              "date": "2026-04-10T06:15:00.000Z",
+              "amountBtc": "0.00010954",
+              "pricePerBtcEur": "109553",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-256",
+              "type": "buy",
+              "date": "2026-04-13T06:15:00.000Z",
+              "amountBtc": "0.00010738",
+              "pricePerBtcEur": "111756",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-257",
+              "type": "buy",
+              "date": "2026-04-14T06:15:00.000Z",
+              "amountBtc": "0.00010887",
+              "pricePerBtcEur": "110227",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-259",
+              "type": "buy",
+              "date": "2026-04-16T06:15:00.000Z",
+              "amountBtc": "0.00010529",
+              "pricePerBtcEur": "113969",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-260",
+              "type": "buy",
+              "date": "2026-04-17T06:15:00.000Z",
+              "amountBtc": "0.00010673",
+              "pricePerBtcEur": "112438",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-263",
+              "type": "buy",
+              "date": "2026-04-20T06:15:00.000Z",
+              "amountBtc": "0.00010466",
+              "pricePerBtcEur": "114658",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-264",
+              "type": "buy",
+              "date": "2026-04-21T06:15:00.000Z",
+              "amountBtc": "0.00010608",
+              "pricePerBtcEur": "113122",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-266",
+              "type": "buy",
+              "date": "2026-04-23T06:15:00.000Z",
+              "amountBtc": "0.00010266",
+              "pricePerBtcEur": "116889",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-267",
+              "type": "buy",
+              "date": "2026-04-24T06:15:00.000Z",
+              "amountBtc": "0.00010403",
+              "pricePerBtcEur": "115350",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-270",
+              "type": "buy",
+              "date": "2026-04-27T06:15:00.000Z",
+              "amountBtc": "0.00010205",
+              "pricePerBtcEur": "117587",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-271",
+              "type": "buy",
+              "date": "2026-04-28T06:15:00.000Z",
+              "amountBtc": "0.00010341",
+              "pricePerBtcEur": "116043",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-273",
+              "type": "buy",
+              "date": "2026-04-30T06:15:00.000Z",
+              "amountBtc": "0.00010624",
+              "pricePerBtcEur": "112947",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-274",
+              "type": "buy",
+              "date": "2026-05-01T06:15:00.000Z",
+              "amountBtc": "0.00010587",
+              "pricePerBtcEur": "113351",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-277",
+              "type": "buy",
+              "date": "2026-05-04T06:15:00.000Z",
+              "amountBtc": "0.00010381",
+              "pricePerBtcEur": "115595",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-278",
+              "type": "buy",
+              "date": "2026-05-05T06:15:00.000Z",
+              "amountBtc": "0.00010523",
+              "pricePerBtcEur": "114037",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-280",
+              "type": "buy",
+              "date": "2026-05-07T06:15:00.000Z",
+              "amountBtc": "0.00010183",
+              "pricePerBtcEur": "117848",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-281",
+              "type": "buy",
+              "date": "2026-05-08T06:15:00.000Z",
+              "amountBtc": "0.00010319",
+              "pricePerBtcEur": "116288",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-284",
+              "type": "buy",
+              "date": "2026-05-11T06:15:00.000Z",
+              "amountBtc": "0.00010122",
+              "pricePerBtcEur": "118549",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-285",
+              "type": "buy",
+              "date": "2026-05-12T06:15:00.000Z",
+              "amountBtc": "0.00010258",
+              "pricePerBtcEur": "116984",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-287",
+              "type": "buy",
+              "date": "2026-05-14T06:15:00.000Z",
+              "amountBtc": "0.00010541",
+              "pricePerBtcEur": "113845",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-288",
+              "type": "buy",
+              "date": "2026-05-15T06:15:00.000Z",
+              "amountBtc": "0.00010063",
+              "pricePerBtcEur": "119252",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-291",
+              "type": "buy",
+              "date": "2026-05-18T06:15:00.000Z",
+              "amountBtc": "0.00010477",
+              "pricePerBtcEur": "114532",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-292",
+              "type": "buy",
+              "date": "2026-05-19T06:15:00.000Z",
+              "amountBtc": "0.00010004",
+              "pricePerBtcEur": "119957",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-294",
+              "type": "buy",
+              "date": "2026-05-21T06:15:00.000Z",
+              "amountBtc": "0.00010274",
+              "pricePerBtcEur": "116802",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-295",
+              "type": "buy",
+              "date": "2026-05-22T06:15:00.000Z",
+              "amountBtc": "0.00010415",
+              "pricePerBtcEur": "115221",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-298",
+              "type": "buy",
+              "date": "2026-05-25T06:15:00.000Z",
+              "amountBtc": "0.00010213",
+              "pricePerBtcEur": "117499",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-299",
+              "type": "buy",
+              "date": "2026-05-26T06:15:00.000Z",
+              "amountBtc": "0.00010353",
+              "pricePerBtcEur": "115912",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-301",
+              "type": "buy",
+              "date": "2026-05-28T06:15:00.000Z",
+              "amountBtc": "0.00010018",
+              "pricePerBtcEur": "119786",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-302",
+              "type": "buy",
+              "date": "2026-05-29T06:15:00.000Z",
+              "amountBtc": "0.00010153",
+              "pricePerBtcEur": "118197",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-305",
+              "type": "buy",
+              "date": "2026-06-01T06:15:00.000Z",
+              "amountBtc": "0.00010255",
+              "pricePerBtcEur": "117016",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-306",
+              "type": "buy",
+              "date": "2026-06-02T06:15:00.000Z",
+              "amountBtc": "0.00010397",
+              "pricePerBtcEur": "115418",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-308",
+              "type": "buy",
+              "date": "2026-06-04T06:15:00.000Z",
+              "amountBtc": "0.00010058",
+              "pricePerBtcEur": "119312",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-309",
+              "type": "buy",
+              "date": "2026-06-05T06:15:00.000Z",
+              "amountBtc": "0.00010194",
+              "pricePerBtcEur": "117712",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-312",
+              "type": "buy",
+              "date": "2026-06-08T06:15:00.000Z",
+              "amountBtc": "0.00009999",
+              "pricePerBtcEur": "120016",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-313",
+              "type": "buy",
+              "date": "2026-06-09T06:15:00.000Z",
+              "amountBtc": "0.00010134",
+              "pricePerBtcEur": "118411",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-315",
+              "type": "buy",
+              "date": "2026-06-11T06:15:00.000Z",
+              "amountBtc": "0.00009810",
+              "pricePerBtcEur": "122330",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-316",
+              "type": "buy",
+              "date": "2026-06-12T06:15:00.000Z",
+              "amountBtc": "0.00009940",
+              "pricePerBtcEur": "120722",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-319",
+              "type": "buy",
+              "date": "2026-06-15T06:15:00.000Z",
+              "amountBtc": "0.00010355",
+              "pricePerBtcEur": "115882",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-320",
+              "type": "buy",
+              "date": "2026-06-16T06:15:00.000Z",
+              "amountBtc": "0.00009882",
+              "pricePerBtcEur": "121430",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-322",
+              "type": "buy",
+              "date": "2026-06-18T06:15:00.000Z",
+              "amountBtc": "0.00010153",
+              "pricePerBtcEur": "118195",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-323",
+              "type": "buy",
+              "date": "2026-06-19T06:15:00.000Z",
+              "amountBtc": "0.00010294",
+              "pricePerBtcEur": "116574",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-326",
+              "type": "buy",
+              "date": "2026-06-22T06:15:00.000Z",
+              "amountBtc": "0.00010093",
+              "pricePerBtcEur": "118894",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-327",
+              "type": "buy",
+              "date": "2026-06-23T06:15:00.000Z",
+              "amountBtc": "0.00010233",
+              "pricePerBtcEur": "117268",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-329",
+              "type": "buy",
+              "date": "2026-06-25T06:15:00.000Z",
+              "amountBtc": "0.00009899",
+              "pricePerBtcEur": "121225",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-330",
+              "type": "buy",
+              "date": "2026-06-26T06:15:00.000Z",
+              "amountBtc": "0.00010034",
+              "pricePerBtcEur": "119596",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-333",
+              "type": "buy",
+              "date": "2026-06-29T06:15:00.000Z",
+              "amountBtc": "0.00009841",
+              "pricePerBtcEur": "121934",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-334",
+              "type": "buy",
+              "date": "2026-06-30T06:15:00.000Z",
+              "amountBtc": "0.00009975",
+              "pricePerBtcEur": "120299",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-336",
+              "type": "buy",
+              "date": "2026-07-02T06:15:00.000Z",
+              "amountBtc": "0.00010078",
+              "pricePerBtcEur": "119077",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-337",
+              "type": "buy",
+              "date": "2026-07-03T06:15:00.000Z",
+              "amountBtc": "0.00009623",
+              "pricePerBtcEur": "124706",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-340",
+              "type": "buy",
+              "date": "2026-07-06T06:15:00.000Z",
+              "amountBtc": "0.00010019",
+              "pricePerBtcEur": "119778",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-341",
+              "type": "buy",
+              "date": "2026-07-07T06:15:00.000Z",
+              "amountBtc": "0.00010158",
+              "pricePerBtcEur": "118130",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-343",
+              "type": "buy",
+              "date": "2026-07-09T06:15:00.000Z",
+              "amountBtc": "0.00009825",
+              "pricePerBtcEur": "122132",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-344",
+              "type": "buy",
+              "date": "2026-07-10T06:15:00.000Z",
+              "amountBtc": "0.00009960",
+              "pricePerBtcEur": "120482",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-347",
+              "type": "buy",
+              "date": "2026-07-13T06:15:00.000Z",
+              "amountBtc": "0.00009769",
+              "pricePerBtcEur": "122843",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-348",
+              "type": "buy",
+              "date": "2026-07-14T06:15:00.000Z",
+              "amountBtc": "0.00009902",
+              "pricePerBtcEur": "121187",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-350",
+              "type": "buy",
+              "date": "2026-07-16T06:15:00.000Z",
+              "amountBtc": "0.00009584",
+              "pricePerBtcEur": "125214",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-351",
+              "type": "buy",
+              "date": "2026-07-17T06:15:00.000Z",
+              "amountBtc": "0.00009712",
+              "pricePerBtcEur": "123556",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-354",
+              "type": "buy",
+              "date": "2026-07-20T06:15:00.000Z",
+              "amountBtc": "0.00009529",
+              "pricePerBtcEur": "125934",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-355",
+              "type": "buy",
+              "date": "2026-07-21T06:15:00.000Z",
+              "amountBtc": "0.00009656",
+              "pricePerBtcEur": "124271",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-357",
+              "type": "buy",
+              "date": "2026-07-23T06:15:00.000Z",
+              "amountBtc": "0.00009923",
+              "pricePerBtcEur": "120935",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-358",
+              "type": "buy",
+              "date": "2026-07-24T06:15:00.000Z",
+              "amountBtc": "0.00009474",
+              "pricePerBtcEur": "126656",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-361",
+              "type": "buy",
+              "date": "2026-07-27T06:15:00.000Z",
+              "amountBtc": "0.00009865",
+              "pricePerBtcEur": "121641",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-362",
+              "type": "buy",
+              "date": "2026-07-28T06:15:00.000Z",
+              "amountBtc": "0.00010003",
+              "pricePerBtcEur": "119964",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-364",
+              "type": "buy",
+              "date": "2026-07-30T06:15:00.000Z",
+              "amountBtc": "0.00009675",
+              "pricePerBtcEur": "124029",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-365",
+              "type": "buy",
+              "date": "2026-07-31T06:15:00.000Z",
+              "amountBtc": "0.00009808",
+              "pricePerBtcEur": "122349",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-368",
+              "type": "buy",
+              "date": "2026-08-03T06:15:00.000Z",
+              "amountBtc": "0.00009921",
+              "pricePerBtcEur": "120960",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-369",
+              "type": "buy",
+              "date": "2026-08-04T06:15:00.000Z",
+              "amountBtc": "0.00009474",
+              "pricePerBtcEur": "126658",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-371",
+              "type": "buy",
+              "date": "2026-08-06T06:15:00.000Z",
+              "amountBtc": "0.00009743",
+              "pricePerBtcEur": "123163",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-day-372",
+              "type": "buy",
+              "date": "2026-08-07T06:15:00.000Z",
+              "amountBtc": "0.00009884",
+              "pricePerBtcEur": "121414",
+              "totalFiatEur": "12.00",
+              "feeFiatEur": "0.12",
+              "note": "Tages-Sparplan"
+            },
+            {
+              "id": "r-sweep-daily-out-1",
+              "type": "transfer_out",
+              "date": "2025-11-03T10:00:00.000Z",
+              "amountBtc": "0.00625065",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00003",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-day-001",
+                  "amountBtc": "0.00012077"
+                },
+                {
+                  "lotTransactionId": "r-day-004",
+                  "amountBtc": "0.00011807"
+                },
+                {
+                  "lotTransactionId": "r-day-005",
+                  "amountBtc": "0.00011952"
+                },
+                {
+                  "lotTransactionId": "r-day-007",
+                  "amountBtc": "0.00012255"
+                },
+                {
+                  "lotTransactionId": "r-day-008",
+                  "amountBtc": "0.00011686"
+                },
+                {
+                  "lotTransactionId": "r-day-011",
+                  "amountBtc": "0.00012128"
+                },
+                {
+                  "lotTransactionId": "r-day-012",
+                  "amountBtc": "0.00011566"
+                },
+                {
+                  "lotTransactionId": "r-day-014",
+                  "amountBtc": "0.00011853"
+                },
+                {
+                  "lotTransactionId": "r-day-015",
+                  "amountBtc": "0.00012004"
+                },
+                {
+                  "lotTransactionId": "r-day-018",
+                  "amountBtc": "0.00011733"
+                },
+                {
+                  "lotTransactionId": "r-day-019",
+                  "amountBtc": "0.00011881"
+                },
+                {
+                  "lotTransactionId": "r-day-021",
+                  "amountBtc": "0.00011472"
+                },
+                {
+                  "lotTransactionId": "r-day-022",
+                  "amountBtc": "0.00011614"
+                },
+                {
+                  "lotTransactionId": "r-day-025",
+                  "amountBtc": "0.00011357"
+                },
+                {
+                  "lotTransactionId": "r-day-026",
+                  "amountBtc": "0.00011497"
+                },
+                {
+                  "lotTransactionId": "r-day-028",
+                  "amountBtc": "0.00011791"
+                },
+                {
+                  "lotTransactionId": "r-day-029",
+                  "amountBtc": "0.00011243"
+                },
+                {
+                  "lotTransactionId": "r-day-032",
+                  "amountBtc": "0.00011319"
+                },
+                {
+                  "lotTransactionId": "r-day-033",
+                  "amountBtc": "0.00011498"
+                },
+                {
+                  "lotTransactionId": "r-day-035",
+                  "amountBtc": "0.00011178"
+                },
+                {
+                  "lotTransactionId": "r-day-036",
+                  "amountBtc": "0.00011352"
+                },
+                {
+                  "lotTransactionId": "r-day-039",
+                  "amountBtc": "0.00011212"
+                },
+                {
+                  "lotTransactionId": "r-day-040",
+                  "amountBtc": "0.00011386"
+                },
+                {
+                  "lotTransactionId": "r-day-042",
+                  "amountBtc": "0.00011750"
+                },
+                {
+                  "lotTransactionId": "r-day-043",
+                  "amountBtc": "0.00011940"
+                },
+                {
+                  "lotTransactionId": "r-day-046",
+                  "amountBtc": "0.00011785"
+                },
+                {
+                  "lotTransactionId": "r-day-047",
+                  "amountBtc": "0.00011975"
+                },
+                {
+                  "lotTransactionId": "r-day-049",
+                  "amountBtc": "0.00011635"
+                },
+                {
+                  "lotTransactionId": "r-day-050",
+                  "amountBtc": "0.00011820"
+                },
+                {
+                  "lotTransactionId": "r-day-053",
+                  "amountBtc": "0.00011671"
+                },
+                {
+                  "lotTransactionId": "r-day-054",
+                  "amountBtc": "0.00011856"
+                },
+                {
+                  "lotTransactionId": "r-day-056",
+                  "amountBtc": "0.00011527"
+                },
+                {
+                  "lotTransactionId": "r-day-057",
+                  "amountBtc": "0.00011707"
+                },
+                {
+                  "lotTransactionId": "r-day-060",
+                  "amountBtc": "0.00011563"
+                },
+                {
+                  "lotTransactionId": "r-day-061",
+                  "amountBtc": "0.00011744"
+                },
+                {
+                  "lotTransactionId": "r-day-063",
+                  "amountBtc": "0.00011942"
+                },
+                {
+                  "lotTransactionId": "r-day-064",
+                  "amountBtc": "0.00012133"
+                },
+                {
+                  "lotTransactionId": "r-day-067",
+                  "amountBtc": "0.00011980"
+                },
+                {
+                  "lotTransactionId": "r-day-068",
+                  "amountBtc": "0.00012171"
+                },
+                {
+                  "lotTransactionId": "r-day-070",
+                  "amountBtc": "0.00011832"
+                },
+                {
+                  "lotTransactionId": "r-day-071",
+                  "amountBtc": "0.00012018"
+                },
+                {
+                  "lotTransactionId": "r-day-074",
+                  "amountBtc": "0.00011871"
+                },
+                {
+                  "lotTransactionId": "r-day-075",
+                  "amountBtc": "0.00012057"
+                },
+                {
+                  "lotTransactionId": "r-day-077",
+                  "amountBtc": "0.00012447"
+                },
+                {
+                  "lotTransactionId": "r-day-078",
+                  "amountBtc": "0.00011910"
+                },
+                {
+                  "lotTransactionId": "r-day-081",
+                  "amountBtc": "0.00012487"
+                },
+                {
+                  "lotTransactionId": "r-day-082",
+                  "amountBtc": "0.00011951"
+                },
+                {
+                  "lotTransactionId": "r-day-084",
+                  "amountBtc": "0.00012330"
+                },
+                {
+                  "lotTransactionId": "r-day-085",
+                  "amountBtc": "0.00012528"
+                },
+                {
+                  "lotTransactionId": "r-day-088",
+                  "amountBtc": "0.00012371"
+                },
+                {
+                  "lotTransactionId": "r-day-089",
+                  "amountBtc": "0.00012570"
+                },
+                {
+                  "lotTransactionId": "r-day-091",
+                  "amountBtc": "0.00012220"
+                },
+                {
+                  "lotTransactionId": "r-day-092",
+                  "amountBtc": "0.00012413"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-daily-1",
+              "note": "Quartals-Abzug des Tages-Sparplans: 53 Käufe auf einmal"
+            },
+            {
+              "id": "r-sweep-daily-out-2",
+              "type": "transfer_out",
+              "date": "2026-02-02T10:00:00.000Z",
+              "amountBtc": "0.00669221",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00004",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-day-095",
+                  "amountBtc": "0.00012656"
+                },
+                {
+                  "lotTransactionId": "r-day-096",
+                  "amountBtc": "0.00012877"
+                },
+                {
+                  "lotTransactionId": "r-day-098",
+                  "amountBtc": "0.00012545"
+                },
+                {
+                  "lotTransactionId": "r-day-099",
+                  "amountBtc": "0.00012761"
+                },
+                {
+                  "lotTransactionId": "r-day-102",
+                  "amountBtc": "0.00012650"
+                },
+                {
+                  "lotTransactionId": "r-day-103",
+                  "amountBtc": "0.00012868"
+                },
+                {
+                  "lotTransactionId": "r-day-105",
+                  "amountBtc": "0.00012546"
+                },
+                {
+                  "lotTransactionId": "r-day-106",
+                  "amountBtc": "0.00012758"
+                },
+                {
+                  "lotTransactionId": "r-day-109",
+                  "amountBtc": "0.00013435"
+                },
+                {
+                  "lotTransactionId": "r-day-110",
+                  "amountBtc": "0.00012868"
+                },
+                {
+                  "lotTransactionId": "r-day-112",
+                  "amountBtc": "0.00013317"
+                },
+                {
+                  "lotTransactionId": "r-day-113",
+                  "amountBtc": "0.00013551"
+                },
+                {
+                  "lotTransactionId": "r-day-116",
+                  "amountBtc": "0.00013433"
+                },
+                {
+                  "lotTransactionId": "r-day-117",
+                  "amountBtc": "0.00013670"
+                },
+                {
+                  "lotTransactionId": "r-day-119",
+                  "amountBtc": "0.00013322"
+                },
+                {
+                  "lotTransactionId": "r-day-120",
+                  "amountBtc": "0.00013553"
+                },
+                {
+                  "lotTransactionId": "r-day-123",
+                  "amountBtc": "0.00013269"
+                },
+                {
+                  "lotTransactionId": "r-day-124",
+                  "amountBtc": "0.00013432"
+                },
+                {
+                  "lotTransactionId": "r-day-126",
+                  "amountBtc": "0.00013773"
+                },
+                {
+                  "lotTransactionId": "r-day-127",
+                  "amountBtc": "0.00013952"
+                },
+                {
+                  "lotTransactionId": "r-day-130",
+                  "amountBtc": "0.00013637"
+                },
+                {
+                  "lotTransactionId": "r-day-131",
+                  "amountBtc": "0.00013813"
+                },
+                {
+                  "lotTransactionId": "r-day-133",
+                  "amountBtc": "0.00013334"
+                },
+                {
+                  "lotTransactionId": "r-day-134",
+                  "amountBtc": "0.00013503"
+                },
+                {
+                  "lotTransactionId": "r-day-137",
+                  "amountBtc": "0.00013204"
+                },
+                {
+                  "lotTransactionId": "r-day-138",
+                  "amountBtc": "0.00013371"
+                },
+                {
+                  "lotTransactionId": "r-day-140",
+                  "amountBtc": "0.00012916"
+                },
+                {
+                  "lotTransactionId": "r-day-141",
+                  "amountBtc": "0.00013076"
+                },
+                {
+                  "lotTransactionId": "r-day-144",
+                  "amountBtc": "0.00012792"
+                },
+                {
+                  "lotTransactionId": "r-day-145",
+                  "amountBtc": "0.00012950"
+                },
+                {
+                  "lotTransactionId": "r-day-147",
+                  "amountBtc": "0.00013281"
+                },
+                {
+                  "lotTransactionId": "r-day-148",
+                  "amountBtc": "0.00012669"
+                },
+                {
+                  "lotTransactionId": "r-day-151",
+                  "amountBtc": "0.00013153"
+                },
+                {
+                  "lotTransactionId": "r-day-152",
+                  "amountBtc": "0.00013324"
+                },
+                {
+                  "lotTransactionId": "r-day-154",
+                  "amountBtc": "0.00012630"
+                },
+                {
+                  "lotTransactionId": "r-day-155",
+                  "amountBtc": "0.00012787"
+                },
+                {
+                  "lotTransactionId": "r-day-158",
+                  "amountBtc": "0.00012510"
+                },
+                {
+                  "lotTransactionId": "r-day-159",
+                  "amountBtc": "0.00012666"
+                },
+                {
+                  "lotTransactionId": "r-day-161",
+                  "amountBtc": "0.00012992"
+                },
+                {
+                  "lotTransactionId": "r-day-162",
+                  "amountBtc": "0.00012393"
+                },
+                {
+                  "lotTransactionId": "r-day-165",
+                  "amountBtc": "0.00012869"
+                },
+                {
+                  "lotTransactionId": "r-day-166",
+                  "amountBtc": "0.00012277"
+                },
+                {
+                  "lotTransactionId": "r-day-168",
+                  "amountBtc": "0.00012586"
+                },
+                {
+                  "lotTransactionId": "r-day-169",
+                  "amountBtc": "0.00012747"
+                },
+                {
+                  "lotTransactionId": "r-day-172",
+                  "amountBtc": "0.00012468"
+                },
+                {
+                  "lotTransactionId": "r-day-173",
+                  "amountBtc": "0.00012628"
+                },
+                {
+                  "lotTransactionId": "r-day-175",
+                  "amountBtc": "0.00012199"
+                },
+                {
+                  "lotTransactionId": "r-day-176",
+                  "amountBtc": "0.00012353"
+                },
+                {
+                  "lotTransactionId": "r-day-179",
+                  "amountBtc": "0.00012087"
+                },
+                {
+                  "lotTransactionId": "r-day-180",
+                  "amountBtc": "0.00012239"
+                },
+                {
+                  "lotTransactionId": "r-day-182",
+                  "amountBtc": "0.00012555"
+                },
+                {
+                  "lotTransactionId": "r-day-183",
+                  "amountBtc": "0.00011976"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-daily-2",
+              "note": "Quartals-Abzug des Tages-Sparplans: 52 Käufe auf einmal"
+            },
+            {
+              "id": "r-sweep-daily-out-3",
+              "type": "transfer_out",
+              "date": "2026-05-04T10:00:00.000Z",
+              "amountBtc": "0.00576377",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "feeBtc": "0.00003",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-day-186",
+                  "amountBtc": "0.00012056"
+                },
+                {
+                  "lotTransactionId": "r-day-187",
+                  "amountBtc": "0.00012201"
+                },
+                {
+                  "lotTransactionId": "r-day-189",
+                  "amountBtc": "0.00012504"
+                },
+                {
+                  "lotTransactionId": "r-day-190",
+                  "amountBtc": "0.00011915"
+                },
+                {
+                  "lotTransactionId": "r-day-193",
+                  "amountBtc": "0.00012358"
+                },
+                {
+                  "lotTransactionId": "r-day-194",
+                  "amountBtc": "0.00011777"
+                },
+                {
+                  "lotTransactionId": "r-day-196",
+                  "amountBtc": "0.00012064"
+                },
+                {
+                  "lotTransactionId": "r-day-197",
+                  "amountBtc": "0.00012214"
+                },
+                {
+                  "lotTransactionId": "r-day-200",
+                  "amountBtc": "0.00011925"
+                },
+                {
+                  "lotTransactionId": "r-day-201",
+                  "amountBtc": "0.00012072"
+                },
+                {
+                  "lotTransactionId": "r-day-203",
+                  "amountBtc": "0.00011646"
+                },
+                {
+                  "lotTransactionId": "r-day-204",
+                  "amountBtc": "0.00011788"
+                },
+                {
+                  "lotTransactionId": "r-day-207",
+                  "amountBtc": "0.00011514"
+                },
+                {
+                  "lotTransactionId": "r-day-208",
+                  "amountBtc": "0.00011654"
+                },
+                {
+                  "lotTransactionId": "r-day-210",
+                  "amountBtc": "0.00011250"
+                },
+                {
+                  "lotTransactionId": "r-day-211",
+                  "amountBtc": "0.00011384"
+                },
+                {
+                  "lotTransactionId": "r-day-214",
+                  "amountBtc": "0.00011188"
+                },
+                {
+                  "lotTransactionId": "r-day-215",
+                  "amountBtc": "0.00011323"
+                },
+                {
+                  "lotTransactionId": "r-day-217",
+                  "amountBtc": "0.00011606"
+                },
+                {
+                  "lotTransactionId": "r-day-218",
+                  "amountBtc": "0.00011064"
+                },
+                {
+                  "lotTransactionId": "r-day-221",
+                  "amountBtc": "0.00011477"
+                },
+                {
+                  "lotTransactionId": "r-day-222",
+                  "amountBtc": "0.00010942"
+                },
+                {
+                  "lotTransactionId": "r-day-224",
+                  "amountBtc": "0.00011210"
+                },
+                {
+                  "lotTransactionId": "r-day-225",
+                  "amountBtc": "0.00011350"
+                },
+                {
+                  "lotTransactionId": "r-day-228",
+                  "amountBtc": "0.00011087"
+                },
+                {
+                  "lotTransactionId": "r-day-229",
+                  "amountBtc": "0.00011226"
+                },
+                {
+                  "lotTransactionId": "r-day-231",
+                  "amountBtc": "0.00010834"
+                },
+                {
+                  "lotTransactionId": "r-day-232",
+                  "amountBtc": "0.00010967"
+                },
+                {
+                  "lotTransactionId": "r-day-235",
+                  "amountBtc": "0.00010717"
+                },
+                {
+                  "lotTransactionId": "r-day-236",
+                  "amountBtc": "0.00010848"
+                },
+                {
+                  "lotTransactionId": "r-day-238",
+                  "amountBtc": "0.00011122"
+                },
+                {
+                  "lotTransactionId": "r-day-239",
+                  "amountBtc": "0.00010603"
+                },
+                {
+                  "lotTransactionId": "r-day-242",
+                  "amountBtc": "0.00011002"
+                },
+                {
+                  "lotTransactionId": "r-day-243",
+                  "amountBtc": "0.00010490"
+                },
+                {
+                  "lotTransactionId": "r-day-245",
+                  "amountBtc": "0.00010441"
+                },
+                {
+                  "lotTransactionId": "r-day-246",
+                  "amountBtc": "0.00010580"
+                },
+                {
+                  "lotTransactionId": "r-day-249",
+                  "amountBtc": "0.00010378"
+                },
+                {
+                  "lotTransactionId": "r-day-250",
+                  "amountBtc": "0.00010516"
+                },
+                {
+                  "lotTransactionId": "r-day-252",
+                  "amountBtc": "0.00010803"
+                },
+                {
+                  "lotTransactionId": "r-day-253",
+                  "amountBtc": "0.00010954"
+                },
+                {
+                  "lotTransactionId": "r-day-256",
+                  "amountBtc": "0.00010738"
+                },
+                {
+                  "lotTransactionId": "r-day-257",
+                  "amountBtc": "0.00010887"
+                },
+                {
+                  "lotTransactionId": "r-day-259",
+                  "amountBtc": "0.00010529"
+                },
+                {
+                  "lotTransactionId": "r-day-260",
+                  "amountBtc": "0.00010673"
+                },
+                {
+                  "lotTransactionId": "r-day-263",
+                  "amountBtc": "0.00010466"
+                },
+                {
+                  "lotTransactionId": "r-day-264",
+                  "amountBtc": "0.00010608"
+                },
+                {
+                  "lotTransactionId": "r-day-266",
+                  "amountBtc": "0.00010266"
+                },
+                {
+                  "lotTransactionId": "r-day-267",
+                  "amountBtc": "0.00010403"
+                },
+                {
+                  "lotTransactionId": "r-day-270",
+                  "amountBtc": "0.00010205"
+                },
+                {
+                  "lotTransactionId": "r-day-271",
+                  "amountBtc": "0.00010341"
+                },
+                {
+                  "lotTransactionId": "r-day-273",
+                  "amountBtc": "0.00010624"
+                },
+                {
+                  "lotTransactionId": "r-day-274",
+                  "amountBtc": "0.00010587"
+                }
+              ],
+              "counterpartyAccountId": "a-coldcard-vault",
+              "transferGroupId": "g-sweep-daily-3",
+              "note": "Quartals-Abzug des Tages-Sparplans: 52 Käufe auf einmal"
+            },
+            {
+              "id": "r-spend-cafe",
+              "type": "spend",
+              "date": "2026-06-29T12:00:00.000Z",
+              "amountBtc": "0.00010381",
+              "pricePerBtcEur": "121934",
+              "totalFiatEur": "12.66",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-day-277",
+                  "amountBtc": "0.00010381"
+                }
+              ],
+              "note": "Mit Lightning bezahlt (Kaffee) — kleiner Betrag, vollständig gebucht"
+            },
+            {
+              "id": "r-spend-server",
+              "type": "spend",
+              "date": "2026-07-16T12:00:00.000Z",
+              "amountBtc": "0.00020706",
+              "pricePerBtcEur": "125214",
+              "totalFiatEur": "25.93",
+              "lotAllocations": [
+                {
+                  "lotTransactionId": "r-day-278",
+                  "amountBtc": "0.00010523"
+                },
+                {
+                  "lotTransactionId": "r-day-280",
+                  "amountBtc": "0.00010183"
+                }
+              ],
+              "note": "Serverrechnung in BTC bezahlt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "w-coldcard",
+      "name": "Coldcard",
+      "type": "hardware",
+      "accounts": [
+        {
+          "id": "a-coldcard-vault",
+          "name": "Langfrist",
+          "transactions": [
+            {
+              "id": "cc-sweep-in-1",
+              "type": "transfer_in",
+              "date": "2024-01-15T10:41:00.000Z",
+              "amountBtc": "0.04967663",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-weekly",
+              "transferGroupId": "g-sweep-1",
+              "address": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
+              "note": "Eingang des Sparplan-Bestands auf der Coldcard"
+            },
+            {
+              "id": "cc-sweep-in-2",
+              "type": "transfer_in",
+              "date": "2024-07-15T10:41:00.000Z",
+              "amountBtc": "0.02580859",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-weekly",
+              "transferGroupId": "g-sweep-2",
+              "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              "note": "Eingang des Sparplan-Bestands auf der Coldcard"
+            },
+            {
+              "id": "cc-sweep-in-3",
+              "type": "transfer_in",
+              "date": "2025-01-13T10:41:00.000Z",
+              "amountBtc": "0.02140522",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-weekly",
+              "transferGroupId": "g-sweep-3",
+              "address": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
+              "note": "Eingang des Sparplan-Bestands auf der Coldcard"
+            },
+            {
+              "id": "cc-sweep-in-4",
+              "type": "transfer_in",
+              "date": "2025-07-14T10:41:00.000Z",
+              "amountBtc": "0.01472698",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-weekly",
+              "transferGroupId": "g-sweep-4",
+              "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              "note": "Eingang des Sparplan-Bestands auf der Coldcard"
+            },
+            {
+              "id": "cc-sweep-in-5",
+              "type": "transfer_in",
+              "date": "2026-01-12T10:41:00.000Z",
+              "amountBtc": "0.01360312",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-weekly",
+              "transferGroupId": "g-sweep-5",
+              "address": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
+              "note": "Eingang des Sparplan-Bestands auf der Coldcard"
+            },
+            {
+              "id": "cc-sweep-daily-in-1",
+              "type": "transfer_in",
+              "date": "2025-11-03T10:41:00.000Z",
+              "amountBtc": "0.00625065",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-daily",
+              "transferGroupId": "g-sweep-daily-1",
+              "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              "note": "Eingang des Tages-Sparplans"
+            },
+            {
+              "id": "cc-sweep-daily-in-2",
+              "type": "transfer_in",
+              "date": "2026-02-02T10:41:00.000Z",
+              "amountBtc": "0.00669221",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-daily",
+              "transferGroupId": "g-sweep-daily-2",
+              "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              "note": "Eingang des Tages-Sparplans"
+            },
+            {
+              "id": "cc-sweep-daily-in-3",
+              "type": "transfer_in",
+              "date": "2026-05-04T10:41:00.000Z",
+              "amountBtc": "0.00576377",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-relai-daily",
+              "transferGroupId": "g-sweep-daily-3",
+              "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              "note": "Eingang des Tages-Sparplans"
+            },
+            {
+              "id": "cc-in-partial",
+              "type": "transfer_in",
+              "date": "2026-05-12T08:44:00.000Z",
+              "amountBtc": "0.01",
+              "pricePerBtcEur": null,
+              "totalFiatEur": null,
+              "counterpartyAccountId": "a-kraken-spot",
+              "transferGroupId": "g-partial-1",
+              "txid": "3ab7e1c95d0426f8b1c73e9a5d20f4681e7c3b95a2d08f461c9e75b3a0d26f84",
+              "note": "Eingang auf der Coldcard; die Txid stammt hier aus der Wallet, die Adresse aus der Börse"
+            }
+          ]
+        }
+      ]
     }
   ],
   "watchedAddresses": [
@@ -636,6 +5904,46 @@
       "label": "Sparrow – Konto 1 (zpub)",
       "tags": [
         "software-wallet"
+      ]
+    },
+    {
+      "id": "wa-taproot",
+      "type": "address",
+      "value": "bc1pmzfrwwndsqmk5yh69yjr5lfgfg4ev8c0tsc06e",
+      "label": "Sparrow – Taproot-Empfang",
+      "tags": [
+        "software-wallet",
+        "non-kyc",
+        "taproot"
+      ]
+    },
+    {
+      "id": "wa-legacy",
+      "type": "address",
+      "value": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
+      "label": "Papier-Backup (P2SH, altes Format)",
+      "tags": [
+        "paper-wallet",
+        "legacy"
+      ]
+    },
+    {
+      "id": "wa-cold-2",
+      "type": "address",
+      "value": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
+      "label": "BitBox02 – Empfangsadresse 2",
+      "tags": [
+        "hardware-wallet",
+        "non-kyc"
+      ]
+    },
+    {
+      "id": "wa-second",
+      "type": "address",
+      "value": "bc1q9d4ywgfnd8h43da5tpcxcn6ajv590cg6d3tg6axemvljvt2k76zs50tv4q",
+      "label": "BitBox02 – Zweitkonto",
+      "tags": [
+        "hardware-wallet"
       ]
     },
     {
@@ -665,6 +5973,29 @@
       "label": "Auftragszahlung",
       "tags": [
         "non-kyc"
+      ]
+    },
+    {
+      "outpoint": "5c0d38e7a1b94f26d0357c81e9a4b62f3d18e075c9a2b46f81d05e37c9a2b641:0",
+      "label": "Sparrow → Cold Storage",
+      "tags": [
+        "non-kyc",
+        "consolidate"
+      ]
+    },
+    {
+      "outpoint": "5c0d38e7a1b94f26d0357c81e9a4b62f3d18e075c9a2b46f81d05e37c9a2b641:1",
+      "label": "Sparrow → Zweitkonto",
+      "tags": [
+        "non-kyc"
+      ]
+    },
+    {
+      "outpoint": "e41d7b09a5c2f836d17b04e95a3c68f2019d7e4b6a25c8f03d19b7e04a5c26f38:0",
+      "label": "Langfrist-Reserve, nicht anfassen",
+      "tags": [
+        "cold",
+        "do-not-spend"
       ]
     }
   ],
@@ -716,6 +6047,43 @@
           }
         ]
       }
+    },
+    {
+      "id": "preset-demo-sparplan",
+      "name": "Beispiel: Sparplan-Export (Sats, DE-Datum)",
+      "delimiter": ";",
+      "decimalSeparator": ",",
+      "encoding": "iso-8859-15",
+      "dateFormat": "de",
+      "timeFormat": "hms",
+      "amountUnit": "sats",
+      "feeUnit": "sats",
+      "fixedType": "buy",
+      "feeBtcModeIn": "notDeducted",
+      "feeBtcModeOut": "notDeducted",
+      "feeFiatMode": "gross",
+      "mapping": {
+        "date": "Datum",
+        "time": "Uhrzeit",
+        "amountBtc": "Menge (sats)",
+        "totalFiatEur": "Betrag EUR",
+        "feeFiatEur": "Gebuehr EUR",
+        "note": "Bemerkung"
+      },
+      "typeValueMapping": {},
+      "rowFilter": {
+        "combinator": "or",
+        "rules": [
+          {
+            "column": "Ausfuehrung",
+            "match": "isAnyOf",
+            "values": [
+              "ausgefuehrt",
+              "teilausgefuehrt"
+            ]
+          }
+        ]
+      }
     }
   ],
   "uiSettings": {
@@ -745,34 +6113,50 @@
         "h": 4
       },
       {
-        "i": "portfolioChart-1",
-        "widgetId": "portfolioChart",
-        "x": 0,
-        "y": 4,
-        "w": 8,
-        "h": 8
-      },
-      {
         "i": "satsStack-1",
         "widgetId": "satsStack",
-        "x": 8,
+        "x": 0,
         "y": 4,
         "w": 4,
-        "h": 4
+        "h": 5
       },
       {
         "i": "avgCost-1",
         "widgetId": "avgCost",
-        "x": 8,
-        "y": 8,
+        "x": 4,
+        "y": 4,
         "w": 4,
-        "h": 4
+        "h": 5
+      },
+      {
+        "i": "custody-1",
+        "widgetId": "custody",
+        "x": 8,
+        "y": 4,
+        "w": 4,
+        "h": 5
+      },
+      {
+        "i": "portfolioChart-1",
+        "widgetId": "portfolioChart",
+        "x": 0,
+        "y": 9,
+        "w": 8,
+        "h": 8
+      },
+      {
+        "i": "whatIf-1",
+        "widgetId": "whatIf",
+        "x": 8,
+        "y": 9,
+        "w": 4,
+        "h": 8
       },
       {
         "i": "priceEntries-1",
         "widgetId": "priceEntries",
         "x": 0,
-        "y": 12,
+        "y": 17,
         "w": 8,
         "h": 8
       },
@@ -780,65 +6164,129 @@
         "i": "holdingPeriod-1",
         "widgetId": "holdingPeriod",
         "x": 8,
-        "y": 12,
+        "y": 17,
         "w": 4,
-        "h": 4
+        "h": 8
       },
       {
-        "i": "custody-1",
-        "widgetId": "custody",
-        "x": 8,
-        "y": 16,
-        "w": 4,
-        "h": 4
-      },
-      {
-        "i": "walletBreakdown-1",
-        "widgetId": "walletBreakdown",
+        "i": "buyHeatmap-1",
+        "widgetId": "buyHeatmap",
         "x": 0,
-        "y": 20,
-        "w": 6,
+        "y": 25,
+        "w": 8,
         "h": 6
       },
       {
         "i": "dca-1",
         "widgetId": "dca",
-        "x": 6,
-        "y": 20,
-        "w": 6,
+        "x": 8,
+        "y": 25,
+        "w": 4,
         "h": 6
+      },
+      {
+        "i": "stackHistory-1",
+        "widgetId": "stackHistory",
+        "x": 0,
+        "y": 31,
+        "w": 6,
+        "h": 7
       },
       {
         "i": "holdingComposition-1",
         "widgetId": "holdingComposition",
+        "x": 6,
+        "y": 31,
+        "w": 6,
+        "h": 7
+      },
+      {
+        "i": "walletBreakdown-1",
+        "widgetId": "walletBreakdown",
         "x": 0,
-        "y": 26,
+        "y": 38,
+        "w": 6,
+        "h": 6
+      },
+      {
+        "i": "feeBalance-1",
+        "widgetId": "feeBalance",
+        "x": 6,
+        "y": 38,
+        "w": 3,
+        "h": 6
+      },
+      {
+        "i": "dataQuality-1",
+        "widgetId": "dataQuality",
+        "x": 9,
+        "y": 38,
+        "w": 3,
+        "h": 6
+      },
+      {
+        "i": "taxFreeProceeds-1",
+        "widgetId": "taxFreeProceeds",
+        "x": 0,
+        "y": 44,
+        "w": 6,
+        "h": 7
+      },
+      {
+        "i": "exemptionLimit-1",
+        "widgetId": "exemptionLimit",
+        "x": 6,
+        "y": 44,
+        "w": 6,
+        "h": 7
+      },
+      {
+        "i": "utxoOverview-1",
+        "widgetId": "utxoOverview",
+        "x": 0,
+        "y": 51,
+        "w": 4,
+        "h": 6
+      },
+      {
+        "i": "watchlistStatus-1",
+        "widgetId": "watchlistStatus",
+        "x": 4,
+        "y": 51,
+        "w": 4,
+        "h": 6
+      },
+      {
+        "i": "blockClock-1",
+        "widgetId": "blockClock",
+        "x": 8,
+        "y": 51,
         "w": 4,
         "h": 6
       },
       {
         "i": "networkFees-1",
         "widgetId": "networkFees",
-        "x": 4,
-        "y": 26,
+        "x": 0,
+        "y": 57,
         "w": 4,
         "h": 5
       },
       {
         "i": "halving-1",
         "widgetId": "halving",
-        "x": 8,
-        "y": 26,
+        "x": 4,
+        "y": 57,
         "w": 4,
-        "h": 6
+        "h": 5
       },
       {
-        "i": "dataQuality-1",
-        "widgetId": "dataQuality",
-        "x": 4,
-        "y": 31,
+        "i": "timeInMarket-1",
+        "widgetId": "timeInMarket",
+        "x": 8,
+        "y": 57,
         "w": 4,
-        "h": 3
+        "h": 5
       }
     ],
     "transactionColumns": [

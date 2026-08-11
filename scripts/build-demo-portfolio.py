@@ -9,11 +9,20 @@ edited twice. The demo is also the worked example of every feature, which is
 why the ledger below deliberately contains every constellation the app knows:
 all wallet types, all transaction types, batched and chained and split
 transfers, foreign-currency settlement, external receives and sends, fees of
-each kind, disposals on both sides of the holding period, and exactly one
-unassigned transfer as the example of an open lot assignment.
+each kind, disposals on both sides of the holding period in three tax years,
+and exactly one unassigned transfer as the example of an open lot assignment.
 
-What comes out is checked by lib/demoPortfolio.test.ts — balances, assignments
-and the feature coverage — so run the tests after changing anything here.
+It also has to have *volume*. A heatmap, a DCA overview, a fee balance or the
+price chart's marker aggregation say nothing about five transactions, so the
+file carries three years of a weekly savings plan and a year of a daily one
+(several hundred buys), swept into cold storage in batches of dozens of lots at
+a time. Prices come from `price_at`, which interpolates monthly anchors and
+adds a deterministic wobble — deterministic because the generated files have to
+be reproducible.
+
+What comes out is checked by lib/demoPortfolio.test.ts — balances, assignments,
+the feature coverage and the volume — so run the tests after changing anything
+here.
 """
 import json
 from collections import defaultdict
@@ -39,6 +48,71 @@ ADDR = {
 
 def d(x):
     return D(str(x))
+
+
+# ------------------------------------------------------------ price model
+# A demo that is meant to exercise the charts needs prices that move like a
+# market rather than a straight line: monthly anchors, linearly interpolated,
+# plus a deterministic wobble so two days in a row differ. Deterministic is the
+# point — the generated files have to be reproducible, so nothing here is
+# random.
+PRICE_ANCHORS = [
+    ("2023-01", 17000), ("2023-06", 24000), ("2023-09", 26500), ("2023-11", 35000),
+    ("2024-01", 40000), ("2024-03", 62000), ("2024-04", 58000), ("2024-07", 54000),
+    ("2024-09", 56000), ("2024-11", 72000), ("2025-01", 92000), ("2025-03", 82000),
+    ("2025-05", 90000), ("2025-06", 95000), ("2025-08", 99000), ("2025-09", 105000),
+    ("2025-11", 96000), ("2025-12", 88000), ("2026-02", 98000), ("2026-04", 112000),
+    ("2026-06", 118000), ("2026-08", 124000), ("2026-10", 126000),
+]
+
+
+def _month_index(ym):
+    y, m = ym.split("-")
+    return int(y) * 12 + int(m) - 1
+
+
+_ANCHORS = [(_month_index(ym), D(v)) for ym, v in PRICE_ANCHORS]
+
+
+def price_at(iso):
+    """BTC/EUR on a day, interpolated between the anchors above."""
+    y, m, day = int(iso[0:4]), int(iso[5:7]), int(iso[8:10])
+    pos = D(y * 12 + m - 1) + D(day - 1) / D(31)
+    lo, hi = _ANCHORS[0], _ANCHORS[-1]
+    for i in range(len(_ANCHORS) - 1):
+        if _ANCHORS[i][0] <= pos <= _ANCHORS[i + 1][0]:
+            lo, hi = _ANCHORS[i], _ANCHORS[i + 1]
+            break
+    span = D(hi[0] - lo[0])
+    t = (pos - D(lo[0])) / span if span else D(0)
+    base = lo[1] + (hi[1] - lo[1]) * t
+    # A repeatable wobble of a few per cent, derived from the date itself.
+    seed = (y * 10000 + m * 100 + day) * 2654435761 % 1000
+    wobble = (D(seed) / D(1000) - D("0.5")) * D("0.06")
+    return (base * (D(1) + wobble)).quantize(D("1"))
+
+
+def eur(amount_btc, price):
+    """What an amount costs at a price, to the cent."""
+    return (d(amount_btc) * d(price)).quantize(D("0.01"))
+
+
+def _weekday(iso):
+    """0 = Monday … 6 = Sunday."""
+    from datetime import date
+
+    return date.fromisoformat(iso).weekday()
+
+
+def each_day(start, end, step_days=1):
+    """ISO dates from start to end (inclusive), stepping whole days."""
+    from datetime import date, timedelta
+
+    cur = date.fromisoformat(start)
+    last = date.fromisoformat(end)
+    while cur <= last:
+        yield cur.isoformat()
+        cur += timedelta(days=step_days)
 
 
 class Ledger:
@@ -137,6 +211,13 @@ L.wallet("w-sparrow", "Sparrow", "Sparrow", "software", [
 ])
 L.wallet("w-paper", "Papier-Backup", "Paper backup", "paper", [
     {"id": "a-paper-vault", "de": "Tresor", "en": "Vault"},
+])
+L.wallet("w-relai", "Relai", "Relai", "exchange", [
+    {"id": "a-relai-weekly", "de": "Wochen-Sparplan", "en": "Weekly savings plan"},
+    {"id": "a-relai-daily", "de": "Tages-Sparplan", "en": "Daily savings plan"},
+])
+L.wallet("w-coldcard", "Coldcard", "Coldcard", "hardware", [
+    {"id": "a-coldcard-vault", "de": "Langfrist", "en": "Long term"},
 ])
 
 # ------------------------------------------------------- Kraken / Spot
@@ -313,6 +394,191 @@ L.add("a-paper-vault", tx(
     note_de="Eingang auf dem Papier-Backup; hier eine Minute vor dem Versand erfasst (unterschiedliche Uhren)",
     note_en="Received on the paper backup; recorded before the send here (two clocks disagree)"))
 
+# ------------------------------------------------- Relai: a real DCA history
+# The point of these is volume. Three years of a weekly plan and a year of a
+# daily one give the heatmap, the DCA overview, the fee balance, the stack
+# curve and the price chart's markers something to actually show — a handful of
+# buys tells none of them anything, and a daily DCA is exactly the case the
+# marker aggregation exists for.
+weekly = []
+for n, day in enumerate(each_day("2023-07-03", "2026-08-03", 7)):
+    price = price_at(day)
+    # The plan buys for a fixed sum, so the amount moves with the price.
+    amount = (D("55") / price).quantize(D("0.00000001"))
+    tid = f"r-week-{n + 1:03d}"
+    weekly.append({"id": tid, "amount": amount, "day": day, "spent": False})
+    L.add("a-relai-weekly", tx(
+        tid, "buy", f"{day}T07:00:00.000Z", amount,
+        price=price, total=eur(amount, price), fee_fiat="0.55",
+        note_de=f"Wochen-Sparplan, Ausführung {n + 1}",
+        note_en=f"Weekly savings plan, execution {n + 1}"))
+
+daily = []
+for n, day in enumerate(each_day("2025-08-01", "2026-08-08", 1)):
+    # Four days a week, so the heatmap has gaps to show rather than a solid
+    # block: nothing on Wednesdays, Saturdays and Sundays.
+    if _weekday(day) in (2, 5, 6):
+        continue
+    price = price_at(day)
+    amount = (D("12") / price).quantize(D("0.00000001"))
+    tid = f"r-day-{n + 1:03d}"
+    daily.append({"id": tid, "amount": amount, "day": day, "spent": False})
+    L.add("a-relai-daily", tx(
+        tid, "buy", f"{day}T06:15:00.000Z", amount,
+        price=price, total=eur(amount, price), fee_fiat="0.12",
+        note_de="Tages-Sparplan",
+        note_en="Daily savings plan"))
+
+# Lots held back from the sweeps, because a disposal has to come from
+# somewhere: the ones nearest these days stay in the account until they are
+# sold, one pair inside the holding period and one pair past it.
+def reserve(lots, day, count):
+    """Mark the `count` lots closest to `day` as spoken for, and return them."""
+    from datetime import date
+
+    target = date.fromisoformat(day)
+    picked = sorted(lots, key=lambda l: abs((date.fromisoformat(l["day"]) - target).days))
+    for lot in picked[:count]:
+        lot["reserved"] = True
+    return picked[:count]
+
+
+reserved_taxable = reserve(weekly, "2025-09-01", 2)   # sold in Nov 2025
+reserved_taxfree = reserve(weekly, "2025-04-01", 2)   # sold in June 2026
+
+
+def sweep(out_id, in_id, account, target_account, lots, day, fee_btc, group,
+          txid=None, address=None, note_de="", note_en="", in_note_de="", in_note_en=""):
+    """Move a batch of lots to cold storage: one send, one arrival.
+
+    The allocations cover `amount + feeBtc` (§3.2), so the pair costs the
+    portfolio exactly the network fee and nothing is left half-assigned.
+    """
+    moved = sum((lot["amount"] for lot in lots), D(0))
+    amount = (moved - d(fee_btc)).quantize(D("0.00000001"))
+    L.add(account, tx(
+        out_id, "transfer_out", f"{day}T10:00:00.000Z", amount, fee_btc=fee_btc,
+        lots=[(lot["id"], str(lot["amount"])) for lot in lots],
+        counterparty=target_account, group=group, txid=txid,
+        note_de=note_de, note_en=note_en))
+    L.add(target_account, tx(
+        in_id, "transfer_in", f"{day}T10:41:00.000Z", amount,
+        counterparty=account, group=group, txid=txid, address=address,
+        note_de=in_note_de, note_en=in_note_en))
+    for lot in lots:
+        lot["spent"] = True
+    return amount
+
+
+def due(lots, before):
+    """Lots bought before a day that are neither swept nor reserved."""
+    return [
+        lot for lot in lots
+        if lot["day"] < before and not lot["spent"] and not lot.get("reserved")
+    ]
+
+
+# Half-yearly sweeps of the weekly plan, quarterly ones of the daily plan.
+for i, (day, fee, addr) in enumerate([
+    ("2024-01-15", "0.00006", ADDR["cold2"]),
+    ("2024-07-15", "0.00004", ADDR["cold1"]),
+    ("2025-01-13", "0.00009", ADDR["cold2"]),
+    ("2025-07-14", "0.00005", ADDR["cold1"]),
+    ("2026-01-12", "0.00007", ADDR["cold2"]),
+], start=1):
+    lots = due(weekly, day)
+    sweep(
+        f"r-sweep-out-{i}", f"cc-sweep-in-{i}", "a-relai-weekly", "a-coldcard-vault",
+        lots, day, fee, f"g-sweep-{i}", address=addr,
+        note_de=f"Halbjahres-Abzug: {len(lots)} Sparplan-Käufe in einer Transaktion",
+        note_en=f"Half-year sweep: {len(lots)} savings-plan buys in one transaction",
+        in_note_de="Eingang des Sparplan-Bestands auf der Coldcard",
+        in_note_en="Savings-plan holdings received on the Coldcard")
+
+for i, (day, fee) in enumerate([
+    ("2025-11-03", "0.00003"),
+    ("2026-02-02", "0.00004"),
+    ("2026-05-04", "0.00003"),
+], start=1):
+    lots = due(daily, day)
+    sweep(
+        f"r-sweep-daily-out-{i}", f"cc-sweep-daily-in-{i}", "a-relai-daily",
+        "a-coldcard-vault", lots, day, fee, f"g-sweep-daily-{i}",
+        address=ADDR["cold1"],
+        note_de=f"Quartals-Abzug des Tages-Sparplans: {len(lots)} Käufe auf einmal",
+        note_en=f"Quarterly sweep of the daily plan: {len(lots)} buys at once",
+        in_note_de="Eingang des Tages-Sparplans",
+        in_note_en="Daily savings plan received")
+
+
+def dispose(tid, kind, account, day, lots, *, fee_fiat=None, note_de="", note_en=""):
+    """A disposal of exactly the lots it names, so nothing is half-assigned."""
+    amount = sum((lot["amount"] for lot in lots), D(0))
+    price = price_at(day)
+    L.add(account, tx(
+        tid, kind, f"{day}T12:00:00.000Z", amount,
+        price=price, total=eur(amount, price), fee_fiat=fee_fiat,
+        lots=[(lot["id"], str(lot["amount"])) for lot in lots],
+        note_de=note_de, note_en=note_en))
+    for lot in lots:
+        lot["spent"] = True
+
+
+# Realised gains in two more tax years, so the exemption tracker and the
+# realised/unrealised split have something to report.
+dispose(
+    "r-sell-2025", "sell", "a-relai-weekly", "2025-11-14", reserved_taxable,
+    fee_fiat="0.85",
+    note_de="Verkauf innerhalb der Haltefrist — steuerpflichtiger Gewinn im Steuerjahr 2025",
+    note_en="Sold inside the holding period — a taxable gain in the 2025 tax year")
+dispose(
+    "r-sell-2026", "sell", "a-relai-weekly", "2026-06-02", reserved_taxfree,
+    fee_fiat="0.90",
+    note_de="Verkauf nach über einem Jahr Haltedauer — steuerfrei",
+    note_en="Sold after more than a year — tax-free")
+
+# Paying with BTC, more than once and from whole lots.
+dispose(
+    "r-spend-cafe", "spend", "a-relai-daily", "2026-06-29", due(daily, "2026-06-01")[:1],
+    note_de="Mit Lightning bezahlt (Kaffee) — kleiner Betrag, vollständig gebucht",
+    note_en="Paid over Lightning (coffee) — a small amount, fully booked")
+dispose(
+    "r-spend-server", "spend", "a-relai-daily", "2026-07-16", due(daily, "2026-06-15")[:2],
+    note_de="Serverrechnung in BTC bezahlt",
+    note_en="Server bill paid in BTC")
+
+# ------------------------------------------- remaining documented cases
+# A buy settled in US dollars rather than USDT, so the "settled in another
+# currency" fields have an example of each shape (§3.2).
+L.add("a-bitget-spot", tx(
+    "b-buy-usd", "buy", "2026-01-08T11:12:00.000Z", "0.012",
+    price=price_at("2026-01-08"), total=eur("0.012", price_at("2026-01-08")),
+    orig=("USD", "1180", "98500"), eur_source="binance-klines",
+    note_de="Kauf gegen USD; der EUR-Wert stammt aus dem Tageskurs, die Originalwährung ist nur Dokumentation",
+    note_en="Bought against USD; the EUR value comes from that day's rate, the original currency is documentation only"))
+# …and a sale settled in a foreign currency, which the ledger books in EUR too.
+L.add("a-bitget-spot", tx(
+    "b-sell-usd", "sell", "2026-04-22T09:30:00.000Z", "0.012",
+    price=price_at("2026-04-22"), total=eur("0.012", price_at("2026-04-22")),
+    fee_fiat="1.10", lots=[("b-buy-usd", "0.012")],
+    orig=("USDT", "1420", "118000"), eur_source="binance-klines",
+    note_de="Verkauf gegen USDT innerhalb der Haltefrist — steuerpflichtig, Bewertung in EUR",
+    note_en="Sold against USDT inside the holding period — taxable, valued in EUR"))
+
+# An outgoing leg that knows its address but not its txid, and an arrival that
+# knows neither: both are what an exchange export actually looks like.
+L.add("a-kraken-spot", tx(
+    "k-out-partial", "transfer_out", "2026-05-12T08:05:00.000Z", "0.01", fee_btc="0.00004",
+    lots=[("k-buy-3", "0.01004")],
+    counterparty="a-coldcard-vault", group="g-partial-1", address=ADDR["cold1"],
+    note_de="Auszahlung mit Adresse, aber ohne Txid im Export — die Txid trägt das Gegenstück nach",
+    note_en="Withdrawal with an address but no txid in the export — the counterpart supplies it"))
+L.add("a-coldcard-vault", tx(
+    "cc-in-partial", "transfer_in", "2026-05-12T08:44:00.000Z", "0.01",
+    counterparty="a-kraken-spot", group="g-partial-1", txid=TXID["t2"],
+    note_de="Eingang auf der Coldcard; die Txid stammt hier aus der Wallet, die Adresse aus der Börse",
+    note_en="Received on the Coldcard; the txid comes from the wallet here, the address from the exchange"))
+
 # --------------------------------------------------------------- checks
 for tid, claimed in L.allocated.items():
     have = L.credited.get(tid)
@@ -323,20 +589,33 @@ for acc, bal in L.balance.items():
 print("balances:", {k: str(v) for k, v in L.balance.items()})
 print("total:", sum(L.balance.values()))
 
-WIDGETS = [
-    # 12 columns; every tile at or above its minimum size, no overlaps, and the
-    # arrangement is a fixed point of the grid's compaction (tests assert all
-    # three, so the demo cannot mark itself as edited just by being looked at).
-    ("portfolioValue", 0, 0, 4, 4), ("pnl", 4, 0, 4, 4), ("btcPrice", 8, 0, 4, 4),
-    ("portfolioChart", 0, 4, 8, 8), ("satsStack", 8, 4, 4, 4),
-    ("avgCost", 8, 8, 4, 4),
-    ("priceEntries", 0, 12, 8, 8), ("holdingPeriod", 8, 12, 4, 4),
-    ("custody", 8, 16, 4, 4),
-    ("walletBreakdown", 0, 20, 6, 6), ("dca", 6, 20, 6, 6),
-    ("holdingComposition", 0, 26, 4, 6), ("networkFees", 4, 26, 4, 5),
-    ("halving", 8, 26, 4, 6),
-    ("dataQuality", 4, 31, 4, 3),
+# The dashboard the demo ships. It mirrors DEFAULT_BANDS in
+# lib/dashboardLayout.ts — bands exactly 12 columns wide and uniform in height,
+# which is what makes the arrangement a fixed point of the grid's compaction
+# (otherwise merely looking at the demo would mark it as edited). A test
+# compares the result against defaultDashboard(), so the two cannot drift.
+BANDS = [
+    (4, [("portfolioValue", 4), ("pnl", 4), ("btcPrice", 4)]),
+    (5, [("satsStack", 4), ("avgCost", 4), ("custody", 4)]),
+    (8, [("portfolioChart", 8), ("whatIf", 4)]),
+    (8, [("priceEntries", 8), ("holdingPeriod", 4)]),
+    (6, [("buyHeatmap", 8), ("dca", 4)]),
+    (7, [("stackHistory", 6), ("holdingComposition", 6)]),
+    (6, [("walletBreakdown", 6), ("feeBalance", 3), ("dataQuality", 3)]),
+    (7, [("taxFreeProceeds", 6), ("exemptionLimit", 6)]),
+    (6, [("utxoOverview", 4), ("watchlistStatus", 4), ("blockClock", 4)]),
+    (5, [("networkFees", 4), ("halving", 4), ("timeInMarket", 4)]),
 ]
+
+WIDGETS = []
+_y = 0
+for _h, _band in BANDS:
+    _x = 0
+    for _wid, _w in _band:
+        WIDGETS.append((_wid, _x, _y, _w, _h))
+        _x += _w
+    assert _x == 12, f"band at y={_y} is {_x} columns wide"
+    _y += _h
 
 
 def build(lang):
@@ -387,6 +666,26 @@ def build(lang):
                 "tags": ["software-wallet"],
             },
             {
+                "id": "wa-taproot", "type": "address", "value": ADDR["sparrow"],
+                "label": "Sparrow – Taproot-Empfang" if lang == "de" else "Sparrow – taproot receive",
+                "tags": ["software-wallet", "non-kyc", "taproot"],
+            },
+            {
+                "id": "wa-legacy", "type": "address", "value": ADDR["paper"],
+                "label": "Papier-Backup (P2SH, altes Format)" if lang == "de" else "Paper backup (P2SH, legacy format)",
+                "tags": ["paper-wallet", "legacy"],
+            },
+            {
+                "id": "wa-cold-2", "type": "address", "value": ADDR["cold2"],
+                "label": "BitBox02 – Empfangsadresse 2" if lang == "de" else "BitBox02 – receiving address 2",
+                "tags": ["hardware-wallet", "non-kyc"],
+            },
+            {
+                "id": "wa-second", "type": "address", "value": ADDR["second"],
+                "label": "BitBox02 – Zweitkonto" if lang == "de" else "BitBox02 – second account",
+                "tags": ["hardware-wallet"],
+            },
+            {
                 "id": "wa-kraken-xpub", "type": "xpub",
                 "value": "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
                 "label": "Börsen-Auszahlungen (xpub, KYC)" if lang == "de" else "Exchange withdrawals (xpub, KYC)",
@@ -404,6 +703,21 @@ def build(lang):
                 "outpoint": f"{TXID['ext']}:1",
                 "label": "Auftragszahlung" if lang == "de" else "Invoice payment",
                 "tags": ["non-kyc"],
+            },
+            {
+                "outpoint": f"{TXID['split']}:0",
+                "label": "Sparrow → Cold Storage" if lang == "de" else "Sparrow → cold storage",
+                "tags": ["non-kyc", "consolidate"],
+            },
+            {
+                "outpoint": f"{TXID['split']}:1",
+                "label": "Sparrow → Zweitkonto" if lang == "de" else "Sparrow → second account",
+                "tags": ["non-kyc"],
+            },
+            {
+                "outpoint": f"{TXID['paper']}:0",
+                "label": "Langfrist-Reserve, nicht anfassen" if lang == "de" else "Long-term reserve, do not touch",
+                "tags": ["cold", "do-not-spend"],
             },
         ],
         "importPresets": [
@@ -440,7 +754,43 @@ def build(lang):
                         {"column": "Status", "match": "isNoneOf", "values": ["cancelled"]},
                     ],
                 },
-            }
+            },
+            {
+                # Deliberately unlike the first one: semicolons, German dates,
+                # amounts in sats, one fixed transaction type, and the fee
+                # already inside the amount. Between the two, every question
+                # the wizard can ask has an example.
+                "id": "preset-demo-sparplan",
+                "name": "Beispiel: Sparplan-Export (Sats, DE-Datum)" if lang == "de"
+                        else "Example: savings-plan export (sats, DE dates)",
+                "delimiter": ";",
+                "decimalSeparator": ",",
+                "encoding": "iso-8859-15",
+                "dateFormat": "de",
+                "timeFormat": "hms",
+                "amountUnit": "sats",
+                "feeUnit": "sats",
+                "fixedType": "buy",
+                "feeBtcModeIn": "notDeducted",
+                "feeBtcModeOut": "notDeducted",
+                "feeFiatMode": "gross",
+                "mapping": {
+                    "date": "Datum",
+                    "time": "Uhrzeit",
+                    "amountBtc": "Menge (sats)",
+                    "totalFiatEur": "Betrag EUR",
+                    "feeFiatEur": "Gebuehr EUR",
+                    "note": "Bemerkung",
+                },
+                "typeValueMapping": {},
+                "rowFilter": {
+                    "combinator": "or",
+                    "rules": [
+                        {"column": "Ausfuehrung", "match": "isAnyOf",
+                         "values": ["ausgefuehrt", "teilausgefuehrt"]},
+                    ],
+                },
+            },
         ],
         "uiSettings": {
             "dashboardLayout": [

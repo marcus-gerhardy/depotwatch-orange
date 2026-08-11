@@ -12,6 +12,7 @@ import { countIssues, hasIssue, issueContext } from "./dataQuality";
 import { indexLedger, resolveProvenance } from "./provenance";
 import { allocationSumBtc, allocationTargetBtc, groupOnChain, effectiveOnChain } from "./transferLink";
 import { migrateTransferFeeConvention } from "./store";
+import { defaultDashboard } from "./dashboardLayout";
 import { flattenLedger, type PortfolioFile, type Transaction } from "./types";
 import { ZERO, dec } from "./decimal";
 
@@ -239,11 +240,39 @@ describe("demo portfolio: every feature has an example", () => {
     expect(counts.unlinkedTransfer).toBeGreaterThan(0);
   });
 
-  it("comes with a watchlist, UTXO labels, an import preset and a layout", () => {
+  it("comes with a watchlist, UTXO labels, import presets and a layout", () => {
     expect(new Set(de.watchedAddresses.map((a) => a.type)).size).toBeGreaterThan(1);
     expect(de.watchedAddresses.every((a) => a.tags.length > 0)).toBe(true);
-    expect(de.utxoLabels.length).toBeGreaterThan(0);
-    expect(de.importPresets[0].rowFilter?.rules.length).toBeGreaterThan(0);
-    expect(de.uiSettings?.dashboardLayout?.length).toBeGreaterThan(10);
+    expect(de.utxoLabels.length).toBeGreaterThan(1);
+    // Two presets that disagree about everything the wizard can ask.
+    expect(de.importPresets.length).toBeGreaterThan(1);
+    expect(de.importPresets.every((p) => p.rowFilter?.rules.length)).toBe(true);
+    expect(new Set(de.importPresets.map((p) => p.delimiter)).size).toBe(2);
+    expect(de.importPresets.some((p) => p.amountUnit === "sats")).toBe(true);
+    expect(de.importPresets.some((p) => p.fixedType)).toBe(true);
+  });
+
+  it("ships the current default dashboard, all widgets included", () => {
+    // The generator mirrors DEFAULT_BANDS; this is what stops the two from
+    // drifting apart, and it is also what keeps the demo's layout a fixed
+    // point of the grid's compaction (DashboardGrid.test.tsx checks that end).
+    expect(de.uiSettings?.dashboardLayout).toEqual(defaultDashboard());
+  });
+
+  it("has enough history for the widgets that need volume", () => {
+    // A handful of buys tells a heatmap, a DCA overview or a marker
+    // aggregation nothing at all.
+    const buys = entries.filter((e) => e.type === "buy");
+    expect(buys.length).toBeGreaterThan(300);
+    // Spread over years, and dense enough in the last twelve months that the
+    // heatmap and the marker bucketing have something to fold.
+    expect(new Set(buys.map((b) => b.date.slice(0, 4))).size).toBeGreaterThanOrEqual(4);
+    const recent = buys.filter((b) => b.date >= "2026-01-01");
+    expect(recent.length).toBeGreaterThan(100);
+    // One assignment wide enough to exercise the lot picker in earnest.
+    const widest = Math.max(
+      ...entries.map((e) => e.lotAllocations?.length ?? 0),
+    );
+    expect(widest).toBeGreaterThan(20);
   });
 });
