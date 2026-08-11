@@ -8,6 +8,7 @@
 // encrypted file, one re-encryption).
 
 import type { DashboardWidgetPlacement, UiSettings } from "./types";
+import { TAX_FEATURES_ENABLED } from "./features";
 import { legacyDashboardLayout } from "./legacyUiPrefs";
 
 /** Grid geometry — shared by the grid itself and the free-cell overlay. */
@@ -22,32 +23,83 @@ export const DASHBOARD_SPARE_ROWS = 3;
 export type WidgetPlacement = DashboardWidgetPlacement;
 
 /**
- * Default dashboard: the figures a portfolio owner looks at first (value, P/L,
- * price), the two charts, and the panels that explain where the number comes
- * from. Everything else is one click away in the widget picker.
+ * One row band of the default layout: widgets side by side, and the height they
+ * all share.
+ *
+ * The bands are what makes the default a **compaction fixed point** (§4.1). A
+ * band is exactly `DASHBOARD_COLS` wide and every widget in it is equally tall,
+ * so each band rests completely on the one above it and react-grid-layout can
+ * float nothing upwards. Get either property wrong — a band 11 wide, or two
+ * heights in one band — and the grid silently rearranges the layout on mount,
+ * which marks the file as changed just for opening the dashboard.
  */
+interface LayoutBand {
+  /** Height of every widget in this band, in grid rows. */
+  h: number;
+  /** [widget id, width]; the widths must add up to DASHBOARD_COLS. */
+  widgets: [string, number][];
+  /** Dropped entirely when the tax features are off (§4). */
+  taxOnly?: boolean;
+}
+
+/**
+ * Default dashboard: **every** registered widget, in reading order — the
+ * figures a portfolio owner looks at first (value, P/L, price), then the
+ * holding, the charts, the ledger panels, the on-chain tiles, the data-quality
+ * strip and finally the tax figures.
+ *
+ * Widths are chosen so each band fills the grid exactly; a widget's size here
+ * always stays inside the min/max its registry entry declares, which a test
+ * asserts against the registry.
+ */
+const DEFAULT_BANDS: LayoutBand[] = [
+  // 1. What is it worth, right now. The three figures somebody opens the app
+  //    for, and the only band that never needs scrolling to.
+  { h: 4, widgets: [["portfolioValue", 4], ["pnl", 4], ["btcPrice", 4]] },
+  // 2. What it is made of, what it cost, and whether it is actually yours.
+  { h: 5, widgets: [["satsStack", 4], ["avgCost", 4], ["custody", 4]] },
+  // 3. The value over time, with the scenario tool beside it: "and if the
+  //    price were X" is the question that follows from looking at the curve.
+  { h: 8, widgets: [["portfolioChart", 8], ["whatIf", 4]] },
+  // 4. Own entries and exits in the market's context, next to the tax clock
+  //    that decides what selling them would cost.
+  { h: 8, widgets: [["priceEntries", 8], ["holdingPeriod", 4]] },
+  // 5. Buying behaviour. The heatmap gets eight columns because a year of days
+  //    is 53 week columns wide and only fits from there on.
+  { h: 6, widgets: [["buyHeatmap", 8], ["dca", 4]] },
+  // 6. The stack itself over time, and what it is composed of.
+  { h: 7, widgets: [["stackHistory", 6], ["holdingComposition", 6]] },
+  // 7. Where it sits, what it cost in fees, and whether the numbers above can
+  //    be trusted at all.
+  { h: 6, widgets: [["walletBreakdown", 6], ["feeBalance", 3], ["dataQuality", 3]] },
+  // 8. Tax. Its own band, so switching the tax features off removes it whole
+  //    and the bands above simply keep their positions (no hole to compact
+  //    away) — a tax widget in a shared band would leave one.
+  {
+    h: 7,
+    taxOnly: true,
+    widgets: [["taxFreeProceeds", 6], ["exemptionLimit", 6]],
+  },
+  // 9. The watchlist: on-chain, and the only tiles that talk to the explorer
+  //    about addresses.
+  { h: 6, widgets: [["utxoOverview", 4], ["watchlistStatus", 4], ["blockClock", 4]] },
+  // 10. Ambient chain and portfolio facts. Interesting, rarely urgent.
+  { h: 5, widgets: [["networkFees", 4], ["halving", 4], ["timeInMarket", 4]] },
+];
+
 export function defaultDashboard(): WidgetPlacement[] {
-  const at = (widgetId: string, x: number, y: number, w: number, h: number) => ({
-    i: `${widgetId}-1`,
-    widgetId,
-    x,
-    y,
-    w,
-    h,
-  });
-  return [
-    at("portfolioValue", 0, 0, 4, 4),
-    at("pnl", 4, 0, 4, 4),
-    at("btcPrice", 8, 0, 4, 4),
-    at("portfolioChart", 0, 4, 8, 8),
-    at("satsStack", 8, 4, 4, 4),
-    at("avgCost", 8, 8, 4, 4),
-    at("priceEntries", 0, 12, 8, 8),
-    at("custody", 8, 12, 4, 5),
-    at("dataQuality", 8, 17, 4, 3),
-    at("walletBreakdown", 0, 20, 6, 6),
-    at("dca", 6, 20, 6, 6),
-  ];
+  const out: WidgetPlacement[] = [];
+  let y = 0;
+  for (const band of DEFAULT_BANDS) {
+    if (band.taxOnly && !TAX_FEATURES_ENABLED) continue;
+    let x = 0;
+    for (const [widgetId, w] of band.widgets) {
+      out.push({ i: `${widgetId}-1`, widgetId, x, y, w, h: band.h });
+      x += w;
+    }
+    y += band.h;
+  }
+  return out;
 }
 
 function isPlacement(v: unknown): v is WidgetPlacement {

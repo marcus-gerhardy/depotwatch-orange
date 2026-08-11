@@ -172,13 +172,44 @@ export function dailyValueSeries(
   return out;
 }
 
-/** Cumulative total BTC balance per UTC day, from first transaction to today. */
+/**
+ * Cumulative total BTC balance per UTC day, from first transaction to today.
+ *
+ * **Both legs of an internal transfer are booked on the out-leg's day.** The
+ * two legs of one transfer regularly carry different timestamps — a hardware
+ * wallet stamps the arrival when it sees it, an exchange stamps the withdrawal
+ * when it completes, and two CSV exports need not agree at all (§10). Booked
+ * on their own days, such a pair makes the *total* holding jump: it rises by
+ * the moved amount on the arrival day and falls back on the send day, which
+ * draws a spike out of a transfer that never changed the holding by more than
+ * its network fee. (The opposite order draws the same artefact as a dip.)
+ *
+ * So a paired `transfer_in` is booked on the day its out-leg left, which is
+ * also the day the fee was actually burnt; the arrival's own date stays what
+ * §3.2 says it is — display data. An unpaired leg keeps its own day, because
+ * an arrival with no send behind it *is* an inflow from outside.
+ */
 export function dailyBalanceSeries(entries: LedgerEntry[]): DailyBalance[] {
   if (entries.length === 0) return [];
   const DAY = 86_400_000;
+  const dayOf = (iso: string) => Math.floor(new Date(iso).getTime() / DAY) * DAY;
+
+  // Earliest out-leg per group: normally there is exactly one.
+  const sendDayByGroup = new Map<string, number>();
+  for (const e of entries) {
+    if (e.type !== "transfer_out" || !e.transferGroupId) continue;
+    const day = dayOf(e.date);
+    const known = sendDayByGroup.get(e.transferGroupId);
+    if (known === undefined || day < known) sendDayByGroup.set(e.transferGroupId, day);
+  }
+
   const deltasByDay = new Map<number, Decimal>();
   for (const e of entries) {
-    const day = Math.floor(new Date(e.date).getTime() / DAY) * DAY;
+    const sendDay =
+      e.type === "transfer_in" && e.transferGroupId
+        ? sendDayByGroup.get(e.transferGroupId)
+        : undefined;
+    const day = sendDay ?? dayOf(e.date);
     deltasByDay.set(day, (deltasByDay.get(day) ?? ZERO).plus(balanceDelta(e)));
   }
   const firstDay = Math.min(...deltasByDay.keys());

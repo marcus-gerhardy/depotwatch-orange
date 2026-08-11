@@ -172,6 +172,14 @@ export interface AppSettings {
   easterEggs?: boolean;
   /** German rule: holdings become tax-free after this many days (default 365). */
   holdingPeriodDays: number;
+  /**
+   * The §23 EStG exemption *limit* for private sales, in EUR. Configurable
+   * rather than hard-wired because the legislator changes it (600 € until
+   * 2023, 1 000 € since), and a file written under one figure must keep
+   * showing that figure. Optional: files written before it existed fall back
+   * to DEFAULT_TAX_EXEMPTION_LIMIT_EUR.
+   */
+  taxExemptionLimitEur?: number;
   costBasisMethod: "FIFO";
   /** Debounce for autosave in File System Access mode, ms. */
   autosaveDebounceMs: number;
@@ -233,12 +241,19 @@ export interface PortfolioFile {
   uiSettings?: UiSettings;
 }
 
+/**
+ * §23 EStG since 2024. A limit, not an allowance: one euro over it makes the
+ * whole gain taxable, not just the excess — which is why the widget says so.
+ */
+export const DEFAULT_TAX_EXEMPTION_LIMIT_EUR = 1000;
+
 export const DEFAULT_SETTINGS: AppSettings = {
   locale: "de",
   currencyDisplay: "EUR",
   theme: DEFAULT_THEME,
   easterEggs: true,
   holdingPeriodDays: 365,
+  taxExemptionLimitEur: DEFAULT_TAX_EXEMPTION_LIMIT_EUR,
   costBasisMethod: "FIFO",
   autosaveDebounceMs: 1500,
 };

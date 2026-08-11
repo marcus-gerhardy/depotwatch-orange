@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import type { Currency, ExplorerProvider, Locale } from "@/lib/types";
+import {
+  DEFAULT_TAX_EXEMPTION_LIMIT_EUR,
+  type Currency,
+  type ExplorerProvider,
+  type Locale,
+} from "@/lib/types";
 import {
   THEME_IDS,
   THEME_META,
@@ -293,7 +298,27 @@ export default function SettingsView() {
                 <option value="FIFO">FIFO</option>
               </select>
             </Field>
+            {/* A limit the legislator moves (600 € until 2023, 1 000 € since),
+                so it is configured rather than hard-wired — an old file keeps
+                showing the figure it was written under. */}
+            <Field label={t("settings.taxExemptionLimit")}>
+              <input
+                type="number"
+                min={0}
+                step={50}
+                className={inputCls}
+                value={s.taxExemptionLimitEur ?? DEFAULT_TAX_EXEMPTION_LIMIT_EUR}
+                onChange={(e) =>
+                  patchSettings({
+                    taxExemptionLimitEur: Number(e.target.value) || 0,
+                  })
+                }
+              />
+            </Field>
           </div>
+          <p className="text-xs leading-relaxed text-muted">
+            {t("settings.taxExemptionLimitHint")}
+          </p>
         </Card>
       )}
 

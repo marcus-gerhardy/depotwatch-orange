@@ -46,11 +46,18 @@ export default function RootLayout({
     <html
       lang="de"
       className={`${outfit.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}
+      // The boot script below writes data-theme onto this very element before
+      // React hydrates, so the server HTML and the DOM differ here by design —
+      // which is exactly what this attribute is for. It reaches one level deep
+      // (this element's own attributes), so a real mismatch anywhere inside the
+      // app is still reported.
+      suppressHydrationWarning
     >
       <head>
         {/* Sets the theme attributes from the remembered preference before the
             first paint, so nothing flashes in the wrong colours. It runs
-            before React and only touches <html>, which React does not own. */}
+            before React, and the static export cannot know the preference —
+            it lives in the browser. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">

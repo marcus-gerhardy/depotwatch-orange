@@ -4,16 +4,29 @@
 // average cost. All of them read the shared dashboard context — none fetches
 // anything of its own beyond the daily closes, which are cached per day.
 
-import { useMemo } from "react";
-import { formatFiat, formatInt, formatPercent } from "@/lib/decimal";
+import { useMemo, useState } from "react";
+import {
+  formatFiat,
+  formatFiatInput,
+  formatInt,
+  formatPercent,
+  parseNumberInput,
+} from "@/lib/decimal";
+import { whatIf } from "@/lib/dashboardStats";
 import { dailyValueSeries } from "@/lib/portfolio";
 import { useDailyCloses } from "@/lib/marketData";
 import { SATS_PER_BTC, moscowTime } from "@/lib/displayUnit";
 import { formatPizzas, isPizzaDay, pizzasFor, useEasterEggs } from "@/lib/easterEggs";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
-import { Amount, PnlValue } from "../ui";
+import { Amount, PnlValue, inputCls } from "../ui";
 import { useDashboardData } from "./context";
-import { Meter, StatLabel, StatValue, WidgetSkeleton } from "./WidgetFrame";
+import {
+  Meter,
+  StatLabel,
+  StatValue,
+  WidgetEmpty,
+  WidgetSkeleton,
+} from "./WidgetFrame";
 
 const DAY = 86_400_000;
 
@@ -447,6 +460,119 @@ export function AvgCostWidget() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Steps the slider offers around the current price, as factors. */
+const WHAT_IF_MIN = 0.25;
+const WHAT_IF_MAX = 5;
+
+/**
+ * The portfolio at a price that does not exist yet.
+ *
+ * Valued over the open lots that *have* a cost basis, exactly like the P/L
+ * widget (§4.1): coins whose acquisition price is unknown would otherwise turn
+ * their whole market value into profit. The slider spans a quarter to five
+ * times today's price, and the field takes any number for the cases that range
+ * does not cover — a scenario tool that cannot express one's actual scenario
+ * is a toy.
+ */
+export function WhatIfWidget() {
+  const { t, loc, fifo, priceEur, priceCurrency, fmtDisplay, fmtAmountPlain } =
+    useDashboardData();
+  const [override, setOverride] = useState<string | null>(null);
+
+  // Nothing to model against until the live price arrives; the field is what
+  // the tile is for, so it waits rather than inventing a reference.
+  if (priceEur === null) return <WidgetSkeleton lines={3} />;
+  if (!fifo.openBasisBtc.gt(0)) {
+    return <WidgetEmpty message={t("dashboard.widgets.whatIfEmpty")} />;
+  }
+
+  const parsed = override === null ? null : parseNumberInput(override);
+  const price =
+    parsed !== null && Number.isFinite(Number(parsed)) && Number(parsed) > 0
+      ? Number(parsed)
+      : priceEur;
+  const result = whatIf(fifo, price, priceEur);
+  const pnl = result.pnlEur?.toNumber() ?? null;
+
+  return (
+    <div className="flex h-full flex-col gap-3">
+      <div>
+        <StatValue>{fmtDisplay(result.valueEur.toNumber())}</StatValue>
+        <StatLabel>
+          {t("dashboard.widgets.whatIfValue")}
+          {result.multiple !== null && result.multiple !== 1 && (
+            <> · {t("dashboard.widgets.whatIfMultiple", {
+              multiple: result.multiple.toFixed(2),
+            })}</>
+          )}
+        </StatLabel>
+      </div>
+
+      <div className="space-y-1">
+        <label className="flex items-center gap-2 text-xs">
+          <span className="text-muted">{t("dashboard.widgets.whatIfPrice")}</span>
+          <input
+            className={`${inputCls} w-32 py-1 font-mono text-xs`}
+            inputMode="decimal"
+            value={override ?? formatFiatInput(String(price), loc)}
+            onChange={(e) => setOverride(e.target.value)}
+            aria-label={t("dashboard.widgets.whatIfPrice")}
+          />
+          <span className="text-muted">{priceCurrency}</span>
+        </label>
+        <input
+          type="range"
+          className="w-full accent-accent"
+          min={Math.round(priceEur * WHAT_IF_MIN)}
+          max={Math.round(priceEur * WHAT_IF_MAX)}
+          step={Math.max(1, Math.round(priceEur / 200))}
+          value={Math.min(
+            Math.max(price, priceEur * WHAT_IF_MIN),
+            priceEur * WHAT_IF_MAX,
+          )}
+          onChange={(e) => setOverride(e.target.value)}
+          aria-label={t("dashboard.widgets.whatIfPrice")}
+        />
+        <div className="flex justify-between text-[0.6rem] text-muted">
+          <span>{fmtDisplay(priceEur * WHAT_IF_MIN)}</span>
+          <button
+            type="button"
+            className="underline decoration-dotted hover:text-foreground"
+            onClick={() => setOverride(null)}
+          >
+            {t("dashboard.widgets.whatIfReset")}
+          </button>
+          <span>{fmtDisplay(priceEur * WHAT_IF_MAX)}</span>
+        </div>
+      </div>
+
+      <dl className="mt-auto space-y-1 text-xs">
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.whatIfPnl")}</dt>
+          <dd className="font-mono">
+            {pnl === null ? (
+              "—"
+            ) : (
+              <PnlValue value={pnl}>
+                {pnl > 0 ? "+" : pnl < 0 ? "−" : ""}
+                {fmtDisplay(Math.abs(pnl))}
+                {result.pnlPct !== null &&
+                  ` (${formatPercent(result.pnlPct, loc)})`}
+              </PnlValue>
+            )}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.whatIfValued")}</dt>
+          <dd className="font-mono text-muted">
+            <Amount>{fmtAmountPlain(fifo.openBasisBtc)}</Amount>
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }

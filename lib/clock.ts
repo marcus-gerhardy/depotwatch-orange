@@ -7,7 +7,7 @@
 // external store instead keeps the component pure and gives it a defined
 // update cadence.
 
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 const MINUTE_MS = 60_000;
 
@@ -26,4 +26,15 @@ export function useNow(): number {
     () => Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS,
     () => 0,
   );
+}
+
+/**
+ * The same clock as a Date, or null where there is no meaningful "now" (the
+ * prerender). Callers render a placeholder for null rather than substituting
+ * `Date.now()`, which would be an impure call during render and would make the
+ * component non-idempotent — the very thing this module exists to avoid.
+ */
+export function useNowDate(): Date | null {
+  const ms = useNow();
+  return useMemo(() => (ms === 0 ? null : new Date(ms)), [ms]);
 }

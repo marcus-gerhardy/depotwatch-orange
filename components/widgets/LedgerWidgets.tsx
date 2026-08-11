@@ -5,15 +5,25 @@
 
 import { useMemo } from "react";
 import { useAppStore } from "@/lib/store";
-import { Decimal, ZERO, formatPercent } from "@/lib/decimal";
+import { Decimal, ZERO, formatInt, formatPercent } from "@/lib/decimal";
 import { formatDate } from "@/lib/i18n";
+import { useNowDate } from "@/lib/clock";
+import { useDailyCloses } from "@/lib/marketData";
+import { dailyValueSeries } from "@/lib/portfolio";
+import { feeTotals, maxDrawdown, timeInMarket } from "@/lib/dashboardStats";
 import { daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
 import { countIssues, DATA_ISSUES } from "@/lib/dataQuality";
 import { useEasterEggs } from "@/lib/easterEggs";
 import type { WalletType } from "@/lib/types";
-import { Amount } from "../ui";
+import { Amount, PnlValue } from "../ui";
 import { useDashboardData } from "./context";
-import { Meter, StatLabel, StatValue, WidgetEmpty } from "./WidgetFrame";
+import {
+  Meter,
+  StatLabel,
+  StatValue,
+  WidgetEmpty,
+  WidgetSkeleton,
+} from "./WidgetFrame";
 
 /** Custody buckets: only "on an exchange" versus "in your own custody". */
 const SELF_CUSTODY: WalletType[] = ["hardware", "software", "paper"];
@@ -387,6 +397,180 @@ export function DataQualityWidget() {
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * What the whole thing has cost in fees.
+ *
+ * A BTC fee is valued at the rate of the day it was paid, not today's — fees
+ * are money spent when they were spent, and valuing an old fee at today's
+ * price would make it grow with the market. Days the price history has no
+ * candle for are reported as "not valued" rather than dropped silently.
+ *
+ * Trading versus network is decided by transaction type, the only thing the
+ * ledger actually knows: a fee on a trade went to a venue, a fee on a transfer
+ * went to the miners.
+ */
+export function FeeBalanceWidget() {
+  const { t, loc, entries, priceCurrency, fmtDisplay, fmtAmountPlain } =
+    useDashboardData();
+  const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
+  const closes = useDailyCloses(priceCurrency, startTime);
+
+  const totals = useMemo(() => {
+    const byDay = new Map((closes.data ?? []).map((c) => [c.time, c.close]));
+    return feeTotals(entries, byDay);
+  }, [entries, closes.data]);
+
+  if (entries.length === 0) {
+    return <WidgetEmpty message={t("dashboard.widgets.feesEmpty")} />;
+  }
+  if (closes.loading) return <WidgetSkeleton lines={4} />;
+
+  const share = totals.shareOfInvested;
+
+  return (
+    <div className="flex h-full flex-col gap-3">
+      <div>
+        <StatValue className="text-warning">
+          {fmtDisplay(totals.totalEur.toNumber())}
+        </StatValue>
+        <StatLabel>
+          {t("dashboard.widgets.feesPaid")}
+          {share !== null && (
+            <>
+              {" · "}
+              {formatPercent(share, loc).replace("+", "")}{" "}
+              {t("dashboard.widgets.feesOfInvested")}
+            </>
+          )}
+        </StatLabel>
+      </div>
+
+      {share !== null && <Meter value={Math.min(share, 1)} color="bg-warning" />}
+
+      <dl className="mt-auto space-y-1 text-xs">
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.feesTrading")}</dt>
+          <dd className="font-mono">
+            <Amount>{fmtDisplay(totals.tradingEur.toNumber())}</Amount>
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.feesNetwork")}</dt>
+          <dd className="font-mono">
+            <Amount>{fmtDisplay(totals.networkEur.toNumber())}</Amount>
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.feesBtc")}</dt>
+          <dd className="font-mono">
+            <Amount>{fmtAmountPlain(totals.totalBtc)}</Amount>
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.feesInvested")}</dt>
+          <dd className="font-mono text-muted">
+            <Amount>{fmtDisplay(totals.investedEur.toNumber())}</Amount>
+          </dd>
+        </div>
+      </dl>
+
+      {totals.unvaluedBtc.gt(0) && (
+        <p className="text-[0.65rem] leading-relaxed text-muted">
+          {t("dashboard.widgets.feesUnvalued", {
+            amount: fmtAmountPlain(totals.unvaluedBtc),
+          })}
+        </p>
+      )}
+      {closes.error && (
+        <p className="text-[0.65rem] leading-relaxed text-muted">
+          {t("dashboard.widgets.feesNoHistory")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * How long this has been running, and how deep it went in between.
+ *
+ * The drawdown is the *portfolio's*, not the price's: buying on the way down
+ * lifts the curve again, so this number describes what the position actually
+ * went through rather than what the market did.
+ */
+export function TimeInMarketWidget() {
+  const { t, loc, entries, priceCurrency, fmtDisplay } = useDashboardData();
+  const now = useNowDate();
+  const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
+  const closes = useDailyCloses(priceCurrency, startTime);
+
+  const market = useMemo(
+    () => (now === null ? null : timeInMarket(entries, now)),
+    [entries, now],
+  );
+  const drawdown = useMemo(
+    () => (closes.data ? maxDrawdown(dailyValueSeries(entries, closes.data)) : null),
+    [entries, closes.data],
+  );
+
+  if (market === null) return <WidgetSkeleton lines={3} />;
+  if (market.firstBuyDate === null) {
+    return <WidgetEmpty message={t("dashboard.widgets.timeInMarketEmpty")} />;
+  }
+
+  const years = market.days / 365;
+
+  return (
+    <div className="flex h-full flex-col gap-3">
+      <div>
+        <StatValue>{formatInt(market.days, loc)}</StatValue>
+        <StatLabel>
+          {t("dashboard.widgets.daysInMarket")} ·{" "}
+          {t("dashboard.widgets.yearsInMarket", { years: years.toFixed(1) })}
+        </StatLabel>
+      </div>
+
+      <dl className="mt-auto space-y-1 text-xs">
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.firstBuy")}</dt>
+          <dd className="font-mono">{formatDate(market.firstBuyDate, loc)}</dd>
+        </div>
+        {market.buysPerYear !== null && (
+          <div className="flex justify-between gap-2">
+            <dt className="text-muted">{t("dashboard.widgets.buysPerYear")}</dt>
+            <dd className="font-mono">{market.buysPerYear.toFixed(1)}</dd>
+          </div>
+        )}
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted">{t("dashboard.widgets.maxDrawdown")}</dt>
+          <dd className="font-mono">
+            {closes.loading ? (
+              "…"
+            ) : drawdown === null || drawdown.maxDrawdown === 0 ? (
+              "—"
+            ) : (
+              <PnlValue value={-drawdown.maxDrawdown}>
+                −{formatPercent(drawdown.maxDrawdown, loc).replace("+", "")}
+              </PnlValue>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      {drawdown !== null && drawdown.maxDrawdown > 0 && drawdown.troughTime !== null && (
+        <p className="text-[0.65rem] leading-relaxed text-muted">
+          <Amount>
+            {t("dashboard.widgets.drawdownDetail", {
+              peak: fmtDisplay(drawdown.peakValue),
+              trough: fmtDisplay(drawdown.troughValue),
+              date: formatDate(drawdown.troughTime, loc),
+            })}
+          </Amount>
+        </p>
       )}
     </div>
   );

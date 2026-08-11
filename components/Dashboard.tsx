@@ -261,13 +261,19 @@ function DashboardBody() {
 
 export default function Dashboard({
   onOpenTransactions,
+  onOpenWatchlist,
 }: {
   /** Jump to the transaction table with a filter applied (wallet or issue). */
   onOpenTransactions?: (filter: TxJumpFilter) => void;
+  /** Jump to the address watchlist (the security widgets link there). */
+  onOpenWatchlist?: (options?: { add?: boolean }) => void;
 }) {
   const noop = useCallback(() => {}, []);
   return (
-    <DashboardDataProvider openTransactions={onOpenTransactions ?? noop}>
+    <DashboardDataProvider
+      openTransactions={onOpenTransactions ?? noop}
+      openWatchlist={onOpenWatchlist ?? noop}
+    >
       <DashboardBody />
     </DashboardDataProvider>
   );

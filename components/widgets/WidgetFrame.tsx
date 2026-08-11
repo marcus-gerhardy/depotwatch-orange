@@ -101,11 +101,31 @@ export function WidgetError({
   );
 }
 
-export function WidgetEmpty({ message }: { message: string }) {
+/**
+ * Nothing to show yet. `action` is for the cases where the tile knows exactly
+ * what is missing — a watchlist widget without a single address should offer
+ * to add one rather than only stating that there is none.
+ */
+export function WidgetEmpty({
+  message,
+  action,
+}: {
+  message: string;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
-    <p className="flex h-full items-center justify-center text-center text-xs text-muted">
-      {message}
-    </p>
+    <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+      <p className="text-xs text-muted">{message}</p>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="rounded-lg border border-accent/40 px-2.5 py-1 text-xs text-accent transition-colors hover:bg-accent/10"
+        >
+          + {action.label}
+        </button>
+      )}
+    </div>
   );
 }
 

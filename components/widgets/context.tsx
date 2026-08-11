@@ -77,6 +77,11 @@ export interface DashboardData {
 
   /** Open the transaction table with a filter applied. */
   openTransactions: (filter: TxJumpFilter) => void;
+  /**
+   * Open the address watchlist; `add` opens its "add address" form right
+   * away, which is what an empty watchlist widget offers.
+   */
+  openWatchlist: (options?: { add?: boolean }) => void;
 }
 
 const DashboardDataContext = createContext<DashboardData | null>(null);
@@ -89,9 +94,11 @@ export function useDashboardData(): DashboardData {
 
 export function DashboardDataProvider({
   openTransactions,
+  openWatchlist,
   children,
 }: {
   openTransactions: (filter: TxJumpFilter) => void;
+  openWatchlist: (options?: { add?: boolean }) => void;
   children: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
@@ -161,6 +168,7 @@ export function DashboardDataProvider({
       fmtAmountPlain: (btc) =>
         currency === "BTC" ? formatSats(btc, loc) : formatBtc(btc, loc),
       openTransactions,
+      openWatchlist,
     };
   }, [
     t,
@@ -177,6 +185,7 @@ export function DashboardDataProvider({
     prices.loading,
     prices.error,
     openTransactions,
+    openWatchlist,
   ]);
 
   return (

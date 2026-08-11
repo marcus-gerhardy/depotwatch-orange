@@ -66,6 +66,8 @@ export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   /** Pre-set filter when jumping from a dashboard widget (wallet or issue). */
   const [txFilter, setTxFilter] = useState<TxJumpFilter | null>(null);
+  /** A widget asked for the watchlist's add form, not just the tab. */
+  const [watchlistAdd, setWatchlistAdd] = useState(false);
   const fileMode = useAppStore((s) => s.fileMode);
   const dirty = useAppStore((s) => s.dirty);
   const privacyMode = useAppStore((s) => s.privacyMode);
@@ -239,6 +241,10 @@ export default function AppShell() {
                 key={item.id}
                 onClick={() => {
                   setTxFilter(null);
+                  // Both of these are intents a widget expressed once. Opening
+                  // a tab from the navigation is not that intent, so they are
+                  // cleared here rather than firing again on the next visit.
+                  setWatchlistAdd(false);
                   setTab(item.id);
                   setMenuOpen(false);
                 }}
@@ -262,12 +268,16 @@ export default function AppShell() {
               setTxFilter(filter);
               setTab("transactions");
             }}
+            onOpenWatchlist={(options) => {
+              setWatchlistAdd(options?.add === true);
+              setTab("watchlist");
+            }}
           />
         )}
         {tab === "transactions" && <TransactionsView initialFilter={txFilter} />}
         {tab === "wallets" && <WalletsView />}
         {TAX_FEATURES_ENABLED && tab === "tax" && <TaxView />}
-        {tab === "watchlist" && <WatchlistView />}
+        {tab === "watchlist" && <WatchlistView initialAdd={watchlistAdd} />}
         {tab === "settings" && <SettingsView />}
       </main>
 

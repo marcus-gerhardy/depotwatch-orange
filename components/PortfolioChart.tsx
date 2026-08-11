@@ -106,6 +106,13 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
           {t("dashboard.chartCompare")}
         </label>
       </div>
+      {/* overflow-hidden, and it is load-bearing: recharts positions its
+          tooltip before it has measured it (tooltipDimension is 0 on the
+          first frame, so the flip to the other side of the cursor cannot
+          trigger), which puts the box past the right edge for exactly one
+          frame. Entering the widget from the right then flashes a scrollbar
+          in the tile. A settled tooltip stays inside the chart on its own
+          (allowEscapeViewBox is false), so nothing real is ever clipped. */}
       {closes.error ? (
         <p className="py-8 text-center text-sm text-muted">
           {t("dashboard.priceUnavailable")}
@@ -113,7 +120,9 @@ export default function PortfolioChart({ entries }: { entries: LedgerEntry[] }) 
       ) : data.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted">{t("common.loading")}</p>
       ) : (
-        <div className={`min-h-40 flex-1 ${privacyMode ? "privacy-blur" : ""}`}>
+        <div
+          className={`min-h-40 flex-1 overflow-hidden ${privacyMode ? "privacy-blur" : ""}`}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
               <defs>

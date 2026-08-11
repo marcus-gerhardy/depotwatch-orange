@@ -39,13 +39,18 @@ const SEVERITY_STYLE: Record<FindingSeverity, string> = {
   danger: "border-loss/40 text-loss",
 };
 
-export default function WatchlistView() {
+export default function WatchlistView({
+  /** Open the add form right away (a dashboard widget asked for it). */
+  initialAdd = false,
+}: {
+  initialAdd?: boolean;
+} = {}) {
   const { t } = useI18n();
   const portfolio = useAppStore((s) => s.portfolio)!;
   const addWatchedAddress = useAppStore((s) => s.addWatchedAddress);
   const deleteWatchedAddress = useAppStore((s) => s.deleteWatchedAddress);
 
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdd, setShowAdd] = useState(initialAdd);
   const [value, setValue] = useState("");
   const [label, setLabel] = useState("");
   const [tags, setTags] = useState("");

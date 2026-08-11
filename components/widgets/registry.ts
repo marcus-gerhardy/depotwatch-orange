@@ -9,22 +9,34 @@
 // from `useDashboardData()` (see context.tsx).
 
 import type { ComponentType } from "react";
+import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import {
   AvgCostWidget,
   BtcPriceWidget,
   PnlWidget,
   PortfolioValueWidget,
   SatsStackWidget,
+  WhatIfWidget,
 } from "./ValueWidgets";
 import {
   CustodyWidget,
   DataQualityWidget,
+  FeeBalanceWidget,
   HoldingCompositionWidget,
   HoldingPeriodWidget,
+  TimeInMarketWidget,
   WalletBreakdownWidget,
 } from "./LedgerWidgets";
-import { DcaWidget, PortfolioChartWidget, PriceEntriesWidget } from "./ChartWidgets";
-import { HalvingWidget, NetworkFeesWidget } from "./ChainWidgets";
+import {
+  BuyHeatmapWidget,
+  DcaWidget,
+  PortfolioChartWidget,
+  PriceEntriesWidget,
+  StackHistoryWidget,
+} from "./ChartWidgets";
+import { BlockClockWidget, HalvingWidget, NetworkFeesWidget } from "./ChainWidgets";
+import { ExemptionLimitWidget, TaxFreeProceedsWidget } from "./TaxWidgets";
+import { UtxoOverviewWidget, WatchlistStatusWidget } from "./WatchlistWidgets";
 
 /**
  * What a widget reads. Shown in the picker so it is obvious up front which
@@ -53,7 +65,7 @@ export interface WidgetDefinition {
   component: ComponentType;
 }
 
-export const WIDGETS: WidgetDefinition[] = [
+const BASE_WIDGETS: WidgetDefinition[] = [
   {
     id: "portfolioValue",
     titleKey: "dashboard.widgets.portfolioValue.title",
@@ -212,6 +224,130 @@ export const WIDGETS: WidgetDefinition[] = [
     dataSources: ["ledger"],
     component: HoldingCompositionWidget,
   },
+  {
+    id: "stackHistory",
+    titleKey: "dashboard.widgets.stackHistory.title",
+    descriptionKey: "dashboard.widgets.stackHistory.description",
+    icon: "📶",
+    defaultSize: { w: 6, h: 7 },
+    minSize: { w: 4, h: 5 },
+    dataSources: ["ledger"],
+    component: StackHistoryWidget,
+  },
+  {
+    id: "buyHeatmap",
+    titleKey: "dashboard.widgets.buyHeatmap.title",
+    descriptionKey: "dashboard.widgets.buyHeatmap.description",
+    icon: "🗓",
+    // A year is 53 week columns at a readable cell size, so this one wants
+    // width: at eight columns the strip fits without scrolling sideways.
+    defaultSize: { w: 8, h: 6 },
+    minSize: { w: 4, h: 5 },
+    dataSources: ["ledger"],
+    component: BuyHeatmapWidget,
+  },
+  {
+    id: "feeBalance",
+    titleKey: "dashboard.widgets.feeBalance.title",
+    descriptionKey: "dashboard.widgets.feeBalance.description",
+    icon: "🧾",
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 5 },
+    maxSize: { w: 12, h: 8 },
+    dataSources: ["ledger", "priceHistory"],
+    component: FeeBalanceWidget,
+  },
+  {
+    id: "whatIf",
+    titleKey: "dashboard.widgets.whatIf.title",
+    descriptionKey: "dashboard.widgets.whatIf.description",
+    icon: "🔮",
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 5 },
+    maxSize: { w: 12, h: 8 },
+    dataSources: ["ledger", "price"],
+    component: WhatIfWidget,
+  },
+  {
+    id: "timeInMarket",
+    titleKey: "dashboard.widgets.timeInMarket.title",
+    descriptionKey: "dashboard.widgets.timeInMarket.description",
+    icon: "⏱",
+    defaultSize: { w: 4, h: 5 },
+    minSize: { w: 3, h: 4 },
+    maxSize: { w: 12, h: 7 },
+    dataSources: ["ledger", "priceHistory"],
+    component: TimeInMarketWidget,
+  },
+  {
+    id: "blockClock",
+    titleKey: "dashboard.widgets.blockClock.title",
+    descriptionKey: "dashboard.widgets.blockClock.description",
+    icon: "🧱",
+    defaultSize: { w: 3, h: 5 },
+    minSize: { w: 2, h: 4 },
+    maxSize: { w: 12, h: 8 },
+    dataSources: ["explorer"],
+    component: BlockClockWidget,
+  },
+  {
+    id: "utxoOverview",
+    titleKey: "dashboard.widgets.utxoOverview.title",
+    descriptionKey: "dashboard.widgets.utxoOverview.description",
+    icon: "🪙",
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 5 },
+    maxSize: { w: 12, h: 8 },
+    dataSources: ["explorer", "price"],
+    component: UtxoOverviewWidget,
+  },
+  {
+    id: "watchlistStatus",
+    titleKey: "dashboard.widgets.watchlistStatus.title",
+    descriptionKey: "dashboard.widgets.watchlistStatus.description",
+    icon: "🛡",
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 5 },
+    maxSize: { w: 12, h: 9 },
+    dataSources: ["explorer"],
+    component: WatchlistStatusWidget,
+  },
+];
+
+/**
+ * Tax widgets. Behind the same flag as every other tax surface (§4): with it
+ * off they are not in the registry at all, so they cannot be placed, cannot be
+ * picked, and a layout that still names one drops it on load like any unknown
+ * widget.
+ */
+const TAX_WIDGETS: WidgetDefinition[] = [
+  {
+    id: "taxFreeProceeds",
+    titleKey: "dashboard.widgets.taxFreeProceeds.title",
+    descriptionKey: "dashboard.widgets.taxFreeProceeds.description",
+    icon: "🕊",
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 5 },
+    maxSize: { w: 12, h: 8 },
+    dataSources: ["ledger", "price"],
+    component: TaxFreeProceedsWidget,
+  },
+  {
+    id: "exemptionLimit",
+    titleKey: "dashboard.widgets.exemptionLimit.title",
+    descriptionKey: "dashboard.widgets.exemptionLimit.description",
+    icon: "⚖️",
+    defaultSize: { w: 4, h: 7 },
+    minSize: { w: 3, h: 6 },
+    maxSize: { w: 12, h: 9 },
+    dataSources: ["ledger"],
+    component: ExemptionLimitWidget,
+  },
+];
+
+export const WIDGETS: WidgetDefinition[] = [
+  ...BASE_WIDGETS,
+  ...(TAX_FEATURES_ENABLED ? TAX_WIDGETS : []),
 ];
 
 export const WIDGETS_BY_ID = new Map(WIDGETS.map((w) => [w.id, w]));

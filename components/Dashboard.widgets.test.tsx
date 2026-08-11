@@ -90,10 +90,102 @@ describe("widget registry", () => {
     }
   });
 
+  it("places every registered widget in the default layout, exactly once", () => {
+    // The default dashboard is meant to show all of them, so a new registry
+    // entry that nobody added to a band fails here rather than going unnoticed.
+    const placed = defaultDashboard().map((p) => p.widgetId);
+    expect([...placed].sort()).toEqual(WIDGETS.map((w) => w.id).sort());
+  });
+
   it("has a unique id per entry", () => {
     const ids = WIDGETS.map((w) => w.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
+});
+
+describe("every registry widget renders", () => {
+  // One tile per registry entry, mounted for real. A widget is one entry plus
+  // one component, and nothing else in the app knows it by name — so nothing
+  // else would notice if a new one threw on an empty portfolio, on a portfolio
+  // with data, or on the very first frame before its data arrives.
+  const portfolios: [string, () => void][] = [
+    ["an empty portfolio", () => load([])],
+    [
+      "a portfolio with history",
+      () =>
+        load([
+          tx("buy", "2024-01-01T00:00:00Z", "1", { feeFiatEur: "10" }),
+          tx("buy", "2026-02-01T00:00:00Z", "0.5", { totalFiatEur: "25000" }),
+          tx("transfer_out", "2026-03-01T00:00:00Z", "0.2", { feeBtc: "0.0001" }),
+          tx("sell", "2026-04-01T00:00:00Z", "0.1", {
+            lotAllocations: [
+              { lotTransactionId: "buy-2024-01-01T00:00:00Z-1", amountBtc: "0.1" },
+            ],
+          }),
+        ]),
+    ],
+  ];
+
+  for (const [label, setup] of portfolios) {
+    for (const def of WIDGETS) {
+      it(`${def.id} on ${label}`, () => {
+        setup();
+        // A tile is on the dashboard only if the layout places it, so place
+        // exactly this one instead of relying on the default layout.
+        useAppStore.setState({
+          portfolio: {
+            ...useAppStore.getState().portfolio!,
+            uiSettings: {
+              dashboardLayout: [
+                {
+                  i: `${def.id}-1`,
+                  widgetId: def.id,
+                  x: 0,
+                  y: 0,
+                  w: def.defaultSize.w,
+                  h: def.defaultSize.h,
+                },
+              ],
+            },
+          },
+        });
+        render(<Dashboard />);
+        expect(screen.getAllByText(def.titleKey).length).toBeGreaterThan(0);
+        // A widget that threw is replaced by the boundary's message. Matched
+        // as a pattern: the boundary renders it behind a "⚠ ", and an exact
+        // string would quietly match nothing and assert nothing.
+        expect(screen.queryByText(/dashboard\.widgets\.crashed/)).toBeNull();
+      });
+    }
+  }
+});
+
+describe("Dashboard: the watchlist widgets without a single address", () => {
+  const place = (widgetId: string) => {
+    load([]);
+    useAppStore.setState({
+      portfolio: {
+        ...useAppStore.getState().portfolio!,
+        uiSettings: {
+          dashboardLayout: [{ i: `${widgetId}-1`, widgetId, x: 0, y: 0, w: 4, h: 6 }],
+        },
+      },
+    });
+  };
+
+  for (const widgetId of ["utxoOverview", "watchlistStatus"]) {
+    it(`${widgetId} offers to add one instead of only naming the gap`, () => {
+      place(widgetId);
+      const onOpenWatchlist = vi.fn();
+      render(<Dashboard onOpenWatchlist={onOpenWatchlist} />);
+
+      expect(screen.getByText("dashboard.widgets.watchlistEmpty")).toBeTruthy();
+      fireEvent.click(screen.getByText(/watchlist\.add/));
+      // Not just the tab: the form the button promises has to be open on
+      // arrival, otherwise the label is a lie.
+      expect(onOpenWatchlist).toHaveBeenCalledWith({ add: true });
+    });
+  }
 });
 
 describe("Dashboard: default layout", () => {

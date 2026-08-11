@@ -235,6 +235,93 @@ const de = {
       pnlCoveredBtc: "Davon bewertet",
       pnlWithoutBasisHint:
         "{amount} BTC deines Bestands haben keinen Einstandswert, etwa Zugänge von außen ohne Kurs. Diese Menge steckt weder im Einstandswert noch im Gewinn, sonst würde ihr voller Kurswert als Gewinn erscheinen.",
+      // --- Neue Widgets ---------------------------------------------------
+      taxFreeEmpty: "Keine offenen Lots.",
+      taxFreeProceedsLabel: "Steuerfrei realisierbar (aktueller Kurs)",
+      taxFreeShare: "Anteil des Bestands außerhalb der Haltefrist",
+      taxFreeAmount: "Menge ({unit})",
+      taxFreeLots: "Betroffene Lots",
+      taxFreeLocked: "Noch in der Haltefrist ({unit})",
+      taxFreeUnresolved: "Nicht bewertbar, Herkunft ungeklärt ({count})",
+      taxDisclaimer:
+        "Unverbindliche Berechnung nach den hinterlegten Einstellungen. Ersetzt keine Steuerberatung.",
+      exemptionRealized: "Realisierte steuerpflichtige Gewinne {year}",
+      exemptionLimitLabel: "Freigrenze",
+      exemptionHeadroom: "Verbleibender Spielraum",
+      exemptionOver: "Überschritten um",
+      exemptionDisposals: "Veräußerungen im Jahr",
+      exemptionTaxFreeGain: "Davon steuerfrei (nach Haltefrist)",
+      exemptionUnresolved: "BTC mit ungeklärter Herkunft",
+      exemptionIsLimitNotAllowance:
+        "Freigrenze, kein Freibetrag: Wird sie auch nur um einen Euro überschritten, ist der gesamte Gewinn steuerpflichtig, nicht nur der übersteigende Teil.",
+      exemptionAsOf: "Stand {date}",
+      stackHistoryEmpty: "Noch keine Transaktionen.",
+      stackSince: "Bestand seit {date}",
+      stackAmount: "Bestand",
+      heatmapSummary: "In den letzten 12 Monaten, {count} Käufe",
+      heatmapCell: "ein Feld = ein Tag",
+      heatmapEmpty: "Noch keine Käufe in den letzten 12 Monaten.",
+      heatmapLess: "weniger",
+      heatmapMore: "mehr",
+      heatmapFooter: "An {days} Tagen gekauft, zusammen {amount}",
+      heatmapBuys: "· {count} Kauf/Käufe",
+      heatmapNoBuy: "· kein Kauf",
+      heatmapPerBtc: " je BTC",
+      feesEmpty: "Noch keine Transaktionen.",
+      feesPaid: "Gezahlte Gebühren gesamt",
+      feesOfInvested: "der Investitionssumme",
+      feesTrading: "Handelsgebühren",
+      feesNetwork: "Netzwerkgebühren",
+      feesBtc: "Davon in BTC gezahlt",
+      feesInvested: "Investitionssumme",
+      feesUnvalued:
+        "Für {amount} BTC Gebühren gibt es keinen Tageskurs, sie fehlen daher in der Summe.",
+      feesNoHistory: "Kurshistorie nicht erreichbar, BTC-Gebühren bleiben unbewertet.",
+      whatIfEmpty: "Keine Positionen mit bekanntem Einstandswert.",
+      whatIfValue: "Portfoliowert bei diesem Kurs",
+      whatIfMultiple: "{multiple}× des aktuellen Kurses",
+      whatIfPrice: "Angenommener BTC-Kurs",
+      whatIfPnl: "Gewinn/Verlust gegenüber Einstand",
+      whatIfValued: "Davon bewertet",
+      whatIfReset: "aktueller Kurs",
+      blockEpoch: "Epoche {epoch} · {blocks} Blöcke",
+      blockAsOf: "Stand {time}",
+      watchlistEmpty: "Noch keine beobachteten Adressen.",
+      utxoCountLabel: "UTXOs auf {addresses} Adressen",
+      utxoTotal: "Gesamtwert",
+      utxoDust: "Dust-UTXOs",
+      utxoConsolidatable: "Konsolidierbar (< 0,001 BTC)",
+      utxoConsolidationCost: "Kosten einer Zusammenlegung",
+      utxoConsolidateNow:
+        "Gebühren sind niedrig: guter Moment, um die {count} kleinen UTXOs zusammenzulegen.",
+      utxoConsolidateWait:
+        "Gebühren sind erhöht. Mit dem Zusammenlegen lieber auf günstigere Blöcke warten.",
+      toWatchlist: "Zur Watchlist",
+      watchlistFindings: "Offene Warnungen auf {addresses} Adressen",
+      watchlistClean: "Keine Auffälligkeiten gefunden.",
+      watchlistScore: "Ø Privacy Score",
+      watchlistSkipped: "Nicht abfragbar (xpub)",
+      finding: {
+        addressReuse: "Adress-Wiederverwendung",
+        pubkeyLeaked: "Public Key sichtbar",
+        legacyFormat: "Veraltetes Adressformat",
+        possiblePoisoning: "Address-Poisoning-Verdacht",
+        dustUtxo: "Dust-UTXOs",
+        roundAmounts: "Auffällig runde Beträge",
+      },
+      timeInMarketEmpty: "Noch kein Kauf erfasst.",
+      daysInMarket: "Tage im Markt",
+      yearsInMarket: "{years} Jahre",
+      firstBuy: "Erster Kauf",
+      buysPerYear: "Käufe pro Jahr",
+      maxDrawdown: "Maximaler Drawdown",
+      drawdownDetail: "Von {peak} auf {trough} am {date}",
+      markerSummary: "{price} · {amount} BTC · {count} Trade(s)",
+      markerBucket: {
+        week: "Marker je Woche zusammengefasst ({count} Trades im Zeitraum)",
+        month: "Marker je Monat zusammengefasst ({count} Trades im Zeitraum)",
+      },
+      markerWithoutPrice: "{count} Trade(s) ohne erfassten Kurs, nicht im Chart",
       spotPriceSource: "Aktueller Kurs (Binance)",
       moscowTime: "Moscow Time",
       moscowTimeSats: "{sats} Sats je Dollar",
@@ -306,6 +393,50 @@ const de = {
       halvingBlock: "Halving bei Block",
       halvingEstimateHint:
         "Schätzung auf Basis von zehn Minuten pro Block. Die tatsächliche Dauer hängt von der Hashrate ab.",
+      taxFreeProceeds: {
+        title: "Steuerfrei realisierbar",
+        description:
+          "Was aktuell außerhalb der Haltefrist liegt, zum aktuellen Kurs bewertet.",
+      },
+      exemptionLimit: {
+        title: "Freigrenzen-Tracker",
+        description:
+          "Realisierte Gewinne des laufenden Jahres gegen die Freigrenze aus den Einstellungen.",
+      },
+      stackHistory: {
+        title: "Stack-Entwicklung",
+        description: "Die reine BTC-Menge über die Zeit, unabhängig vom Kurs.",
+      },
+      buyHeatmap: {
+        title: "Kauf-Heatmap",
+        description: "Zwölf Monate Käufe als Kalender, Intensität nach Volumen.",
+      },
+      feeBalance: {
+        title: "Gebührenbilanz",
+        description:
+          "Alle gezahlten Gebühren in EUR, aufgeteilt in Handel und Netzwerk.",
+      },
+      whatIf: {
+        title: "Was wäre wenn",
+        description: "Portfoliowert und Gewinn bei einem frei gewählten BTC-Kurs.",
+      },
+      timeInMarket: {
+        title: "Zeit im Markt",
+        description: "Tage seit dem ersten Kauf und der tiefste Rückgang seither.",
+      },
+      blockClock: {
+        title: "Blockuhr",
+        description: "Die aktuelle Blockhöhe, groß und ohne Beiwerk.",
+      },
+      utxoOverview: {
+        title: "UTXO-Übersicht",
+        description:
+          "UTXOs der Watchlist, Dust und was eine Zusammenlegung kosten würde.",
+      },
+      watchlistStatus: {
+        title: "Watchlist-Status",
+        description: "Beobachtete Adressen und offene Sicherheitswarnungen.",
+      },
       portfolioValue: {
         title: "Portfoliowert",
         description:
@@ -1000,6 +1131,9 @@ const de = {
     taxSettings: "Steuer",
     holdingPeriod: "Haltefrist (Tage)",
     costBasisMethod: "Zuordnungsverfahren",
+    taxExemptionLimit: "Freigrenze private Veräußerungsgeschäfte (EUR)",
+    taxExemptionLimitHint:
+      "Freigrenze nach § 23 EStG, konfigurierbar weil der Gesetzgeber sie ändert (600 € bis 2023, seit 2024 1.000 €). Freigrenze heißt: Wird sie überschritten, ist der gesamte Gewinn steuerpflichtig, nicht nur der übersteigende Teil.",
     autosave: "Autosave",
     autosaveDebounce: "Verzögerung nach Änderung (ms)",
     autosaveNote:

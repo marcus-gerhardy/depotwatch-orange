@@ -3,6 +3,7 @@ import {
   accountBalances,
   balanceBreakdown,
   balanceDelta,
+  dailyBalanceSeries,
   totalBalance,
 } from "./portfolio";
 import { computeFifo } from "./fifo";
@@ -274,5 +275,90 @@ describe("balanceBreakdown", () => {
     expect(b.transferIns.toFixed(8)).toBe("1.00000000");
     expect(b.feeBtc.toFixed(8)).toBe("0.00000000");
     expect(b.total.toFixed(8)).toBe("1.00000000");
+  });
+});
+
+describe("dailyBalanceSeries", () => {
+  const day = (iso: string) => Date.parse(iso);
+  const btcOn = (series: { time: number; btc: { toString(): string } }[], iso: string) =>
+    series.find((p) => p.time === day(iso))?.btc.toString();
+
+  it("does not let an internal transfer move the holding", () => {
+    // The two legs regularly carry different timestamps: a hardware wallet
+    // stamps the arrival when it sees it, the exchange stamps the withdrawal
+    // when it completes. Booked on their own days that drew a spike — up on
+    // the arrival day, straight back down on the send day — out of a transfer
+    // that never changed the holding by more than its fee.
+    const series = dailyBalanceSeries([
+      entry("buy", "1", { date: "2026-01-01T00:00:00Z" }),
+      entry("transfer_in", "0.5", {
+        date: "2026-01-03T00:00:00Z",
+        transferGroupId: "g1",
+      }),
+      entry("transfer_out", "0.5", {
+        date: "2026-01-05T00:00:00Z",
+        feeBtc: "0.0001",
+        transferGroupId: "g1",
+      }),
+    ]);
+
+    expect(btcOn(series, "2026-01-02T00:00:00Z")).toBe("1");
+    // The day the coins "arrived": no jump, they were never gone.
+    expect(btcOn(series, "2026-01-03T00:00:00Z")).toBe("1");
+    expect(btcOn(series, "2026-01-04T00:00:00Z")).toBe("1");
+    // The send day carries the whole pair, so only the network fee remains.
+    expect(btcOn(series, "2026-01-05T00:00:00Z")).toBe("0.9999");
+    expect(btcOn(series, "2026-01-06T00:00:00Z")).toBe("0.9999");
+  });
+
+  it("draws no dip either when the send is recorded before the arrival", () => {
+    const series = dailyBalanceSeries([
+      entry("buy", "1", { date: "2026-01-01T00:00:00Z" }),
+      entry("transfer_out", "0.5", {
+        date: "2026-01-03T00:00:00Z",
+        transferGroupId: "g2",
+      }),
+      entry("transfer_in", "0.5", {
+        date: "2026-01-06T00:00:00Z",
+        transferGroupId: "g2",
+      }),
+    ]);
+
+    // Coins in flight are still the portfolio's coins.
+    for (const d of ["2026-01-03", "2026-01-04", "2026-01-06"]) {
+      expect(btcOn(series, `${d}T00:00:00Z`)).toBe("1");
+    }
+  });
+
+  it("still counts an unpaired arrival on its own day", () => {
+    // No send behind it, so it really is an inflow from outside.
+    const series = dailyBalanceSeries([
+      entry("buy", "1", { date: "2026-01-01T00:00:00Z" }),
+      entry("transfer_in", "0.25", { date: "2026-01-03T00:00:00Z" }),
+    ]);
+
+    expect(btcOn(series, "2026-01-02T00:00:00Z")).toBe("1");
+    expect(btcOn(series, "2026-01-03T00:00:00Z")).toBe("1.25");
+  });
+
+  it("ends at the same figure the ledger reports", () => {
+    const entries = [
+      entry("buy", "1", { date: "2026-01-01T00:00:00Z" }),
+      entry("transfer_in", "0.5", {
+        date: "2026-01-03T00:00:00Z",
+        transferGroupId: "g3",
+      }),
+      entry("transfer_out", "0.5", {
+        date: "2026-01-05T00:00:00Z",
+        feeBtc: "0.0001",
+        transferGroupId: "g3",
+      }),
+    ];
+    const series = dailyBalanceSeries(entries);
+
+    // Moving a leg between days may not change what the portfolio holds.
+    expect(series[series.length - 1].btc.toString()).toBe(
+      totalBalance(entries).toString(),
+    );
   });
 });

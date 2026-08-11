@@ -6,7 +6,7 @@
 // leaves the rest of the dashboard untouched.
 
 import { formatDate } from "@/lib/i18n";
-import { useNow } from "@/lib/clock";
+import { useNow, useNowDate } from "@/lib/clock";
 import { formatInt } from "@/lib/decimal";
 import { useBlockHeight, useFeeEstimates } from "@/lib/marketData";
 import { explorerBase } from "@/lib/esplora";
@@ -130,6 +130,69 @@ export function HalvingWidget() {
       <p className="text-[0.65rem] leading-relaxed text-muted">
         {t("dashboard.widgets.halvingEstimateHint")}
       </p>
+    </div>
+  );
+}
+
+/**
+ * A block clock: the height, and nothing much else.
+ *
+ * The point of the object it imitates is that it says one number, large, and
+ * lets you glance at it — so the tile stays deliberately bare. The height is
+ * grouped in threes like a clock's digits, and the age of the tip says whether
+ * the number is still moving.
+ */
+export function BlockClockWidget() {
+  const { t, loc, explorerSettings } = useDashboardData();
+  const tip = useBlockHeight(explorerSettings);
+  const now = useNowDate();
+
+  if (tip.loading) return <WidgetSkeleton lines={2} />;
+  if (tip.error || tip.data === null) {
+    return (
+      <WidgetError
+        message={t("dashboard.widgets.explorerUnavailable", {
+          endpoint: explorerBase(explorerSettings) || "—",
+        })}
+        onRetry={tip.reload}
+        retryLabel={t("common.refresh")}
+      />
+    );
+  }
+
+  const height = tip.data;
+  // Blocks into the current halving epoch — the number a block clock shows
+  // underneath, and it needs no second request.
+  const intoEpoch = height % HALVING_INTERVAL;
+  const epoch = Math.floor(height / HALVING_INTERVAL);
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+      <div className="font-mono text-4xl leading-none font-bold tracking-tight text-accent tabular-nums">
+        {formatInt(height, loc)}
+      </div>
+      <StatLabel>{t("dashboard.widgets.blockHeight")}</StatLabel>
+      <div className="mt-2 w-full max-w-56">
+        <Meter value={intoEpoch / HALVING_INTERVAL} />
+        <p className="mt-1 text-[0.65rem] text-muted">
+          {t("dashboard.widgets.blockEpoch", {
+            epoch: formatInt(epoch, loc),
+            blocks: formatInt(intoEpoch, loc),
+          })}
+        </p>
+      </div>
+      {/* The clock ticks per minute, so "as of" stays honest without polling
+          the explorer any harder than the shared cache already does. */}
+      {now !== null && (
+        <p className="text-[0.6rem] text-muted">
+          {t("dashboard.widgets.blockAsOf", {
+            time: now.toLocaleTimeString(loc, {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          })}
+        </p>
+      )}
     </div>
   );
 }
