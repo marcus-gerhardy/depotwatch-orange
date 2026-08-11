@@ -177,7 +177,9 @@ export default function LotPicker({
 
   const header = (key: SortKey, label: string, right = false) => (
     <th
-      className={`py-1.5 pr-2 font-normal ${right ? "text-right" : "text-left"}`}
+      className={`bg-surface-2 py-1.5 pr-2 font-normal ${
+        right ? "text-right" : "text-left"
+      }`}
       aria-sort={sort.key === key ? (sort.desc ? "descending" : "ascending") : "none"}
     >
       <button
@@ -248,9 +250,12 @@ export default function LotPicker({
         ) : (
           <div className="max-h-72 overflow-auto rounded-lg border border-border-c">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-surface-2 text-muted">
+              {/* The background sits on the cells, not here: a sticky row is
+                  painted cell by cell, so a background on the row itself is
+                  never drawn and the table scrolls through the header. */}
+              <thead className="sticky top-0 text-muted">
                 <tr className="border-b border-border-c">
-                  <th className="w-8 py-1.5 pl-2">
+                  <th className="w-8 bg-surface-2 py-1.5 pl-2">
                     <input
                       type="checkbox"
                       className="accent-accent"

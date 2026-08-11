@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import ImportBatches from "./ImportBatches";
 import {
+  DEFAULT_DUPLICATE_TOLERANCE_MINUTES,
   DEFAULT_TAX_EXEMPTION_LIMIT_EUR,
   type Currency,
   type ExplorerProvider,
@@ -321,6 +323,31 @@ export default function SettingsView() {
           </p>
         </Card>
       )}
+
+      <Card className="space-y-3">
+        <SectionTitle level={2}>{t("settings.importSettings")}</SectionTitle>
+        <Field label={t("settings.duplicateTolerance")}>
+          <input
+            type="number"
+            min={0}
+            max={1440}
+            className={inputCls}
+            value={
+              s.importDuplicateToleranceMinutes ?? DEFAULT_DUPLICATE_TOLERANCE_MINUTES
+            }
+            onChange={(e) =>
+              patchSettings({
+                importDuplicateToleranceMinutes: Math.max(0, Number(e.target.value) || 0),
+              })
+            }
+          />
+        </Field>
+        <p className="text-xs leading-relaxed text-muted">
+          {t("settings.duplicateToleranceHint")}
+        </p>
+      </Card>
+
+      <ImportBatches />
 
       <Card className="space-y-3">
         <SectionTitle level={2}>{t("settings.autosave")}</SectionTitle>

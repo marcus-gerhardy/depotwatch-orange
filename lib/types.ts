@@ -99,6 +99,11 @@ export interface Transaction {
    */
   eurValuationSource?: EurValuationSource;
   note: string;
+  /**
+   * The CSV import run this came from (§3.4), when it came from one. Set only
+   * by the import, and what "undo this import" removes by.
+   */
+  importBatchId?: string;
 }
 
 export interface Account {
@@ -156,6 +161,29 @@ export function priceCurrencyOf(currency: Currency): FiatCurrency {
 }
 export type Locale = "de" | "en";
 
+/**
+ * One run of the CSV import (CLAUDE.md §3.4). Recorded so a file cannot be
+ * imported twice unnoticed, and so a run can be undone as a whole.
+ *
+ * Optional on the portfolio file, like the transactions' `importBatchId`: a
+ * file written before this existed stays valid and simply has no history.
+ */
+export interface ImportBatch {
+  id: string;
+  /** When the import ran, ISO-8601. */
+  importedAt: string;
+  fileName: string;
+  /** SHA-256 of the file's raw bytes, hex — what identifies "the same file". */
+  fileHash: string;
+  /** Name of the preset used, or absent when the mapping was made by hand. */
+  presetName?: string;
+  /** How many transactions the run wrote. */
+  transactionCount: number;
+  /** Where they landed, so the list can name it without searching. */
+  walletId: string;
+  accountId: string;
+}
+
 export interface AppSettings {
   locale: Locale;
   currencyDisplay: Currency;
@@ -183,6 +211,13 @@ export interface AppSettings {
   costBasisMethod: "FIFO";
   /** Debounce for autosave in File System Access mode, ms. */
   autosaveDebounceMs: number;
+  /**
+   * How far apart two otherwise identical transactions may be and still count
+   * as the same one (CSV import, §3.4). Exports disagree about time zones and
+   * rounding, so an exact timestamp match would miss real duplicates.
+   * Optional: files written before it existed use the default.
+   */
+  importDuplicateToleranceMinutes?: number;
 }
 
 /** One widget placed on the dashboard grid, in grid units (CLAUDE.md §4.1). */
@@ -237,6 +272,8 @@ export interface PortfolioFile {
   utxoLabels: UtxoLabel[];
   /** User-defined CSV import presets, portable with the file (see CLAUDE.md §3.4). */
   importPresets: UserImportPreset[];
+  /** Past CSV import runs; absent in files written before they were recorded. */
+  importBatches?: ImportBatch[];
   /** Interface arrangement; absent in files written before it existed. */
   uiSettings?: UiSettings;
 }
@@ -247,6 +284,12 @@ export interface PortfolioFile {
  */
 export const DEFAULT_TAX_EXEMPTION_LIMIT_EUR = 1000;
 
+/**
+ * Two minutes: enough to bridge a rounded or differently-zoned timestamp,
+ * short enough that two genuinely separate trades rarely fall inside it.
+ */
+export const DEFAULT_DUPLICATE_TOLERANCE_MINUTES = 2;
+
 export const DEFAULT_SETTINGS: AppSettings = {
   locale: "de",
   currencyDisplay: "EUR",
@@ -255,6 +298,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   holdingPeriodDays: 365,
   taxExemptionLimitEur: DEFAULT_TAX_EXEMPTION_LIMIT_EUR,
   costBasisMethod: "FIFO",
+  importDuplicateToleranceMinutes: DEFAULT_DUPLICATE_TOLERANCE_MINUTES,
   autosaveDebounceMs: 1500,
 };
 

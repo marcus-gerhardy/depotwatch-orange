@@ -150,8 +150,14 @@ export function Switch({
             : "border-border-c bg-surface-2"
         }`}
       />
+      {/* The knob is a flex child rather than an absolutely positioned one, so
+          the label's `items-center` centres it vertically. Positioned by hand
+          it sat 2 px below the top edge and 4 px above the bottom of the 20 px
+          track — a one-pixel error, but a visible one on a round shape.
+          Horizontally it keeps 3 px on both sides: 3 + 14 + 16 (translate-x-4)
+          + 3 = 36 = the track's width. */}
       <span
-        className={`absolute top-0.5 left-0.5 h-3.5 w-3.5 rounded-full bg-foreground transition-transform ${
+        className={`relative ml-[3px] h-3.5 w-3.5 rounded-full bg-foreground transition-transform ${
           checked ? "translate-x-4" : indeterminate ? "translate-x-2" : "translate-x-0"
         }`}
       />

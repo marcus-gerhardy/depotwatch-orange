@@ -849,6 +849,34 @@ const en: typeof de = {
     chooseFile: "Choose CSV file …",
     fileChosen: "{name} ({rows} data rows)",
     readError: "Could not read the file.",
+    duplicateFile:
+      "This file was already imported on {date} ({count} transactions).",
+    duplicateFileHint:
+      "Importing it again doubles the bookings it carries, and with them the tax history. If the export has grown since, check the preview: rows that are already there are marked as duplicates.",
+    duplicateFileAck: "Read the file again anyway",
+    duplicateRows: "{certain} duplicates, {probable} possible",
+    duplicateIntro:
+      "Duplicates are left out of the import. Identical bookings can be real (a split order, for instance), so nothing is discarded automatically.",
+    duplicateBadge: "Duplicate",
+    duplicateBadgeMaybe: "Possible duplicate",
+    duplicateReason: {
+      txid: "Same txid in the same account",
+      exact: "Account, type, time, amount and value all identical",
+      nearby: "Same values, {minutes} min apart",
+    },
+    duplicateOfRow: "Duplicate of line {line} in the same file",
+    duplicateShowExisting: "Show the existing transaction",
+    duplicateFilter: {
+      all: "All",
+      new: "New only",
+      duplicates: "Duplicates only",
+    },
+    duplicateSkipAll: "Skip all duplicates",
+    duplicateImportAll: "Import all duplicates anyway",
+    summaryDuplicates: "Duplicates skipped",
+    summaryDuplicatesKept: "({count} kept on purpose)",
+    doneBatchId: "Import id",
+    doneUndoHint: "This import can be undone as a whole in the settings.",
     emptyFile: "The file contains no data rows.",
     hasHeader: "First row contains column headers",
     delimiter: "Delimiter",
@@ -1025,6 +1053,29 @@ const en: typeof de = {
     year: "Year",
     totalRealized: "Total realized",
   },
+  imports: {
+    title: "Imports",
+    intro:
+      "Every CSV import is recorded with its file, preset and count. That is how the wizard recognises the same file next time, and how an import can be taken back as a whole.",
+    date: "When",
+    file: "File",
+    preset: "Preset",
+    count: "Transactions",
+    manualPreset: "mapped by hand",
+    undo: "Undo",
+    undoTitle: "Undo this import",
+    undoIntro: "“{file}” contributed {count} transactions. They will be removed.",
+    undoConfirm: "Remove {count} transactions",
+    blockedIntro:
+      "{count} of them are now referenced by other transactions and will stay:",
+    blocked: {
+      allocatedByOther: "used as a lot by a later disposal",
+      linkedTransfer: "linked to a transfer whose counterpart stays",
+      allocatesOther: "closes lots that did not come from this import",
+    },
+    blockedHint:
+      "Only the {count} unreferenced transactions are removed. Release the others by hand first (the lot assignment or the transfer link), so no reference is left pointing at nothing.",
+  },
   watchlist: {
     title: "Address watchlist",
     subtitle:
@@ -1120,6 +1171,10 @@ const en: typeof de = {
     explorerEndpoint: "Endpoint URL",
     explorerPrivacyNote:
       "Note: with public APIs your watched addresses are sent to a third party (including your IP). For maximum privacy use your own node/server.",
+    importSettings: "Import",
+    duplicateTolerance: "Time tolerance for duplicates (minutes)",
+    duplicateToleranceHint:
+      "During a CSV import, otherwise identical bookings within this span count as a possible duplicate. Exports disagree about time zones and rounding, so comparing timestamps exactly is not enough. 0 switches the tolerance off; exact matches are still recognised.",
     taxSettings: "Tax",
     holdingPeriod: "Holding period (days)",
     costBasisMethod: "Cost basis method",

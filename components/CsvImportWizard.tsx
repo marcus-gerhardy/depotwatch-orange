@@ -11,7 +11,19 @@ import { useCallback, useMemo, useState } from "react";
 import { createEurValuator } from "@/lib/valuation";
 import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import type { TransactionType, WalletType } from "@/lib/types";
+import {
+  DEFAULT_DUPLICATE_TOLERANCE_MINUTES,
+  type ImportBatch,
+  type Transaction,
+  type TransactionType,
+  type WalletType,
+} from "@/lib/types";
+import { batchForHash } from "@/lib/importBatches";
+import {
+  buildDuplicateIndex,
+  hashFile,
+  scanForDuplicates,
+} from "@/lib/importDuplicates";
 import { dec, formatBtc, formatFiatPlain, ZERO } from "@/lib/decimal";
 import {
   buildImportRows,
@@ -115,7 +127,17 @@ function makeHeaders(
   });
 }
 
-export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
+export default function CsvImportWizard({
+  onClose,
+  onShowTransaction,
+}: {
+  onClose: () => void;
+  /**
+   * Open an existing transaction, so a row flagged as a duplicate can be
+   * compared against the one it collides with instead of being taken on faith.
+   */
+  onShowTransaction?: (id: string) => void;
+}) {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
@@ -141,6 +163,10 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
+  /** SHA-256 of the chosen file, and the run that already imported it (§3.4). */
+  const [fileHash, setFileHash] = useState<string | null>(null);
+  const [sameFileBatch, setSameFileBatch] = useState<ImportBatch | null>(null);
+  const [sameFileAcknowledged, setSameFileAcknowledged] = useState(false);
   const [parsed, setParsed] = useState<string[][]>([]);
   const [parsing, setParsing] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -195,6 +221,7 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     running: boolean;
   } | null>(null);
   const [imported, setImported] = useState<number | null>(null);
+  const [importedBatchId, setImportedBatchId] = useState<string | null>(null);
   const [newPresetName, setNewPresetName] = useState("");
   const [presetSavedNotice, setPresetSavedNotice] = useState<string | null>(null);
 
@@ -356,6 +383,22 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       }
       setFileName(file.name);
       setBuffer(buf);
+      // The bytes, not the parsed rows: a re-export with one row appended is a
+      // different file and has to be treated as one.
+      //
+      // WebCrypto is unavailable outside a secure context (a copy served over
+      // plain http on a LAN, say). Losing the same-file warning there is a
+      // shame; refusing the import over it would be absurd, so the hash is
+      // simply absent and the row-level detection still does its work.
+      let hash: string | null = null;
+      try {
+        hash = await hashFile(buf);
+      } catch {
+        hash = null;
+      }
+      setFileHash(hash);
+      setSameFileBatch(hash === null ? null : batchForHash(portfolio, hash));
+      setSameFileAcknowledged(false);
       setEncoding(enc);
       setDelimiter(delim);
       setParsed(rowsParsed);
@@ -474,15 +517,114 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
     }),
     [effectiveDateFormat, effectiveTimeFormat],
   );
+  // ------------------------------------------------------------ duplicates
+  // An export imported twice doubles the holding and falsifies every tax
+  // figure derived from it, and nothing looks broken afterwards (§3.4). So
+  // every row is checked against what the target account already holds *and*
+  // against the earlier rows of the same file — but nothing is ever rejected:
+  // two identical transactions can be real (a split order), so a duplicate is
+  // marked and defaulted to "do not import", and the user decides.
+  const toleranceMinutes =
+    portfolio.settings.importDuplicateToleranceMinutes ??
+    DEFAULT_DUPLICATE_TOLERANCE_MINUTES;
+
+  /** Transactions already in the target account, indexed once per change. */
+  const existingIndex = useMemo(() => {
+    if (targetWallet === NEW || targetAccount === NEW || targetAccount === "") {
+      // A new account holds nothing, so only the file itself can duplicate.
+      return buildDuplicateIndex([]);
+    }
+    const account = portfolio.wallets
+      .flatMap((w) => w.accounts)
+      .find((a) => a.id === targetAccount);
+    return buildDuplicateIndex(
+      (account?.transactions ?? []).map((transaction) => ({
+        transaction,
+        accountId: targetAccount,
+      })),
+    );
+  }, [portfolio.wallets, targetWallet, targetAccount]);
+
   const rowErrors = useMemo(
     () => new Map(rows.map((r) => [r.id, validateRow(r.values, formats)])),
     [rows, formats],
   );
-  const includedRows = rows.filter((r) => !r.excluded);
+  /**
+   * The duplicate scan. Only rows that would actually be written are checked —
+   * an invalid row has no transaction to compare — and the rows are walked in
+   * file order, so of two identical lines the *second* is the one marked.
+   */
+  const duplicates = useMemo(() => {
+    const candidates = rows
+      .filter((r) => rowErrors.get(r.id)!.length === 0)
+      .map((r) => ({
+        rowId: r.id,
+        transaction: rowToTransaction(r.values, formats) as Transaction,
+      }));
+    return scanForDuplicates(
+      candidates,
+      targetAccount,
+      existingIndex,
+      toleranceMinutes,
+    );
+  }, [rows, rowErrors, formats, targetAccount, existingIndex, toleranceMinutes]);
+
+  /**
+   * Duplicates start excluded — the safe default for something that would
+   * otherwise double a holding silently. Derived rather than written into the
+   * rows: a user who re-includes one records that decision here, and it
+   * survives the scan re-running (the target account can still change).
+   */
+  const [includeDuplicate, setIncludeDuplicate] = useState<Record<string, boolean>>({});
+  const previewRows = useMemo(
+    () =>
+      rows.map((r) =>
+        duplicates.matches.has(r.id) && includeDuplicate[r.id] !== true
+          ? { ...r, excluded: true }
+          : r,
+      ),
+    [rows, duplicates, includeDuplicate],
+  );
+
+  /** Toggle a row, whichever of the two reasons it is excluded for. */
+  const setRowIncluded = (rowId: string, included: boolean) => {
+    if (duplicates.matches.has(rowId)) {
+      setIncludeDuplicate((m) => ({ ...m, [rowId]: included }));
+      if (included) setRows((rs) => rs.map((r) => (r.id === rowId ? { ...r, excluded: false } : r)));
+      return;
+    }
+    setRows((rs) => rs.map((r) => (r.id === rowId ? { ...r, excluded: !included } : r)));
+  };
+
+  const setAllDuplicatesIncluded = (included: boolean) =>
+    setIncludeDuplicate(
+      Object.fromEntries([...duplicates.matches.keys()].map((id) => [id, included])),
+    );
+
+  /** Preview filter: everything, only new rows, or only the duplicates. */
+  const [dupFilter, setDupFilter] = useState<"all" | "new" | "duplicates">("all");
+  const visibleRows = useMemo(
+    () =>
+      previewRows.filter((r) =>
+        dupFilter === "all"
+          ? true
+          : dupFilter === "duplicates"
+            ? duplicates.matches.has(r.id)
+            : !duplicates.matches.has(r.id),
+      ),
+    [previewRows, dupFilter, duplicates],
+  );
+
+  const includedRows = previewRows.filter((r) => !r.excluded);
   const validRows = includedRows.filter((r) => rowErrors.get(r.id)!.length === 0);
   const invalidCount = includedRows.length - validRows.length;
-  const excludedCount = rows.length - includedRows.length;
+  const excludedCount = previewRows.length - includedRows.length;
   const sumBtc = validRows.reduce((acc, r) => acc.plus(dec(r.values.amountBtc)), ZERO);
+  /** Duplicates the user has *not* excluded — imported on purpose. */
+  const duplicatesIncluded = includedRows.filter((r) =>
+    duplicates.matches.has(r.id),
+  ).length;
+  const duplicatesSkipped = duplicates.matches.size - duplicatesIncluded;
 
   const walletObj = portfolio.wallets.find((w) => w.id === targetWallet);
   const accountIsNew = targetWallet === NEW || targetAccount === NEW;
@@ -527,7 +669,9 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
       buffer !== null &&
       dataRows.length > 0 &&
       (targetWallet !== NEW || newWalletName.trim() !== "") &&
-      (!accountIsNew || newAccountName.trim() !== ""),
+      (!accountIsNew || newAccountName.trim() !== "") &&
+      // A file that was imported before needs a deliberate yes.
+      (sameFileBatch === null || sameFileAcknowledged),
     filter: filteredDataRows.length > 0,
     mapping: requiredMapped,
     typeValues: unmappedTypeValues.length === 0,
@@ -610,7 +754,14 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
   }
 
   function doImport() {
-    const txs = validRows.map((r) => rowToTransaction(r.values, formats));
+    // Every transaction carries the run it came from, which is what "undo this
+    // import" removes by (§3.4) — and the run records the file's hash, which is
+    // what recognises the same export next time.
+    const batchId = crypto.randomUUID();
+    const txs = validRows.map((r) => ({
+      ...rowToTransaction(r.values, formats),
+      importBatchId: batchId,
+    }));
     update((p) => {
       let wallets = p.wallets;
       let walletId = targetWallet;
@@ -641,6 +792,17 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
             : w,
         );
       }
+      const batch: ImportBatch = {
+        id: batchId,
+        importedAt: new Date().toISOString(),
+        fileName: fileName ?? "",
+        fileHash: fileHash ?? "",
+        presetName:
+          selectedPreset === MANUAL ? undefined : (selectedPresetObj?.name ?? undefined),
+        transactionCount: txs.length,
+        walletId,
+        accountId,
+      };
       return {
         ...p,
         wallets: wallets.map((w) => ({
@@ -651,9 +813,11 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
               : a,
           ),
         })),
+        importBatches: [...(p.importBatches ?? []), batch],
       };
     });
     setImported(txs.length);
+    setImportedBatchId(batchId);
   }
 
   const stepLabels: Record<StepKey, string> = {
@@ -667,6 +831,10 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
   const stepNames = steps.map((k) => stepLabels[k]);
 
   const errorInputCls = `${inputCls} border-loss!`;
+  /** Header cell of the preview table. The background sits on the cell, not
+   *  on the <thead>: a sticky row is painted cell by cell, so a background on
+   *  the row itself is never drawn and the table scrolls through the header. */
+  const previewHeadCls = "bg-surface-2 px-2 py-2 text-left font-normal";
   /** BTC columns keep 8 decimals, fiat columns 2 — see NumberInput. */
   const NUMERIC_KIND: Partial<Record<MappingField, "btc" | "fiat">> = {
     amountBtc: "btc",
@@ -1416,6 +1584,32 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
+        {/* The same file again: it would double every row it carries, and the
+            numbers would look plausible afterwards. Importable anyway — a
+            re-export can legitimately repeat rows — but only on purpose. */}
+        {currentStepKey === "file" && sameFileBatch && (
+          <div className="space-y-2 rounded-lg border border-warning/50 bg-warning/10 p-3">
+            <p className="text-sm leading-relaxed text-warning">
+              ⚠{" "}
+              {t("csvImport.duplicateFile", {
+                date: formatDateTime(sameFileBatch.importedAt, loc),
+                count: sameFileBatch.transactionCount,
+              })}
+            </p>
+            <p className="text-xs leading-relaxed text-muted">
+              {t("csvImport.duplicateFileHint")}
+            </p>
+            <label className="flex cursor-pointer items-start gap-2 text-xs">
+              <Switch
+                checked={sameFileAcknowledged}
+                onChange={setSameFileAcknowledged}
+                label={t("csvImport.duplicateFileAck")}
+              />
+              <span>{t("csvImport.duplicateFileAck")}</span>
+            </label>
+          </div>
+        )}
+
         {/* Step: preview + validation */}
         {currentStepKey === "preview" && (
           <div className="space-y-3">
@@ -1436,10 +1630,53 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
               <span className="rounded-full bg-surface-2 px-2.5 py-1 text-muted">
                 {t("csvImport.excludedRows", { count: excludedCount })}
               </span>
+              {duplicates.matches.size > 0 && (
+                <span className="rounded-full bg-warning/15 px-2.5 py-1 text-warning">
+                  ⧉{" "}
+                  {t("csvImport.duplicateRows", {
+                    certain: duplicates.certainCount,
+                    probable: duplicates.probableCount,
+                  })}
+                </span>
+              )}
               <span className="ml-auto font-mono text-muted">
                 {t("csvImport.sumBtc", { amount: formatBtc(sumBtc, loc) })}
               </span>
             </div>
+
+            {duplicates.matches.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5 text-xs">
+                <span className="text-warning">
+                  {t("csvImport.duplicateIntro")}
+                </span>
+                <div className="ml-auto flex flex-wrap items-center gap-1">
+                  {(["all", "new", "duplicates"] as const).map((f) => (
+                    <Button
+                      key={f}
+                      variant={dupFilter === f ? "primary" : "ghost"}
+                      className="px-2 py-0.5 text-xs"
+                      onClick={() => setDupFilter(f)}
+                    >
+                      {t(`csvImport.duplicateFilter.${f}`)}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="ghost"
+                    className="px-2 py-0.5 text-xs"
+                    onClick={() => setAllDuplicatesIncluded(false)}
+                  >
+                    {t("csvImport.duplicateSkipAll")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="px-2 py-0.5 text-xs"
+                    onClick={() => setAllDuplicatesIncluded(true)}
+                  >
+                    {t("csvImport.duplicateImportAll")}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Rows settled in another currency carry no EUR figure; EUR is the
                 valuation currency for everything, so offer to derive it from the
@@ -1505,29 +1742,24 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
 
             <div className="max-h-96 overflow-auto rounded-lg border border-border-c">
               <table className="w-max min-w-full text-sm">
-                <thead className="sticky top-0 bg-surface-2">
+                <thead className="sticky top-0">
                   <tr className="text-xs text-muted">
-                    <th className="px-2 py-2 text-left font-normal">
-                      {t("csvImport.includeColumn")}
-                    </th>
-                    <th className="px-2 py-2 text-left font-normal">
-                      {t("csvImport.line")}
-                    </th>
+                    <th className={previewHeadCls}>{t("csvImport.includeColumn")}</th>
+                    <th className={previewHeadCls}>{t("csvImport.line")}</th>
                     {previewFields.map((field) => (
-                      <th key={field} className="px-2 py-2 text-left font-normal">
+                      <th key={field} className={previewHeadCls}>
                         {COLUMN_LABEL[field]}
                       </th>
                     ))}
                     {showEffectiveEur && (
-                      <th className="px-2 py-2 text-left font-normal">
-                        {t("csvImport.effectiveEur")}
-                      </th>
+                      <th className={previewHeadCls}>{t("csvImport.effectiveEur")}</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => {
+                  {visibleRows.map((row) => {
                     const errors = rowErrors.get(row.id)!;
+                    const duplicate = duplicates.matches.get(row.id);
                     const typeInvalid = normalizeType(row.values.type) === null;
                     const effectiveEur = effectiveEurByRow.get(row.id) ?? null;
                     return (
@@ -1540,18 +1772,55 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                         <td className="px-2 py-1.5">
                           <Switch
                             checked={!row.excluded}
-                            onChange={(checked) =>
-                              setRows((rs) =>
-                                rs.map((r) =>
-                                  r.id === row.id ? { ...r, excluded: !checked } : r,
-                                ),
-                              )
-                            }
+                            onChange={(checked) => setRowIncluded(row.id, checked)}
                             label={t("csvImport.includeRow", { line: row.line })}
                           />
                         </td>
                         <td className="px-2 py-2 text-xs whitespace-nowrap text-muted">
                           {row.line}
+                          {/* Why this row is flagged, and what it collides
+                              with, so the two can be compared before deciding. */}
+                          {duplicate && (
+                            <span className="mt-1 block">
+                              <span
+                                className={`rounded px-1 py-0.5 text-[0.6rem] ${
+                                  duplicate.certain
+                                    ? "bg-loss/15 text-loss"
+                                    : "bg-warning/15 text-warning"
+                                }`}
+                              >
+                                ⧉{" "}
+                                {duplicate.certain
+                                  ? t("csvImport.duplicateBadge")
+                                  : t("csvImport.duplicateBadgeMaybe")}
+                              </span>
+                              <span className="mt-0.5 block text-[0.6rem] leading-snug text-muted">
+                                {t(`csvImport.duplicateReason.${duplicate.kind}`, {
+                                  minutes: duplicate.minutesApart.toFixed(
+                                    duplicate.minutesApart < 1 ? 1 : 0,
+                                  ),
+                                })}
+                              </span>
+                              {duplicate.rowId !== undefined && (
+                                <span className="block text-[0.6rem] text-muted">
+                                  {t("csvImport.duplicateOfRow", {
+                                    line:
+                                      rows.find((r) => r.id === duplicate.rowId)?.line ??
+                                      "?",
+                                  })}
+                                </span>
+                              )}
+                              {duplicate.existingId !== undefined && onShowTransaction && (
+                                <button
+                                  type="button"
+                                  className="block text-[0.6rem] text-accent underline decoration-dotted"
+                                  onClick={() => onShowTransaction(duplicate.existingId!)}
+                                >
+                                  {t("csvImport.duplicateShowExisting")}
+                                </button>
+                              )}
+                            </span>
+                          )}
                           {/* Which rows the EUR valuation is about: still
                               missing one, or derived from a historical close. */}
                           {needsEurValuation(row.values, formats) ? (
@@ -1703,6 +1972,19 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
                   </dd>
                 </div>
                 <div className="flex justify-between gap-4">
+                  <dt className="text-muted">{t("csvImport.summaryDuplicates")}</dt>
+                  <dd className={duplicatesSkipped > 0 ? "text-warning" : ""}>
+                    {t("csvImport.rowCount", { count: duplicatesSkipped })}
+                    {duplicatesIncluded > 0 && (
+                      <span className="ml-1 text-muted">
+                        {t("csvImport.summaryDuplicatesKept", {
+                          count: duplicatesIncluded,
+                        })}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
                   <dt className="text-muted">{t("csvImport.summaryExcluded")}</dt>
                   <dd>{t("csvImport.rowCount", { count: excludedCount })}</dd>
                 </div>
@@ -1737,6 +2019,28 @@ export default function CsvImportWizard({ onClose }: { onClose: () => void }) {
               <p className="text-sm text-muted">
                 {t("csvImport.doneMessage", { count: imported })}
               </p>
+              <dl className="mx-auto max-w-sm space-y-1 rounded-lg border border-border-c/60 bg-surface-2/40 p-3 text-left text-xs">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">{t("csvImport.summaryImport")}</dt>
+                  <dd className="text-gain">
+                    {t("csvImport.rowCount", { count: imported })}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">{t("csvImport.summaryDuplicates")}</dt>
+                  <dd>{t("csvImport.rowCount", { count: duplicatesSkipped })}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">{t("csvImport.summarySkipped")}</dt>
+                  <dd>{t("csvImport.rowCount", { count: invalidCount })}</dd>
+                </div>
+                {/* Named, because it is what "undo this import" refers to. */}
+                <div className="flex justify-between gap-4 border-t border-border-c/60 pt-1">
+                  <dt className="text-muted">{t("csvImport.doneBatchId")}</dt>
+                  <dd className="font-mono break-all">{importedBatchId}</dd>
+                </div>
+              </dl>
+              <p className="text-xs text-muted">{t("csvImport.doneUndoHint")}</p>
               <Button variant="primary" onClick={onClose}>
                 {t("csvImport.goToTable")}
               </Button>

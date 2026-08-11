@@ -1301,16 +1301,21 @@ function TransferDialog({
         {eligible.length > 0 && (
           <div className="max-h-64 overflow-auto rounded-lg border border-border-c">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-surface-2 text-xs text-muted">
+              {/* The background sits on the cells, not here: a sticky row is
+                  painted cell by cell, so a background on the row itself is
+                  never drawn and the table scrolls through the header. */}
+              <thead className="sticky top-0 text-xs text-muted">
                 <tr>
-                  <th className="px-2 py-2 text-left font-normal">{t("tx.date")}</th>
-                  <th className="px-2 py-2 text-left font-normal">
+                  <th className="bg-surface-2 px-2 py-2 text-left font-normal">
+                    {t("tx.date")}
+                  </th>
+                  <th className="bg-surface-2 px-2 py-2 text-left font-normal">
                     {t("tx.wallet")} / {t("tx.account")}
                   </th>
-                  <th className="px-2 py-2 text-right font-normal">
+                  <th className="bg-surface-2 px-2 py-2 text-right font-normal">
                     {t("tx.transferRemaining")}
                   </th>
-                  <th className="px-2 py-2 text-right font-normal">
+                  <th className="bg-surface-2 px-2 py-2 text-right font-normal">
                     {t("tx.transferAmount")}
                   </th>
                 </tr>
@@ -2772,7 +2777,20 @@ export default function TransactionsView({
           onAssignOrigin={setLinkOriginFor}
         />
       )}
-      {showImport && <CsvImportWizard onClose={() => setShowImport(false)} />}
+      {showImport && (
+        <CsvImportWizard
+          onClose={() => setShowImport(false)}
+          // A row flagged as a duplicate has to be comparable against the
+          // transaction it collides with, so the wizard can send the user
+          // there rather than asking them to take it on faith.
+          onShowTransaction={(id) => {
+            const hit = all.find((r) => r.id === id);
+            if (!hit) return;
+            setShowImport(false);
+            setEditing(hit);
+          }}
+        />
+      )}
 
       {showMove && (
         <MoveDialog

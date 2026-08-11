@@ -22,6 +22,7 @@ import {
   type Appearance,
 } from "./appearance";
 import { deleteAndRelease } from "./deletion";
+import { removeBatchTransactions } from "./importBatches";
 import { Decimal, dec, ZERO } from "./decimal";
 import {
   decryptPortfolio,
@@ -128,6 +129,12 @@ interface AppState {
   /** Insert, or overwrite by id if it already exists. */
   saveImportPreset: (preset: UserImportPreset) => void;
   deleteImportPreset: (id: string) => void;
+  /**
+   * Undo a CSV import: drop the transactions it wrote (§3.4). `ids` is what
+   * the caller decided to remove, normally `analyzeBatchRemoval().removableIds`
+   * — a reference that would break is left alone rather than quietly severed.
+   */
+  undoImportBatch: (batchId: string, ids: string[]) => void;
 
   /**
    * Interface arrangement (CLAUDE.md §3.5). Both setters are called with the
@@ -615,6 +622,9 @@ export const useAppStore = create<AppState>((set, get) => {
           preset,
         ],
       })),
+
+    undoImportBatch: (batchId, ids) =>
+      mutate((p) => removeBatchTransactions(p, batchId, ids)),
 
     deleteImportPreset: (id) =>
       mutate((p) => ({

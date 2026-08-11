@@ -854,6 +854,35 @@ const de = {
     chooseFile: "CSV-Datei wählen …",
     fileChosen: "{name} ({rows} Datenzeilen)",
     readError: "Datei konnte nicht gelesen werden.",
+    duplicateFile:
+      "Diese Datei wurde am {date} bereits importiert ({count} Transaktionen).",
+    duplicateFileHint:
+      "Erneut importieren verdoppelt die enthaltenen Buchungen und verfälscht damit auch die Steuerhistorie. Falls der Export inzwischen ergänzt wurde, prüfe die Vorschau: bereits vorhandene Zeilen werden dort als Dublette markiert.",
+    duplicateFileAck: "Datei trotzdem erneut einlesen",
+    duplicateRows: "{certain} Dubletten, {probable} mögliche",
+    duplicateIntro:
+      "Dubletten sind vom Import ausgenommen. Identische Buchungen können echt sein, etwa geteilte Orders, deshalb wird nichts automatisch verworfen.",
+    duplicateBadge: "Dublette",
+    duplicateBadgeMaybe: "mögliche Dublette",
+    duplicateReason: {
+      txid: "Gleiche Txid im selben Konto",
+      exact: "Konto, Typ, Zeitpunkt, Menge und Betrag identisch",
+      nearby: "Gleiche Werte, Zeitpunkt {minutes} Min. entfernt",
+    },
+    duplicateOfRow: "Dublette von Zeile {line} derselben Datei",
+    duplicateShowExisting: "Vorhandene Transaktion anzeigen",
+    duplicateFilter: {
+      all: "Alle",
+      new: "Nur neue",
+      duplicates: "Nur Dubletten",
+    },
+    duplicateSkipAll: "Alle Dubletten überspringen",
+    duplicateImportAll: "Alle Dubletten trotzdem importieren",
+    summaryDuplicates: "Übersprungene Dubletten",
+    summaryDuplicatesKept: "({count} bewusst übernommen)",
+    doneBatchId: "Import-ID",
+    doneUndoHint:
+      "Dieser Import lässt sich in den Einstellungen als Ganzes rückgängig machen.",
     emptyFile: "Die Datei enthält keine Datenzeilen.",
     hasHeader: "Erste Zeile enthält Spaltenüberschriften",
     delimiter: "Trennzeichen",
@@ -1033,6 +1062,30 @@ const de = {
     year: "Jahr",
     totalRealized: "Realisiert gesamt",
   },
+  imports: {
+    title: "Importe",
+    intro:
+      "Jeder CSV-Import wird mit Datei, Preset und Anzahl festgehalten. Damit erkennt der Assistent dieselbe Datei beim nächsten Mal wieder, und ein Import lässt sich als Ganzes zurücknehmen.",
+    date: "Zeitpunkt",
+    file: "Datei",
+    preset: "Preset",
+    count: "Transaktionen",
+    manualPreset: "manuell zugeordnet",
+    undo: "Rückgängig",
+    undoTitle: "Import rückgängig machen",
+    undoIntro:
+      "Aus „{file}“ stammen {count} Transaktionen. Sie werden aus der Datei entfernt.",
+    undoConfirm: "{count} Transaktionen entfernen",
+    blockedIntro:
+      "{count} davon hängen inzwischen an anderen Transaktionen und bleiben deshalb erhalten:",
+    blocked: {
+      allocatedByOther: "wird von einer späteren Veräußerung als Lot genutzt",
+      linkedTransfer: "ist mit einem Transfer verknüpft, dessen Gegenstück bleibt",
+      allocatesOther: "schließt Lots, die nicht aus diesem Import stammen",
+    },
+    blockedHint:
+      "Es werden nur die {count} unverknüpften Transaktionen entfernt. Die übrigen zuerst manuell lösen (Zuordnung oder Transfer-Verknüpfung), damit keine Verweise ins Leere zeigen.",
+  },
   watchlist: {
     title: "Adress-Watchlist",
     subtitle:
@@ -1128,6 +1181,10 @@ const de = {
     explorerEndpoint: "Endpoint-URL",
     explorerPrivacyNote:
       "Hinweis: Bei Public APIs werden deine beobachteten Adressen an einen Drittanbieter übermittelt (inkl. deiner IP). Maximale Privatsphäre bietet ein eigener Node/Server.",
+    importSettings: "Import",
+    duplicateTolerance: "Zeittoleranz für Dubletten (Minuten)",
+    duplicateToleranceHint:
+      "Beim CSV-Import gelten sonst identische Buchungen innerhalb dieser Spanne als mögliche Dublette. Exporte behandeln Zeitzonen und Rundung uneinheitlich, deshalb reicht ein exakter Zeitstempel-Vergleich nicht. 0 schaltet die Toleranz ab; exakte Treffer werden weiterhin erkannt.",
     taxSettings: "Steuer",
     holdingPeriod: "Haltefrist (Tage)",
     costBasisMethod: "Zuordnungsverfahren",

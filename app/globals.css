@@ -139,6 +139,32 @@ h6 {
   }
 }
 
+/* Sticky table headers.
+   Two halves, and both have to sit where they do.
+
+   The **background** belongs on the cells: a sticky row is painted cell by
+   cell, so a background set on <thead> (or on its <tr>) is not painted at all
+   and the rows scroll visibly through the header.
+
+   The **position and the z-index** belong on the <thead>, not on the cells.
+   Making the cells sticky looks equivalent and is not: a row further down that
+   carries `opacity` (an excluded import row, a faded lot) becomes its own
+   stacking context, and Chrome then paints it over a sticky *cell* however
+   high that cell's z-index is. Raising the z-index, isolating the tbody,
+   promoting the cell to its own layer: none of it helps, a sticky thead does.
+   Verified in a browser against the CSV import preview, which is full of both.
+
+   The bottom rule is a box-shadow because a real border does not stick with
+   the cell in a collapsed table. */
+thead.sticky {
+  z-index: 3;
+}
+
+thead.sticky th {
+  background-color: var(--surface-2);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
 /* Privacy mode: blur amounts, e.g. for screenshots/screen sharing. */
 .privacy-blur {
   filter: blur(7px);
