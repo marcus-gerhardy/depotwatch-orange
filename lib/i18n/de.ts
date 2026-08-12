@@ -139,32 +139,46 @@ const de = {
     metaTitle: "Impressum | DepotWatch Orange",
     title: "Impressum",
     placeholder:
-      "Platzhalter, vor Veröffentlichung der Seite mit den echten Angaben ausfüllen.",
-    providerTitle: "Angaben gemäß § 5 DDG",
-    providerBody: "[Vorname Nachname]\n[Straße Hausnummer]\n[PLZ Ort]\nDeutschland",
+      "Noch unvollständig: Die mit eckigen Klammern markierte Anschrift muss vor der Veröffentlichung eingetragen werden. Ein Impressum ohne ladungsfähige Anschrift erfüllt die Pflicht nicht.",
+    providerTitle: "Angaben gemäß § 5 DDG und § 18 Abs. 1 MStV",
+    providerBody:
+      "Marcus Gerhardy\nAzaleenring 72\n49744 Geeste\nDeutschland",
     contactTitle: "Kontakt",
-    contactBody: "E-Mail: [kontakt@depotwatch-orange.com]",
-    responsibleTitle: "Verantwortlich für den Inhalt",
-    responsibleBody: "[Vorname Nachname, Anschrift wie oben]",
+    contactBody:
+      "E-Mail: marcus.gerhardy@googlemail.com\n\nDepotWatch Orange wird privat und ohne Gewinnerzielungsabsicht betrieben. Anfragen beantworte ich per E-Mail; eine Telefonnummer wird nicht vorgehalten.",
+    liabilityContentTitle: "Haftung für Inhalte",
+    liabilityContentBody:
+      "Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG bin ich als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden entsprechender Rechtsverletzungen entferne ich diese Inhalte umgehend.",
+    liabilityLinksTitle: "Haftung für Links",
+    liabilityLinksBody:
+      "Dieses Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte ich keinen Einfluss habe. Deshalb kann ich für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft; rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen entferne ich derartige Links umgehend.",
+    copyrightTitle: "Urheberrecht",
+    copyrightBody:
+      "Die durch den Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet. Soweit die Inhalte auf dieser Seite nicht vom Betreiber erstellt wurden, werden die Urheberrechte Dritter beachtet und als solche gekennzeichnet.",
   },
   privacyPolicy: {
     metaTitle: "Datenschutz | DepotWatch Orange",
     title: "Datenschutzerklärung",
-    placeholder:
-      "Platzhalter, vor Veröffentlichung rechtlich prüfen und vervollständigen.",
+    controllerTitle: "Verantwortlicher im Sinne der DSGVO",
+    controllerBody:
+      "Marcus Gerhardy\nAzaleenring 72\n49744 Geeste\nDeutschland\n\nE-Mail: marcus.gerhardy@googlemail.com\n\nEin Datenschutzbeauftragter ist nicht bestellt; die Voraussetzungen des Art. 37 DSGVO und des § 38 BDSG liegen nicht vor.",
     noStorageTitle: "Keine Speicherung von Nutzerdaten",
     noStorageBody:
-      "DepotWatch Orange ist eine reine Client-Anwendung. Alle Portfoliodaten liegen ausschließlich in einer lokalen, passwortverschlüsselten Datei auf deinem Gerät. Es gibt keinen Server, der Nutzerdaten speichert, kein Konto und kein Tracking (keine Cookies, keine Analyse-Tools).",
+      "DepotWatch Orange ist eine reine Client-Anwendung. Alle Portfoliodaten liegen ausschließlich in einer lokalen, passwortverschlüsselten Datei auf deinem Gerät. Es gibt keinen Server, der Nutzerdaten speichert, kein Konto und kein Tracking (keine Cookies, keine Analyse-Tools). Deine Portfoliodaten verlassen dein Gerät nicht: Sie werden weder an mich noch an Dritte übermittelt, und ich habe zu keinem Zeitpunkt Zugriff darauf.",
+    hostingTitle: "Hosting und Server-Logfiles",
+    hostingBody:
+      "Die Seite wird bei der Vercel Inc., USA, gehostet (vercel.com). Beim Abruf der Seite verarbeitet der Anbieter technisch notwendige Zugriffsdaten in Server-Logfiles: IP-Adresse, Datum und Uhrzeit des Abrufs, abgerufene Datei, Referrer, Browsertyp und Betriebssystem. Diese Verarbeitung ist für die Auslieferung der Seite technisch erforderlich und dient dem sicheren und stabilen Betrieb.\n\nRechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; das berechtigte Interesse liegt im technisch fehlerfreien und sicheren Betrieb der Seite. Mit dem Anbieter besteht ein Vertrag über die Auftragsverarbeitung nach Art. 28 DSGVO. Soweit dabei personenbezogene Daten in die USA übermittelt werden, stützt sich die Übermittlung auf einen Angemessenheitsbeschluss nach Art. 45 DSGVO (EU-US Data Privacy Framework) beziehungsweise auf Standardvertragsklauseln nach Art. 46 Abs. 2 lit. c DSGVO.",
     externalTitle: "Abfragen an externe Dienste",
     externalIntro:
-      "Bei Nutzung der App werden zur Laufzeit Daten von externen Schnittstellen abgerufen. Dabei erhält der jeweilige Anbieter technisch bedingt deine IP-Adresse und die Anfragedaten:",
+      "Bei Nutzung der App werden zur Laufzeit Daten von externen Schnittstellen abgerufen. Dabei erhält der jeweilige Anbieter technisch bedingt deine IP-Adresse und die Anfragedaten. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO: Ohne diese Abrufe könnte die App weder Kurse noch On-Chain-Daten anzeigen.",
     externalBinance: "Binance (Kursdaten): Es werden keine Portfoliodaten übermittelt.",
     externalExplorer:
       "mempool.space / blockstream.info (On-Chain-Daten): Übermittelt werden die von dir zur Beobachtung eingetragenen Bitcoin-Adressen. In den Einstellungen kann stattdessen ein eigener Server konfiguriert werden.",
-    hostingTitle: "Hosting",
-    hostingBody: "[Angaben zum Hosting-Anbieter und ggf. Server-Logs ergänzen.]",
-    controllerTitle: "Verantwortlicher",
-    controllerBody: "[Siehe Impressum, Angaben ergänzen.]",
+    externalOutro:
+      "Diese Abrufe finden nur statt, wenn du die entsprechende Funktion nutzt. Die Schriftarten und das Bitcoin-Whitepaper werden von dieser Seite selbst ausgeliefert, es wird also kein CDN und kein Font-Dienst eines Dritten angefragt.",
+    rightsTitle: "Deine Rechte",
+    rightsBody:
+      "Dir stehen gegenüber dem Verantwortlichen die Rechte auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen eine Verarbeitung auf Grundlage berechtigter Interessen (Art. 21) zu.\n\nIn der Praxis liegen mir zu dir keine Daten vor, aus denen sich Auskunft erteilen ließe: Es gibt kein Konto und keine serverseitige Speicherung. Deine Portfoliodatei liegt auf deinem Gerät und untersteht allein dir; löschen kannst du sie, indem du die Datei löschst.\n\nUnabhängig davon steht dir ein Beschwerderecht bei einer Aufsichtsbehörde zu (Art. 77 DSGVO), für Niedersachsen: Die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.",
   },
   nav: {
     dashboard: "Dashboard",

@@ -142,32 +142,47 @@ const en: typeof de = {
     metaTitle: "Legal Notice | DepotWatch Orange",
     title: "Legal Notice",
     placeholder:
-      "Placeholder: fill in the real details before publishing the site.",
-    providerTitle: "Information pursuant to § 5 DDG (German Digital Services Act)",
-    providerBody: "[First name Last name]\n[Street and number]\n[Postal code, city]\nGermany",
+      "Still incomplete: the postal address marked with square brackets has to be filled in before this site goes live. A legal notice without an address that can be served does not meet the requirement.",
+    providerTitle:
+      "Information pursuant to § 5 DDG (German Digital Services Act) and § 18 (1) MStV",
+    providerBody:
+      "Marcus Gerhardy\nAzaleenring 72\n49744 Geeste\nGermany",
     contactTitle: "Contact",
-    contactBody: "Email: [kontakt@depotwatch-orange.com]",
-    responsibleTitle: "Responsible for the content",
-    responsibleBody: "[First name Last name, address as above]",
+    contactBody:
+      "Email: marcus.gerhardy@googlemail.com\n\nDepotWatch Orange is run privately and without any intention to make a profit. I answer enquiries by email; no telephone number is kept.",
+    liabilityContentTitle: "Liability for content",
+    liabilityContentBody:
+      "As a service provider I am responsible for my own content on these pages under the general laws, pursuant to § 7 (1) DDG. Under §§ 8 to 10 DDG, however, I am not obliged as a service provider to monitor transmitted or stored third-party information, or to investigate circumstances that indicate unlawful activity. Obligations to remove or block the use of information under the general laws remain unaffected. Liability in this respect is only possible from the point in time at which a concrete infringement becomes known. Upon becoming aware of such infringements I will remove the content in question without delay.",
+    liabilityLinksTitle: "Liability for links",
+    liabilityLinksBody:
+      "This site contains links to external websites of third parties, over whose content I have no influence. I can therefore accept no liability for that third-party content. The respective provider or operator of the linked pages is always responsible for their content. The linked pages were checked for possible legal violations at the time of linking; unlawful content was not recognisable at that time. Permanent monitoring of the content of linked pages is not reasonable without concrete indications of an infringement. Upon becoming aware of infringements I will remove such links without delay.",
+    copyrightTitle: "Copyright",
+    copyrightBody:
+      "The content and works created by the site operator on these pages are subject to German copyright law. Reproduction, adaptation, distribution and any kind of exploitation outside the limits of copyright require the written consent of the respective author or creator. Downloads and copies of this page are permitted for private, non-commercial use only. Insofar as the content on this page was not created by the operator, the copyrights of third parties are respected and marked as such.",
   },
   privacyPolicy: {
     metaTitle: "Privacy | DepotWatch Orange",
     title: "Privacy Policy",
-    placeholder:
-      "Placeholder: have this reviewed legally and completed before publishing.",
-    noStorageTitle: "No storage of user data",
+    controllerTitle: "Controller within the meaning of the GDPR",
+    controllerBody:
+      "Marcus Gerhardy\nAzaleenring 72\n49744 Geeste\nGermany\n\nEmail: marcus.gerhardy@googlemail.com\n\nNo data protection officer has been appointed; the conditions of Art. 37 GDPR and § 38 BDSG are not met.",
+    noStorageTitle: "No user data is stored",
     noStorageBody:
-      "DepotWatch Orange is a pure client application. All portfolio data lives exclusively in a local, password-encrypted file on your device. There is no server storing user data, no account, and no tracking (no cookies, no analytics tools).",
+      "DepotWatch Orange is a pure client application. All portfolio data lives exclusively in a local, password-encrypted file on your device. There is no server storing user data, no account and no tracking (no cookies, no analytics). Your portfolio data never leaves your device: it is transmitted neither to me nor to third parties, and I have no access to it at any time.",
+    hostingTitle: "Hosting and server log files",
+    hostingBody:
+      "This site is hosted by Vercel Inc., USA (vercel.com). When the site is requested, the provider processes technically necessary access data in server log files: IP address, date and time of the request, the file requested, referrer, browser type and operating system. This processing is technically necessary to deliver the site and serves its secure and stable operation.\n\nThe legal basis is Art. 6 (1) (f) GDPR; the legitimate interest lies in the technically sound and secure operation of the site. A data processing agreement under Art. 28 GDPR is in place with the provider. Where personal data is transferred to the USA in this context, the transfer is based on an adequacy decision under Art. 45 GDPR (EU-US Data Privacy Framework) or on standard contractual clauses under Art. 46 (2) (c) GDPR.",
     externalTitle: "Requests to external services",
     externalIntro:
-      "While you use the app, data is fetched from external interfaces at runtime. For technical reasons the respective provider receives your IP address and the request data:",
+      "While the app is in use, data is fetched from external interfaces at runtime. For technical reasons the respective provider receives your IP address and the request data. The legal basis is Art. 6 (1) (f) GDPR: without these requests the app could show neither prices nor on-chain data.",
     externalBinance: "Binance (price data): no portfolio data is transmitted.",
     externalExplorer:
-      "mempool.space / blockstream.info (on-chain data): the Bitcoin addresses you added to the watchlist are transmitted. The settings let you configure your own server instead.",
-    hostingTitle: "Hosting",
-    hostingBody: "[Add details about the hosting provider and any server logs.]",
-    controllerTitle: "Controller",
-    controllerBody: "[See the legal notice, details to be added.]",
+      "mempool.space / blockstream.info (on-chain data): the Bitcoin addresses you added to your watchlist are transmitted. Your own server can be configured instead in the settings.",
+    externalOutro:
+      "These requests only happen when you use the corresponding feature. The typefaces and the Bitcoin whitepaper are served by this site itself, so no CDN and no third-party font service is asked for anything.",
+    rightsTitle: "Your rights",
+    rightsBody:
+      "You have the right to information (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object to processing based on legitimate interests (Art. 21).\n\nIn practice I hold no data about you that any information could be given from: there is no account and no server-side storage. Your portfolio file is on your device and is yours alone; you delete it by deleting the file.\n\nIndependently of that you have the right to lodge a complaint with a supervisory authority (Art. 77 GDPR); for Lower Saxony: State Commissioner for Data Protection of Lower Saxony, Prinzenstrasse 5, 30159 Hanover, Germany.",
   },
   nav: {
     dashboard: "Dashboard",
