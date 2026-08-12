@@ -12,7 +12,7 @@ import type {
   WatchedAddress,
 } from "./types";
 import type { UserImportPreset } from "./importPresets";
-import { emptyPortfolio } from "./types";
+import { emptyPortfolio, flattenLedger } from "./types";
 import { isThemeId } from "./theme";
 import { APPEARANCE_KEY } from "./themeBoot";
 import {
@@ -23,6 +23,14 @@ import {
 } from "./appearance";
 import { deleteAndRelease } from "./deletion";
 import { removeBatchTransactions } from "./importBatches";
+import {
+  achieveEvent,
+  acknowledgeAll,
+  evaluateMilestones,
+  milestoneContext,
+  type MilestoneRecord,
+} from "./milestones";
+import { computeFifo } from "./fifo";
 import { Decimal, dec, ZERO } from "./decimal";
 import {
   decryptPortfolio,
@@ -54,6 +62,13 @@ interface AppState {
    * needs the "choose location + set password" step before it can persist.
    */
   needsFileSetup: boolean;
+
+  /**
+   * Milestones reached in this session and not yet shown (§5.2). Session
+   * state, never persisted: what the file remembers is that they were reached,
+   * not that a toast is pending.
+   */
+  milestoneQueue: MilestoneRecord[];
 
   // UI state (not persisted)
   privacyMode: boolean;
@@ -101,6 +116,14 @@ interface AppState {
 
   /** Apply an immutable update to the portfolio and trigger autosave. */
   update: (fn: (p: PortfolioFile) => PortfolioFile) => void;
+
+  /**
+   * Record a milestone that nothing in the file could work out for itself:
+   * the whitepaper was opened, a tax report was exported (§5.2).
+   */
+  achieveMilestone: (id: string) => void;
+  /** The pending notification was shown; mark those records and clear it. */
+  clearMilestoneQueue: () => void;
 
   addWallet: (w: Omit<Wallet, "accounts"> & { accounts?: Account[] }) => void;
   renameWallet: (walletId: string, name: string) => void;
@@ -333,6 +356,47 @@ export const useAppStore = create<AppState>((set, get) => {
     }, portfolio.settings.autosaveDebounceMs);
   }
 
+  /**
+   * Work out which milestones the portfolio has reached (§5.2).
+   *
+   * Event-driven by design: this runs when the portfolio actually changed and
+   * when a file is opened, never on a timer. The FIFO pass it needs is the
+   * same one the rest of the app does anyway, and it only runs on a change.
+   *
+   * `silent` is for the first contact with a file that has no milestone
+   * history: everything it already fulfils is *discovered*, not reached, so it
+   * is recorded acknowledged and nothing is announced. A file that already
+   * carries records is a returning one, and what is new since then genuinely
+   * happened while the user was away.
+   */
+  const withMilestones = (
+    p: PortfolioFile,
+    { silent }: { silent: boolean },
+  ): { portfolio: PortfolioFile; newly: MilestoneRecord[] } => {
+    const { encryptionEnabled, fileName, lastSavedAt } = get();
+    const entries = flattenLedger(p.wallets);
+    const ctx = milestoneContext(
+      p,
+      entries,
+      computeFifo(entries, p.settings.holdingPeriodDays),
+      {
+        encrypted: encryptionEnabled,
+        // A portfolio that lives in a file on disk *is* backed up; one that has
+        // only ever existed in this tab is not.
+        savedOnce: fileName !== null || lastSavedAt !== null,
+      },
+    );
+    const { milestones, newlyAchieved } = evaluateMilestones(ctx, p.milestones ?? []);
+    if (newlyAchieved.length === 0) return { portfolio: p, newly: [] };
+    return {
+      portfolio: {
+        ...p,
+        milestones: silent ? milestones.map((m) => ({ ...m, acknowledged: true })) : milestones,
+      },
+      newly: silent ? [] : newlyAchieved,
+    };
+  };
+
   const mutate = (fn: (p: PortfolioFile) => PortfolioFile) => {
     const p = get().portfolio;
     if (!p) return;
@@ -341,7 +405,14 @@ export const useAppStore = create<AppState>((set, get) => {
     // settings are committed wholesale when an editing session ends, which
     // also happens when nothing was actually moved.
     if (next === p) return;
-    set({ portfolio: next, dirty: true });
+    // Milestones are evaluated on the result, in the same commit: a change and
+    // what it earned belong to one state, not to two renders.
+    const { portfolio, newly } = withMilestones(next, { silent: false });
+    set({
+      portfolio,
+      dirty: true,
+      milestoneQueue: newly.length > 0 ? [...get().milestoneQueue, ...newly] : get().milestoneQueue,
+    });
     scheduleAutosave();
   };
 
@@ -360,6 +431,7 @@ export const useAppStore = create<AppState>((set, get) => {
     password: null,
     encryptionEnabled: true,
     portfolio: null,
+    milestoneQueue: [],
     dirty: false,
     saving: false,
     lastSavedAt: null,
@@ -418,7 +490,20 @@ export const useAppStore = create<AppState>((set, get) => {
       const appearance = appearanceOf(portfolio, get().appearance);
       storeAppearance(appearance);
       set({
-        portfolio,
+        // The runtime facts a milestone may read have to be in place first.
+        encryptionEnabled: password !== null,
+        fileName,
+        lastSavedAt: null,
+      });
+      // Time-based milestones only ever become true by waiting, so opening a
+      // file is the moment to look. A file that carries no history yet is
+      // filled in silently (see withMilestones).
+      const evaluated = withMilestones(portfolio, {
+        silent: portfolio.milestones === undefined,
+      });
+      set({
+        portfolio: evaluated.portfolio,
+        milestoneQueue: evaluated.newly,
         fileHandle: handle,
         fileName,
         password,
@@ -622,6 +707,31 @@ export const useAppStore = create<AppState>((set, get) => {
           preset,
         ],
       })),
+
+    achieveMilestone: (id) => {
+      const p = get().portfolio;
+      if (!p) return;
+      const { milestones, newlyAchieved } = achieveEvent(p.milestones ?? [], id);
+      if (newlyAchieved.length === 0) return;
+      set({
+        portfolio: { ...p, milestones },
+        dirty: true,
+        milestoneQueue: [...get().milestoneQueue, ...newlyAchieved],
+      });
+      scheduleAutosave();
+    },
+
+    clearMilestoneQueue: () => {
+      const p = get().portfolio;
+      set({ milestoneQueue: [] });
+      if (!p) return;
+      const milestones = acknowledgeAll(p.milestones ?? []);
+      // Same list back when there was nothing to acknowledge: seeing a toast
+      // must not be able to dirty the file on its own.
+      if (milestones === p.milestones) return;
+      set({ portfolio: { ...p, milestones }, dirty: true });
+      scheduleAutosave();
+    },
 
     undoImportBatch: (batchId, ids) =>
       mutate((p) => removeBatchTransactions(p, batchId, ids)),

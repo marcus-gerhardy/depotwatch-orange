@@ -82,6 +82,8 @@ export interface DashboardData {
    * away, which is what an empty watchlist widget offers.
    */
   openWatchlist: (options?: { add?: boolean }) => void;
+  /** Open the milestones overview. */
+  openMilestones: () => void;
 }
 
 const DashboardDataContext = createContext<DashboardData | null>(null);
@@ -95,10 +97,12 @@ export function useDashboardData(): DashboardData {
 export function DashboardDataProvider({
   openTransactions,
   openWatchlist,
+  openMilestones,
   children,
 }: {
   openTransactions: (filter: TxJumpFilter) => void;
   openWatchlist: (options?: { add?: boolean }) => void;
+  openMilestones: () => void;
   children: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
@@ -169,6 +173,7 @@ export function DashboardDataProvider({
         currency === "BTC" ? formatSats(btc, loc) : formatBtc(btc, loc),
       openTransactions,
       openWatchlist,
+      openMilestones,
     };
   }, [
     t,
@@ -186,6 +191,7 @@ export function DashboardDataProvider({
     prices.error,
     openTransactions,
     openWatchlist,
+    openMilestones,
   ]);
 
   return (

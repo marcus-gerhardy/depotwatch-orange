@@ -7,7 +7,8 @@ import { flattenLedger } from "@/lib/types";
 import { computeFifo, daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
 import { formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
-import { Amount, Card, PnlValue, SectionTitle, inputCls } from "./ui";
+import { downloadAsFile } from "@/lib/fileStorage";
+import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
 
 export default function TaxView() {
   const { t, locale } = useI18n();
@@ -16,6 +17,7 @@ export default function TaxView() {
   // below are tax figures and stay in the ledger's currency.
   const amountFmt = useAmountFormat();
   const portfolio = useAppStore((s) => s.portfolio)!;
+  const achieveMilestone = useAppStore((s) => s.achieveMilestone);
   const holdingDays = portfolio.settings.holdingPeriodDays;
 
   const entries = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
@@ -52,9 +54,49 @@ export default function TaxView() {
 
   const uncovered = fifo.disposals.filter((d) => d.uncoveredBtc.gt(0));
 
+  /**
+   * The year's disposals as CSV, for a tax adviser or one's own records. Plain
+   * text, generated and downloaded locally like everything else here: an
+   * export that uploaded the disposals somewhere would contradict the whole
+   * app. Semicolons and a decimal comma, because that is what German
+   * spreadsheet software expects from a file it is handed.
+   */
+  function exportCsv() {
+    const de = (v: string | number) => String(v).replace(".", ",");
+    const header = [
+      t("tx.date"), t("tx.type"), t("tx.amountBtc"), t("tax.proceeds"),
+      t("tax.cost"), t("tax.gain"), t("tax.taxableGain"), t("tax.taxFreeGain"),
+    ];
+    const lines = disposals.map((d) => [
+      d.date.slice(0, 10),
+      t(`tx.types.${d.type}`),
+      de(d.amountBtc.toFixed(8)),
+      de(d.proceedsEur.toFixed(2)),
+      de(d.costBasisEur.toFixed(2)),
+      de(d.gainEur.toFixed(2)),
+      de(d.taxableGainEur.toFixed(2)),
+      de(d.taxFreeGainEur.toFixed(2)),
+    ]);
+    const csv = [header, ...lines]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
+      .join("\r\n");
+    downloadAsFile(`${csv}\r\n`, `${t("tax.exportFileName")}-${year}.csv`, "text/csv");
+    achieveMilestone("taxExported");
+  }
+
   return (
     <div className="space-y-4">
-      <SectionTitle level={1}>{t("tax.title")}</SectionTitle>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionTitle level={1}>{t("tax.title")}</SectionTitle>
+        <Button
+          variant="ghost"
+          onClick={exportCsv}
+          disabled={disposals.length === 0}
+          title={t("tax.exportHint")}
+        >
+          ⭳ {t("tax.export")}
+        </Button>
+      </div>
       <p className="text-xs text-muted">{t("tax.disclaimer", { days: holdingDays })}</p>
 
       {uncovered.length > 0 && (

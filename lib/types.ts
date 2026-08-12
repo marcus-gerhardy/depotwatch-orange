@@ -2,6 +2,7 @@
 // All BTC/fiat amounts are decimal strings — never JS numbers (see CLAUDE.md §10).
 
 import type { UserImportPreset } from "./importPresets";
+import type { MilestoneRecord } from "./milestones";
 import { DEFAULT_THEME, type ThemeId, type ThemeMode } from "./theme";
 
 export type WalletType = "exchange" | "hardware" | "software" | "paper";
@@ -274,6 +275,14 @@ export interface PortfolioFile {
   importPresets: UserImportPreset[];
   /** Past CSV import runs; absent in files written before they were recorded. */
   importBatches?: ImportBatch[];
+  /**
+   * Milestones the user has reached (§5.2). Only the reached ones are stored;
+   * the catalogue itself lives in `lib/milestones.ts`. Absent in files written
+   * before milestones existed, which need no migration: an empty history is
+   * simply one where nothing has been recorded yet, and the first evaluation
+   * fills it in from the ledger.
+   */
+  milestones?: MilestoneRecord[];
   /** Interface arrangement; absent in files written before it existed. */
   uiSettings?: UiSettings;
 }

@@ -139,6 +139,20 @@ h6 {
   }
 }
 
+/* The milestone notification's entrance (§5.2). One short movement, and only
+   for people who did not ask for less of it: the component applies it through
+   `motion-safe:`, and this keyframe is all there is to it. */
+@keyframes milestone-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Sticky table headers.
    Two halves, and both have to sit where they do.
 

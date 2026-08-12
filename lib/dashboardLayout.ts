@@ -83,8 +83,17 @@ const DEFAULT_BANDS: LayoutBand[] = [
   // 9. The watchlist: on-chain, and the only tiles that talk to the explorer
   //    about addresses.
   { h: 6, widgets: [["utxoOverview", 4], ["watchlistStatus", 4], ["blockClock", 4]] },
-  // 10. Ambient chain and portfolio facts. Interesting, rarely urgent.
-  { h: 5, widgets: [["networkFees", 4], ["halving", 4], ["timeInMarket", 4]] },
+  // 10. Ambient chain and portfolio facts, and the record of what the owner
+  //     has decided so far (§5.2). Interesting, rarely urgent.
+  {
+    h: 6,
+    widgets: [
+      ["networkFees", 3],
+      ["halving", 3],
+      ["timeInMarket", 3],
+      ["milestones", 3],
+    ],
+  },
 ];
 
 export function defaultDashboard(): WidgetPlacement[] {

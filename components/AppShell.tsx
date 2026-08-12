@@ -6,6 +6,8 @@ import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
 import Celebration from "./Celebration";
+import MilestoneToast from "./MilestoneToast";
+import MilestonesView from "./MilestonesView";
 import LaserAvatar from "./LaserAvatar";
 import Toast from "./Toast";
 import Dashboard from "./Dashboard";
@@ -18,7 +20,14 @@ import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
 
-type Tab = "dashboard" | "transactions" | "wallets" | "tax" | "watchlist" | "settings";
+type Tab =
+  | "dashboard"
+  | "transactions"
+  | "wallets"
+  | "tax"
+  | "watchlist"
+  | "milestones"
+  | "settings";
 
 function FileIndicator() {
   const { t, locale } = useI18n();
@@ -111,6 +120,7 @@ export default function AppShell() {
       ? [{ id: "tax" as const, label: t("nav.tax") }]
       : []),
     { id: "watchlist", label: t("nav.watchlist") },
+    { id: "milestones", label: t("nav.milestones") },
     { id: "settings", label: t("nav.settings") },
   ];
 
@@ -118,6 +128,7 @@ export default function AppShell() {
     <div className="flex flex-1 flex-col">
       <Celebration />
       <Toast message={toast} onDone={() => setToast(null)} />
+      <MilestoneToast />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4">
           {/* Row 1: logo left, file indicator + actions right */}
@@ -268,6 +279,7 @@ export default function AppShell() {
               setTxFilter(filter);
               setTab("transactions");
             }}
+            onOpenMilestones={() => setTab("milestones")}
             onOpenWatchlist={(options) => {
               setWatchlistAdd(options?.add === true);
               setTab("watchlist");
@@ -278,6 +290,7 @@ export default function AppShell() {
         {tab === "wallets" && <WalletsView />}
         {TAX_FEATURES_ENABLED && tab === "tax" && <TaxView />}
         {tab === "watchlist" && <WatchlistView initialAdd={watchlistAdd} />}
+        {tab === "milestones" && <MilestonesView />}
         {tab === "settings" && <SettingsView />}
       </main>
 

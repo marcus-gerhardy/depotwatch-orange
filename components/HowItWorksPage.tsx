@@ -1,6 +1,7 @@
 "use client";
 
 import { useAppLocale } from "@/lib/i18n";
+import { useAppStore } from "@/lib/store";
 import StaticPage from "./StaticPage";
 
 const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
@@ -15,6 +16,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function HowItWorksPage() {
+  // The page is reachable without an open portfolio; the store action simply
+  // does nothing then.
+  const achieveMilestone = useAppStore((s) => s.achieveMilestone);
   const { t } = useAppLocale();
 
   return (
@@ -66,6 +70,10 @@ export default function HowItWorksPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline"
+              // Nothing in the file could work this out afterwards, so it is
+              // recorded when it happens (§5.2). Reading the paper is a
+              // decision, which is the only kind of thing a milestone marks.
+              onClick={() => achieveMilestone("whitepaperOpened")}
             >
               {t("howItWorks.whitepaperLink")}&nbsp;↗
             </a>

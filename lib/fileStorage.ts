@@ -83,8 +83,13 @@ export async function writeToHandle(
   await writable.close();
 }
 
-export function downloadAsFile(content: string, filename: string): void {
-  const blob = new Blob([content], { type: "application/json" });
+export function downloadAsFile(
+  content: string,
+  filename: string,
+  /** The portfolio file is JSON; a tax export is CSV. */
+  mime = "application/json",
+): void {
+  const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

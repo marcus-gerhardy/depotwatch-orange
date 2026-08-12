@@ -160,6 +160,7 @@ const en: typeof de = {
     transactions: "Transactions",
     tax: "Tax",
     watchlist: "Watchlist",
+    milestones: "Milestones",
     settings: "Settings",
     menu: "Menu",
     privacyMode: "Privacy mode (hide amounts)",
@@ -394,6 +395,10 @@ const en: typeof de = {
       halvingBlock: "Halving at block",
       halvingEstimateHint:
         "Estimated from ten minutes per block. The real duration depends on the hash rate.",
+      milestones: {
+        title: "Milestones",
+        description: "The milestones reached most recently, and the overall count.",
+      },
       taxFreeProceeds: {
         title: "Tax-free realisable",
         description: "What is past the holding period, valued at the current price.",
@@ -534,6 +539,167 @@ const en: typeof de = {
   },
   easterEggs: {
     laserEyesUnlocked: "Laser eyes unlocked. You can switch them off in the settings.",
+  },
+  milestones: {
+    title: "Milestones",
+    intro:
+      "Milestones record decisions you made: stacked, self-custodied, held, kept in order. Never the price, because a rising price is not an achievement, it is weather. There are no streaks to lose and no comparison with anyone else, because this app has never seen anyone else.",
+    reached: "Milestone reached",
+    andMore: "and {count} more",
+    open: "open",
+    overall: "Reached in total",
+    showAll: "All milestones",
+    widgetEmpty: "No milestones reached yet.",
+    daysProgress: "{current} of {target} days",
+    categories: {
+      stacking: "Stacking",
+      sovereignty: "Sovereignty",
+      patience: "Patience",
+      diligence: "Diligence",
+      culture: "Culture",
+    },
+    catalog: {
+      firstTransaction: {
+        title: "The beginning",
+        description:
+          "The first transaction is recorded.",
+      },
+      sats100k: {
+        title: "100,000 sats",
+        description:
+          "A ten-thousandth of a bitcoin held.",
+      },
+      sats1m: {
+        title: "1,000,000 sats",
+        description:
+          "A million sats, the first round number for many.",
+      },
+      btc010: {
+        title: "0.1 BTC",
+        description:
+          "A tenth of a bitcoin held.",
+      },
+      btc021: {
+        title: "0.21 BTC",
+        description:
+          "One per cent of 21, the number everything turns on.",
+      },
+      btc1: {
+        title: "Wholecoiner",
+        description:
+          "A whole bitcoin held.",
+      },
+      btc21: {
+        title: "2.1 BTC",
+        description:
+          "Ten per cent of 21.",
+      },
+      firstWithdrawal: {
+        title: "Off the exchange",
+        description:
+          "Bitcoin moved from an exchange into your own wallet for the first time.",
+      },
+      selfCustody50: {
+        title: "Half in your own hands",
+        description:
+          "At least 50 % of the holding is in self custody.",
+      },
+      selfCustody100: {
+        title: "Fully self-custodied",
+        description:
+          "None of the holding sits on an exchange any more.",
+      },
+      firstWatchedAddress: {
+        title: "First watched address",
+        description:
+          "An address added to the watchlist.",
+      },
+      taprootAddress: {
+        title: "Taproot",
+        description:
+          "A taproot address (bc1p…) recorded.",
+      },
+      lightningWallet: {
+        title: "Lightning",
+        description:
+          "A Lightning wallet created.",
+      },
+      firstTaxFreeLot: {
+        title: "First lot past the year",
+        description:
+          "A lot has passed the one-year holding period.",
+      },
+      days100: {
+        title: "100 days in",
+        description:
+          "100 days since the first buy.",
+      },
+      year1: {
+        title: "A year in",
+        description:
+          "A year since the first buy.",
+      },
+      throughHalving: {
+        title: "Held through a halving",
+        description:
+          "Coins held across a halving.",
+      },
+      years4: {
+        title: "A full cycle",
+        description:
+          "Four years since the first buy.",
+      },
+      firstBackup: {
+        title: "First backup",
+        description:
+          "The portfolio exists as a file on disk.",
+      },
+      encrypted: {
+        title: "Encrypted",
+        description:
+          "The portfolio file is encrypted with a password.",
+      },
+      allTransfersLinked: {
+        title: "Every transfer linked",
+        description:
+          "Every transfer has its counterpart, no loose ends.",
+      },
+      allTxidsRecorded: {
+        title: "Every txid recorded",
+        description:
+          "Every transfer transaction carries its on-chain id.",
+      },
+      taxExported: {
+        title: "Tax report exported",
+        description:
+          "A yearly report generated as a file.",
+      },
+      taxYearClosed: {
+        title: "Tax year closed",
+        description:
+          "A year that is over is fully assigned.",
+      },
+      whitepaperOpened: {
+        title: "Whitepaper read",
+        description:
+          "Opened the nine pages that started all of this.",
+      },
+      firstConsolidation: {
+        title: "Tidied up",
+        description:
+          "Several lots folded into one transaction.",
+      },
+      boughtOnHalvingDay: {
+        title: "Bought at a halving",
+        description:
+          "Added on a halving day.",
+      },
+      boughtOnPizzaDay: {
+        title: "Pizza day",
+        description:
+          "Bought on 22 May, the day of the two most expensive pizzas in history.",
+      },
+    },
   },
   tx: {
     title: "Transactions",
@@ -1027,6 +1193,9 @@ const en: typeof de = {
     title: "Tax (Germany, FIFO)",
     disclaimer:
       "Not tax advice. FIFO matching per §23 EStG with a {days}-day holding period.",
+    export: "Export (CSV)",
+    exportHint: "The selected year's disposals as a CSV file, generated locally.",
+    exportFileName: "tax",
     openLots: "Open lots",
     acquired: "Acquired",
     amount: "Amount",

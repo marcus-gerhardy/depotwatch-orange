@@ -11,10 +11,12 @@ import { useNowDate } from "@/lib/clock";
 import { useDailyCloses } from "@/lib/marketData";
 import { dailyValueSeries } from "@/lib/portfolio";
 import { feeTotals, maxDrawdown, timeInMarket } from "@/lib/dashboardStats";
+import { MILESTONES } from "@/lib/milestones";
 import { daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
 import { countIssues, DATA_ISSUES } from "@/lib/dataQuality";
 import { useEasterEggs } from "@/lib/easterEggs";
 import type { WalletType } from "@/lib/types";
+import MilestoneIcon from "../MilestoneIcon";
 import { Amount, PnlValue } from "../ui";
 import { useDashboardData } from "./context";
 import {
@@ -572,6 +574,71 @@ export function TimeInMarketWidget() {
           </Amount>
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * The last few milestones reached, and how far the catalogue is (§5.2).
+ *
+ * Deliberately a *record*, not a scoreboard: it shows what was decided and
+ * when, never a rank and never a comparison, because there is nobody to
+ * compare with — the app has only ever seen this one portfolio.
+ */
+export function MilestonesWidget() {
+  const { t, loc, openMilestones } = useDashboardData();
+  const portfolio = useAppStore((s) => s.portfolio)!;
+  const records = useMemo(() => portfolio.milestones ?? [], [portfolio.milestones]);
+
+  const recent = useMemo(
+    () =>
+      [...records]
+        .sort((a, b) => b.achievedAt.localeCompare(a.achievedAt))
+        .slice(0, 4),
+    [records],
+  );
+
+  if (records.length === 0) {
+    return (
+      <WidgetEmpty
+        message={t("milestones.widgetEmpty")}
+        action={{ label: t("milestones.title"), onClick: openMilestones }}
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col gap-3">
+      <div>
+        <StatValue>
+          {records.length}
+          <span className="text-base font-normal text-muted"> / {MILESTONES.length}</span>
+        </StatValue>
+        <StatLabel>{t("milestones.overall")}</StatLabel>
+      </div>
+      <Meter value={records.length / MILESTONES.length} />
+
+      <ul className="mt-auto space-y-1 text-xs">
+        {recent.map((m) => (
+          <li key={m.id} className="flex items-baseline gap-2">
+            <MilestoneIcon id={m.id} className="h-3.5 w-3.5 shrink-0 self-center text-accent" />
+            <span className="min-w-0 flex-1 truncate">
+              {t(`milestones.catalog.${m.id}.title`)}
+            </span>
+            <span className="shrink-0 font-mono text-[0.65rem] text-muted">
+              {formatDate(m.achievedAt, loc)}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <button
+        type="button"
+        onClick={openMilestones}
+        className="text-left text-[0.65rem] text-accent underline decoration-dotted"
+      >
+        {t("milestones.showAll")} →
+      </button>
     </div>
   );
 }

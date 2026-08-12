@@ -157,6 +157,7 @@ const de = {
     transactions: "Transaktionen",
     tax: "Steuer",
     watchlist: "Watchlist",
+    milestones: "Meilensteine",
     settings: "Einstellungen",
     menu: "Menü",
     privacyMode: "Privacy-Modus (Beträge ausblenden)",
@@ -393,6 +394,10 @@ const de = {
       halvingBlock: "Halving bei Block",
       halvingEstimateHint:
         "Schätzung auf Basis von zehn Minuten pro Block. Die tatsächliche Dauer hängt von der Hashrate ab.",
+      milestones: {
+        title: "Meilensteine",
+        description: "Die zuletzt erreichten Meilensteine und der Gesamtstand.",
+      },
       taxFreeProceeds: {
         title: "Steuerfrei realisierbar",
         description:
@@ -537,6 +542,167 @@ const de = {
   },
   easterEggs: {
     laserEyesUnlocked: "Laseraugen freigeschaltet. Abschaltbar in den Einstellungen.",
+  },
+  milestones: {
+    title: "Meilensteine",
+    intro:
+      "Meilensteine halten Entscheidungen fest, die du getroffen hast: gestapelt, selbst verwahrt, durchgehalten, sauber geführt. Nie den Kursverlauf, denn steigende Kurse sind keine Leistung, sondern Wetter. Es gibt keine Serien, die man verlieren kann, und keinen Vergleich mit anderen: Die App hat nie jemand anderen gesehen.",
+    reached: "Meilenstein erreicht",
+    andMore: "und {count} weitere",
+    open: "offen",
+    overall: "Insgesamt erreicht",
+    showAll: "Alle Meilensteine",
+    widgetEmpty: "Noch keine Meilensteine erreicht.",
+    daysProgress: "{current} von {target} Tagen",
+    categories: {
+      stacking: "Stapeln",
+      sovereignty: "Souveränität",
+      patience: "Geduld",
+      diligence: "Sorgfalt",
+      culture: "Kultur",
+    },
+    catalog: {
+      firstTransaction: {
+        title: "Der Anfang",
+        description:
+          "Die erste Transaktion ist erfasst.",
+      },
+      sats100k: {
+        title: "100.000 Sats",
+        description:
+          "Ein Zehntausendstel Bitcoin im Bestand.",
+      },
+      sats1m: {
+        title: "1.000.000 Sats",
+        description:
+          "Eine Million Sats, für viele die erste runde Marke.",
+      },
+      btc010: {
+        title: "0,1 BTC",
+        description:
+          "Ein Zehntel Bitcoin im Bestand.",
+      },
+      btc021: {
+        title: "0,21 BTC",
+        description:
+          "Ein Prozent von 21, der Zahl, um die sich alles dreht.",
+      },
+      btc1: {
+        title: "Wholecoiner",
+        description:
+          "Ein ganzer Bitcoin im Bestand.",
+      },
+      btc21: {
+        title: "2,1 BTC",
+        description:
+          "Zehn Prozent von 21.",
+      },
+      firstWithdrawal: {
+        title: "Von der Börse geholt",
+        description:
+          "Zum ersten Mal Bitcoin von einer Börse in eine eigene Wallet überführt.",
+      },
+      selfCustody50: {
+        title: "Die Hälfte selbst verwahrt",
+        description:
+          "Mindestens 50 % des Bestands liegen in eigener Verwahrung.",
+      },
+      selfCustody100: {
+        title: "Vollständig selbst verwahrt",
+        description:
+          "Kein Anteil des Bestands liegt mehr auf einer Börse.",
+      },
+      firstWatchedAddress: {
+        title: "Erste beobachtete Adresse",
+        description:
+          "Eine Adresse in die Watchlist aufgenommen.",
+      },
+      taprootAddress: {
+        title: "Taproot",
+        description:
+          "Eine Taproot-Adresse (bc1p…) erfasst.",
+      },
+      lightningWallet: {
+        title: "Lightning",
+        description:
+          "Eine Lightning-Wallet angelegt.",
+      },
+      firstTaxFreeLot: {
+        title: "Erstes Lot über der Jahresfrist",
+        description:
+          "Ein Lot hat die einjährige Haltefrist überschritten.",
+      },
+      days100: {
+        title: "100 Tage dabei",
+        description:
+          "Seit dem ersten Kauf sind 100 Tage vergangen.",
+      },
+      year1: {
+        title: "Ein Jahr dabei",
+        description:
+          "Seit dem ersten Kauf ist ein Jahr vergangen.",
+      },
+      throughHalving: {
+        title: "Durch ein Halving gehalten",
+        description:
+          "Über einen Halving-Termin hinweg Bestand gehalten.",
+      },
+      years4: {
+        title: "Ein voller Zyklus",
+        description:
+          "Vier Jahre seit dem ersten Kauf.",
+      },
+      firstBackup: {
+        title: "Erstes Backup",
+        description:
+          "Das Portfolio liegt als Datei gesichert vor.",
+      },
+      encrypted: {
+        title: "Verschlüsselt",
+        description:
+          "Die Portfolio-Datei ist mit einem Passwort verschlüsselt.",
+      },
+      allTransfersLinked: {
+        title: "Alle Transfers verknüpft",
+        description:
+          "Jeder Transfer hat sein Gegenstück, keine offenen Enden.",
+      },
+      allTxidsRecorded: {
+        title: "Alle Txids erfasst",
+        description:
+          "Jede Transfer-Transaktion trägt ihre On-Chain-Id.",
+      },
+      taxExported: {
+        title: "Steuerauswertung exportiert",
+        description:
+          "Eine Jahresauswertung als Datei erzeugt.",
+      },
+      taxYearClosed: {
+        title: "Steuerjahr abgeschlossen",
+        description:
+          "Ein abgelaufenes Jahr ist vollständig zugeordnet.",
+      },
+      whitepaperOpened: {
+        title: "Whitepaper gelesen",
+        description:
+          "Die neun Seiten geöffnet, die alles gestartet haben.",
+      },
+      firstConsolidation: {
+        title: "Aufgeräumt",
+        description:
+          "Mehrere Lots in einer Transaktion zusammengeführt.",
+      },
+      boughtOnHalvingDay: {
+        title: "Am Halving gekauft",
+        description:
+          "An einem Halving-Tag nachgelegt.",
+      },
+      boughtOnPizzaDay: {
+        title: "Pizza Day",
+        description:
+          "Am 22. Mai gekauft, dem Tag der zwei teuersten Pizzen der Geschichte.",
+      },
+    },
   },
   tx: {
     title: "Transaktionen",
@@ -1036,6 +1202,9 @@ const de = {
     title: "Steuer (Deutschland, FIFO)",
     disclaimer:
       "Keine Steuerberatung. FIFO-Zuordnung nach §23 EStG mit {days} Tagen Haltefrist.",
+    export: "Export (CSV)",
+    exportHint: "Veräußerungen des gewählten Jahres als CSV-Datei, lokal erzeugt.",
+    exportFileName: "steuer",
     openLots: "Offene Lots",
     acquired: "Erworben",
     amount: "Menge",
