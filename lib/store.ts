@@ -46,6 +46,45 @@ import {
   isEncryptedEnvelope,
 } from "./crypto";
 import {
+  FileIntegrityError,
+  FileUnreadableError,
+  looksTruncated,
+  stampIntegrity,
+  verifyIntegrity,
+  type IntegrityResult,
+} from "./integrity";
+import {
+  DEFAULT_BACKUP_SETTINGS,
+  backupDue,
+  backupFileName,
+  backupMetaOf,
+  backupTimeOf,
+  pruneBackups,
+  uniqueBackupName,
+  type BackupEntry,
+  type BackupMeta,
+  type BackupSettings,
+  type BackupState,
+} from "./backup";
+import {
+  applyUndo,
+  appendChange,
+  diffChange,
+  type ChangeKind,
+} from "./changeLog";
+import {
+  deleteBackupFile,
+  directoryPermission,
+  forgetBackupDirectory,
+  listDirectoryFiles,
+  pickBackupDirectory,
+  readBackupFile,
+  requestDirectoryPermission,
+  storedBackupDirectory,
+  supportsBackupDirectory,
+  writeBackupFile,
+} from "./backupStorage";
+import {
   detectFileMode,
   downloadAsFile,
   writeToHandle,
@@ -98,6 +137,25 @@ interface AppState {
   busyCount: number;
   lockSettings: LockSettings;
 
+  // Backups (§6.5)
+  /**
+   * The backup folder, as far as the UI needs to know about it. The handle
+   * itself is a module-level value: it is neither serialisable nor renderable,
+   * and putting it in the state would only invite it into a React dependency
+   * array.
+   */
+  backupDirName: string | null;
+  backupDirStatus: BackupDirStatus;
+  /** A backup is being written or verified right now. */
+  backupBusy: boolean;
+  /** Result of the last run in this session — what the settings report. */
+  lastBackupRun: BackupRunResult | null;
+  /**
+   * Set when a file was opened whose checksum did not match (§6.5). The start
+   * screen offers the backups instead of opening it silently.
+   */
+  integrityWarning: IntegrityResult | null;
+
   /**
    * Milestones reached in this session and not yet shown (§5.2). Session
    * state, never persisted: what the file remembers is that they were reached,
@@ -143,14 +201,24 @@ interface AppState {
     password: string | null;
     /** Set when loading a portfolio with no real backing file yet (see needsFileSetup). */
     isDemo?: boolean;
+    /** Opened despite a failed checksum (§6.5) — the app keeps saying so. */
+    integrityWarning?: IntegrityResult;
   }) => void;
   closePortfolio: () => void;
   togglePrivacyMode: () => void;
   setPassword: (password: string | null) => void;
   saveNow: () => Promise<void>;
 
-  /** Apply an immutable update to the portfolio and trigger autosave. */
-  update: (fn: (p: PortfolioFile) => PortfolioFile) => void;
+  /**
+   * Apply an immutable update to the portfolio and trigger autosave. Pass a
+   * `change` to have it recorded in the file's change log (§6.6) — the entry
+   * is derived by diffing, so it also covers what the action changed on the
+   * side.
+   */
+  update: (
+    fn: (p: PortfolioFile) => PortfolioFile,
+    change?: { kind: ChangeKind; note?: string },
+  ) => void;
 
   /**
    * Record a milestone that nothing in the file could work out for itself:
@@ -242,6 +310,71 @@ interface AppState {
   runBusy: <T>(fn: () => Promise<T>) => Promise<T>;
   /** Ask for the "choose a location" step (the auto-lock does when it must). */
   requestFileSetup: (on: boolean) => void;
+
+  // -------------------------------------------------------------- backups
+  /** Reconnect to the remembered backup folder; call once on startup. */
+  initBackupDirectory: () => Promise<void>;
+  /** Pick the folder (a picker, so only ever from a click). */
+  connectBackupDirectory: () => Promise<boolean>;
+  /** Ask for permission again after a reload (also only from a click). */
+  grantBackupDirectory: () => Promise<boolean>;
+  forgetBackupDirectory: () => Promise<void>;
+  /**
+   * Write a backup, read it back, verify it, then rotate. `manual` bypasses
+   * the trigger setting; everything else is decided from the settings.
+   */
+  runBackup: (o?: { manual?: boolean }) => Promise<BackupRunResult>;
+  /**
+   * A backup as a download — the only thing a browser without the File System
+   * Access API can offer, and always a manual action (§6.5).
+   */
+  downloadBackup: () => Promise<void>;
+  listBackups: () => Promise<BackupEntry[]>;
+  /** Decrypt one backup for the list and the restore confirmation. */
+  readBackup: (
+    fileName: string,
+    password: string,
+  ) => Promise<{ portfolio: PortfolioFile; meta: BackupMeta }>;
+  /**
+   * Replace the open portfolio with a backup. Writes a safety copy of the
+   * current state first, so the restore itself can be undone.
+   */
+  restoreBackup: (fileName: string, password: string) => Promise<BackupRunResult>;
+  setBackupSettings: (patch: Partial<BackupSettings>) => void;
+  /** Open the file anyway after a failed integrity check (§6.5). */
+  dismissIntegrityWarning: () => void;
+
+  // --------------------------------------------------------- change log
+  /** Reverse one recorded action (§6.6). */
+  undoChange: (entryId: string) => void;
+}
+
+export type BackupDirStatus =
+  /** No File System Access API: backups are manual downloads (§6.5). */
+  | "unsupported"
+  /** Supported, but no folder chosen yet. */
+  | "none"
+  /** Folder connected and writable. */
+  | "granted"
+  /** Folder remembered, but the browser wants permission again after a reload. */
+  | "prompt"
+  | "denied";
+
+export interface BackupRunResult {
+  ok: boolean;
+  fileName?: string;
+  /** Why it did not work, as a message key the UI translates. */
+  error?:
+    | "noDirectory"
+    | "noPortfolio"
+    | "writeFailed"
+    | "verifyFailed"
+    | "permission"
+    | "wrongPassword";
+  /** How many old backups the rotation removed. */
+  pruned?: number;
+  /** The rotation refused to remove anything (nothing verified would remain). */
+  pruneRefused?: boolean;
 }
 
 /** Why a lock attempt did or did not happen. */
@@ -328,10 +461,35 @@ export function migrateTransferFeeConvention(p: PortfolioFile): PortfolioFile {
   return changed ? { ...p, wallets } : p;
 }
 
+/** Merge a parsed file with the defaults so older minor versions keep working. */
+function migrateOpened(parsed: PortfolioFile): PortfolioFile {
+  const base = emptyPortfolio();
+  return migrateTransferFeeConvention({
+    ...base,
+    ...parsed,
+    settings: { ...base.settings, ...parsed.settings },
+    explorerSettings: { ...base.explorerSettings, ...parsed.explorerSettings },
+  });
+}
+
+/** JSON.parse that returns null instead of throwing. */
+function safeParse(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 export async function deserializePortfolio(
   text: string,
   password: string | null,
-): Promise<{ portfolio: PortfolioFile; wasEncrypted: boolean }> {
+  /**
+   * Check the file's own checksum and refuse a mismatch (§6.5). Off where the
+   * caller has already decided to open a damaged file on purpose.
+   */
+  options: { verifyIntegrity?: boolean } = {},
+): Promise<{ portfolio: PortfolioFile; wasEncrypted: boolean; integrity: IntegrityResult }> {
   let json = text;
   let wasEncrypted = false;
   if (isEncryptedEnvelope(text)) {
@@ -339,21 +497,20 @@ export async function deserializePortfolio(
     json = await decryptPortfolio(text, password);
     wasEncrypted = true;
   }
-  const parsed = JSON.parse(json) as PortfolioFile;
+  const raw = safeParse(json);
+  // A file that does not parse is either not ours or not all there. Both are
+  // worth saying in words rather than as a stack trace (§6.5).
+  if (raw === null) throw new FileUnreadableError(looksTruncated(json));
+  const parsed = raw as PortfolioFile;
   if (parsed.version !== "1.0" || !Array.isArray(parsed.wallets)) {
-    throw new Error("invalid portfolio file");
+    throw new FileUnreadableError(false);
   }
-  // Merge with defaults so files from older minor versions keep working.
-  const base = emptyPortfolio();
-  return {
-    portfolio: migrateTransferFeeConvention({
-      ...base,
-      ...parsed,
-      settings: { ...base.settings, ...parsed.settings },
-      explorerSettings: { ...base.explorerSettings, ...parsed.explorerSettings },
-    }),
-    wasEncrypted,
-  };
+  // On the *raw* parsed object, before the merge below reorders its keys.
+  const integrity = await verifyIntegrity(raw);
+  if (integrity === "mismatch" && options.verifyIntegrity !== false) {
+    throw new FileIntegrityError(migrateOpened(parsed));
+  }
+  return { portfolio: migrateOpened(parsed), wasEncrypted, integrity };
 }
 
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -423,15 +580,36 @@ function storeLockSettings(settings: LockSettings): void {
   }
 }
 
+/**
+ * The backup folder's handle. Module-level rather than in the store: it is
+ * neither serialisable nor renderable, and the store only carries what the UI
+ * has to react to (see `backupDirStatus`).
+ */
+let backupDir: FileSystemDirectoryHandle | null = null;
+
 export const useAppStore = create<AppState>((set, get) => {
+  /** The bytes that go into a file: stamped with their own checksum (§6.5). */
+  async function fileContentOf(
+    portfolio: PortfolioFile,
+    password: string | null,
+  ): Promise<string> {
+    const json = serializePortfolio(await stampIntegrity(portfolio));
+    return password ? await encryptPortfolio(json, password) : json;
+  }
+
   async function persist(): Promise<void> {
-    const { portfolio, password, encryptionEnabled, fileHandle, fileMode } = get();
+    const { portfolio, password, encryptionEnabled } = get();
     if (!portfolio) return;
-    const json = serializePortfolio(portfolio);
-    const content =
-      encryptionEnabled && password
-        ? await encryptPortfolio(json, password)
-        : json;
+    // The backup goes first, so the state it records travels into this same
+    // write instead of trailing a save behind (see runBackup).
+    await maybeAutoBackup();
+    const current = get().portfolio;
+    if (!current) return;
+    const { fileHandle, fileMode } = get();
+    const content = await fileContentOf(
+      current,
+      encryptionEnabled && password ? password : null,
+    );
     if (fileMode === "fsa" && fileHandle) {
       set({ saving: true });
       try {
@@ -444,6 +622,26 @@ export const useAppStore = create<AppState>((set, get) => {
       downloadAsFile(content, get().fileName ?? "portfolio.dwp");
       set({ dirty: false, lastSavedAt: Date.now() });
     }
+  }
+
+  /**
+   * Record how the last backup went, without marking the file dirty: this is
+   * bookkeeping about a save, not a change the user made, and dirtying here
+   * would make "back up on every save" chase its own tail.
+   */
+  function setBackupState(patch: BackupState): void {
+    const p = get().portfolio;
+    if (!p) return;
+    set({ portfolio: { ...p, backupState: { ...p.backupState, ...patch } } });
+  }
+
+  /** Write a backup only when the trigger says it is time. */
+  async function maybeAutoBackup(): Promise<void> {
+    const p = get().portfolio;
+    if (!p || backupDir === null) return;
+    const settings = p.settings.backup ?? DEFAULT_BACKUP_SETTINGS;
+    if (!backupDue(settings.trigger, p.backupState?.lastBackupAt, new Date())) return;
+    await get().runBackup();
   }
 
   function scheduleAutosave() {
@@ -496,10 +694,23 @@ export const useAppStore = create<AppState>((set, get) => {
     };
   };
 
-  const mutate = (fn: (p: PortfolioFile) => PortfolioFile) => {
+  /**
+   * Apply a change. `change` records it in the file's change log (§6.6) — the
+   * entry is *derived by diffing* rather than described by the caller, so an
+   * undo also reverses what the action did on the side (a deletion drops lot
+   * allocations and unlinks transfer legs, §3.2).
+   */
+  const mutate = (
+    fn: (p: PortfolioFile) => PortfolioFile,
+    change?: { kind: ChangeKind; note?: string },
+  ) => {
     const p = get().portfolio;
     if (!p) return;
-    const next = fn(p);
+    let next = fn(p);
+    if (change && next !== p) {
+      const entry = diffChange(p, next, change.kind, { note: change.note });
+      if (entry) next = { ...next, changeLog: appendChange(next.changeLog, entry) };
+    }
     // An update that changed nothing must not mark the file dirty: the UI
     // settings are committed wholesale when an editing session ends, which
     // also happens when nothing was actually moved.
@@ -543,6 +754,11 @@ export const useAppStore = create<AppState>((set, get) => {
     unlockBlockedUntil: 0,
     busyCount: 0,
     lockSettings: DEFAULT_LOCK_SETTINGS,
+    backupDirName: null,
+    backupDirStatus: "none",
+    backupBusy: false,
+    lastBackupRun: null,
+    integrityWarning: null,
     privacyMode: false,
     uiLocale: "de",
     appearance: DEFAULT_APPEARANCE,
@@ -589,7 +805,7 @@ export const useAppStore = create<AppState>((set, get) => {
       }
     },
 
-    openPortfolio: ({ portfolio, handle, fileName, password, isDemo }) => {
+    openPortfolio: ({ portfolio, handle, fileName, password, isDemo, integrityWarning }) => {
       // The file's own language and appearance win on open and become the
       // device defaults; whatever a file does not say keeps its current value,
       // so an older file simply carries less over.
@@ -622,6 +838,7 @@ export const useAppStore = create<AppState>((set, get) => {
         dirty: false,
         lastSavedAt: null,
         needsFileSetup: !!isDemo,
+        integrityWarning: integrityWarning ?? null,
         uiLocale: portfolio.settings.locale,
         appearance,
         lockSettings,
@@ -680,7 +897,9 @@ export const useAppStore = create<AppState>((set, get) => {
       ),
 
     deleteWallet: (walletId) =>
-      mutate((p) => mapWallets(p, (w) => (w.id === walletId ? null : w))),
+      mutate((p) => mapWallets(p, (w) => (w.id === walletId ? null : w)), {
+        kind: "delete",
+      }),
 
     addAccount: (walletId, account) =>
       mutate((p) =>
@@ -704,24 +923,28 @@ export const useAppStore = create<AppState>((set, get) => {
       ),
 
     deleteAccount: (walletId, accountId) =>
-      mutate((p) =>
-        mapWallets(p, (w) =>
-          w.id === walletId
-            ? { ...w, accounts: w.accounts.filter((a) => a.id !== accountId) }
-            : w,
-        ),
+      mutate(
+        (p) =>
+          mapWallets(p, (w) =>
+            w.id === walletId
+              ? { ...w, accounts: w.accounts.filter((a) => a.id !== accountId) }
+              : w,
+          ),
+        { kind: "delete" },
       ),
 
     addTransaction: (accountId, tx) =>
-      mutate((p) =>
-        mapWallets(p, (w) => ({
-          ...w,
-          accounts: w.accounts.map((a) =>
-            a.id === accountId
-              ? { ...a, transactions: [...a.transactions, tx] }
-              : a,
-          ),
-        })),
+      mutate(
+        (p) =>
+          mapWallets(p, (w) => ({
+            ...w,
+            accounts: w.accounts.map((a) =>
+              a.id === accountId
+                ? { ...a, transactions: [...a.transactions, tx] }
+                : a,
+            ),
+          })),
+        { kind: "add" },
       ),
 
     updateTransaction: (txId, tx, accountId) =>
@@ -756,7 +979,7 @@ export const useAppStore = create<AppState>((set, get) => {
               : { ...a, transactions: adjusted };
           }),
         }));
-      }),
+      }, { kind: "update" }),
 
     moveTransactions: (txIds, targetAccountId) =>
       mutate((p) => {
@@ -800,13 +1023,17 @@ export const useAppStore = create<AppState>((set, get) => {
             return txs === a.transactions ? a : { ...a, transactions: txs };
           }),
         }));
-      }),
+      }, { kind: "move" }),
 
     deleteTransaction: (txId) =>
-      mutate((p) => ({ ...p, wallets: deleteAndRelease(p.wallets, [txId]) })),
+      mutate((p) => ({ ...p, wallets: deleteAndRelease(p.wallets, [txId]) }), {
+        kind: "delete",
+      }),
 
     deleteTransactions: (txIds) =>
-      mutate((p) => ({ ...p, wallets: deleteAndRelease(p.wallets, txIds) })),
+      mutate((p) => ({ ...p, wallets: deleteAndRelease(p.wallets, txIds) }), {
+        kind: "delete",
+      }),
 
     addWatchedAddress: (a) =>
       mutate((p) => ({ ...p, watchedAddresses: [...p.watchedAddresses, a] })),
@@ -861,7 +1088,7 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     undoImportBatch: (batchId, ids) =>
-      mutate((p) => removeBatchTransactions(p, batchId, ids)),
+      mutate((p) => removeBatchTransactions(p, batchId, ids), { kind: "importUndo" }),
 
     deleteImportPreset: (id) =>
       mutate((p) => ({
@@ -1016,5 +1243,244 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     requestFileSetup: (on) => set({ fileSetupRequested: on }),
+
+    // ------------------------------------------------------------ backups
+
+    initBackupDirectory: async () => {
+      if (!supportsBackupDirectory()) {
+        set({ backupDirStatus: "unsupported" });
+        return;
+      }
+      const handle = await storedBackupDirectory();
+      if (!handle) {
+        set({ backupDirStatus: "none" });
+        return;
+      }
+      backupDir = handle;
+      // A remembered handle does not come back with its permission: the
+      // browser wants a gesture for that, which is why the settings show a
+      // "reconnect" button rather than trying and failing in the background.
+      set({ backupDirName: handle.name, backupDirStatus: await directoryPermission(handle) });
+    },
+
+    connectBackupDirectory: async () => {
+      const handle = await pickBackupDirectory();
+      if (!handle) return false;
+      backupDir = handle;
+      set({ backupDirName: handle.name, backupDirStatus: await directoryPermission(handle) });
+      return true;
+    },
+
+    grantBackupDirectory: async () => {
+      if (!backupDir) return false;
+      const ok = await requestDirectoryPermission(backupDir);
+      set({ backupDirStatus: ok ? "granted" : "denied" });
+      return ok;
+    },
+
+    forgetBackupDirectory: async () => {
+      backupDir = null;
+      await forgetBackupDirectory();
+      set({ backupDirName: null, backupDirStatus: "none", lastBackupRun: null });
+    },
+
+    runBackup: async (o = {}) => {
+      const p = get().portfolio;
+      if (!p) return { ok: false, error: "noPortfolio" };
+      if (!backupDir) {
+        // Without a folder there is nothing automatic to do. A manual run in
+        // the fallback mode is a download and lives in the view, not here.
+        const result: BackupRunResult = { ok: false, error: "noDirectory" };
+        if (o.manual) set({ lastBackupRun: result });
+        return result;
+      }
+      if ((await directoryPermission(backupDir)) !== "granted") {
+        const result: BackupRunResult = { ok: false, error: "permission" };
+        set({ backupDirStatus: "prompt", lastBackupRun: result });
+        return result;
+      }
+
+      const { password } = get();
+      // Never reuse a name: two backups can land in the same second, and the
+      // one that would be overwritten is sometimes the one being restored from.
+      const existing = await get().listBackups();
+      const fileName = uniqueBackupName(
+        backupFileName(new Date()),
+        new Set(existing.map((e) => e.fileName)),
+      );
+      set({ backupBusy: true });
+      try {
+        const source = get().portfolio!;
+        const content = await fileContentOf(source, password);
+        try {
+          await writeBackupFile(backupDir, fileName, content);
+        } catch (e) {
+          console.error("backup write failed", e);
+          const result: BackupRunResult = { ok: false, fileName, error: "writeFailed" };
+          setBackupState({
+            lastBackupAt: new Date().toISOString(),
+            lastFileName: fileName,
+            lastVerified: false,
+            lastError: "writeFailed",
+          });
+          set({ lastBackupRun: result });
+          return result;
+        }
+
+        // The whole point: a copy that has not been read back is not a backup.
+        // Written, re-read, decrypted, parsed, checksum verified, and compared
+        // against what it was made from.
+        let verified = false;
+        try {
+          const text = await readBackupFile(backupDir, fileName);
+          const { portfolio: readBack } = await deserializePortfolio(text, password);
+          verified =
+            backupMetaOf(readBack, "ok").transactionCount ===
+            backupMetaOf(source, "ok").transactionCount;
+        } catch (e) {
+          console.error("backup verification failed", e);
+          verified = false;
+        }
+
+        const at = new Date().toISOString();
+        setBackupState({
+          lastBackupAt: at,
+          lastFileName: fileName,
+          lastVerified: verified,
+          lastError: verified ? undefined : "verifyFailed",
+          ...(verified ? { lastVerifiedAt: at } : {}),
+        });
+        if (!verified) {
+          const result: BackupRunResult = { ok: false, fileName, error: "verifyFailed" };
+          set({ lastBackupRun: result });
+          return result;
+        }
+
+        // Rotation runs only now, on the far side of a verified write: the
+        // file we just proved good is the one the pruner is allowed to count
+        // on (see pruneBackups).
+        let pruned = 0;
+        let pruneRefused = false;
+        try {
+          const settings = (get().portfolio!.settings.backup ?? DEFAULT_BACKUP_SETTINGS)
+            .retention;
+          const entries = await get().listBackups();
+          const plan = pruneBackups(entries, settings, Date.now(), new Set([fileName]));
+          pruneRefused = plan.refused;
+          for (const entry of plan.remove) {
+            await deleteBackupFile(backupDir, entry.fileName);
+            pruned += 1;
+          }
+        } catch (e) {
+          console.error("backup rotation failed", e);
+        }
+
+        const result: BackupRunResult = { ok: true, fileName, pruned, pruneRefused };
+        set({ lastBackupRun: result });
+        return result;
+      } finally {
+        set({ backupBusy: false });
+      }
+    },
+
+    downloadBackup: async () => {
+      const p = get().portfolio;
+      if (!p) return;
+      const content = await fileContentOf(p, get().password);
+      downloadAsFile(content, backupFileName(new Date()));
+      // Written by hand, and never read back by us: a download lands wherever
+      // the browser puts it, so this cannot claim to be verified.
+      setBackupState({
+        lastBackupAt: new Date().toISOString(),
+        lastVerified: false,
+        lastError: "manualDownload",
+      });
+    },
+
+    listBackups: async () => {
+      if (!backupDir) return [];
+      const files = await listDirectoryFiles(backupDir);
+      const entries: BackupEntry[] = [];
+      for (const f of files) {
+        const time = backupTimeOf(f.name);
+        if (time === null) continue; // somebody else's file in the same folder
+        entries.push({ fileName: f.name, time, sizeBytes: f.sizeBytes });
+      }
+      return entries.sort((a, b) => b.time - a.time);
+    },
+
+    readBackup: async (fileName, password) => {
+      if (!backupDir) throw new Error("no backup directory");
+      const text = await readBackupFile(backupDir, fileName);
+      // A backup whose checksum does not match is still worth looking at: the
+      // list says so, and the user decides. Refusing to read it would hide the
+      // one copy they might still want.
+      const { portfolio, integrity } = await deserializePortfolio(text, password, {
+        verifyIntegrity: false,
+      });
+      return { portfolio, meta: backupMetaOf(portfolio, integrity) };
+    },
+
+    restoreBackup: async (fileName, password) => {
+      const current = get().portfolio;
+      if (!current) return { ok: false, error: "noPortfolio" };
+      let restored: PortfolioFile;
+      try {
+        restored = (await get().readBackup(fileName, password)).portfolio;
+      } catch {
+        return { ok: false, error: "wrongPassword" };
+      }
+
+      // Undoing the undo: a copy of what is about to be replaced, written and
+      // verified before anything is overwritten. A restore that cannot itself
+      // be reversed is a second way to lose everything.
+      const safety = await get().runBackup({ manual: true });
+      if (!safety.ok && safety.error !== "noDirectory") return safety;
+
+      const entry = diffChange(current, restored, "restore", { note: fileName });
+      // The backup bookkeeping and the change history belong to the session,
+      // not to the data being restored: taking them from the backup would
+      // rewind the record of backups (making the one just written look
+      // undone) and drop the entry that says a restore happened at all.
+      const live = get().portfolio ?? current;
+      set({
+        portfolio: {
+          ...restored,
+          backupState: live.backupState,
+          changeLog: entry
+            ? appendChange(live.changeLog, entry)
+            : live.changeLog,
+        },
+        dirty: true,
+      });
+      // Written straight through, so what is on disk is what is on screen. The
+      // confirmation before this is what makes it not silent (§6.5).
+      await persist();
+      return { ok: true, fileName };
+    },
+
+    setBackupSettings: (patch) =>
+      mutate((p) => ({
+        ...p,
+        settings: {
+          ...p.settings,
+          backup: { ...DEFAULT_BACKUP_SETTINGS, ...p.settings.backup, ...patch },
+        },
+      })),
+
+    dismissIntegrityWarning: () => set({ integrityWarning: null }),
+
+    undoChange: (entryId) =>
+      mutate((p) => {
+        const entry = (p.changeLog ?? []).find((e) => e.id === entryId);
+        if (!entry) return p;
+        const { portfolio } = applyUndo(p, entry);
+        // The undo is itself a change: recorded like any other, and the entry
+        // it reverses is dropped so it cannot be applied twice.
+        return {
+          ...portfolio,
+          changeLog: (portfolio.changeLog ?? []).filter((e) => e.id !== entryId),
+        };
+      }, { kind: "restore" }),
   };
 });

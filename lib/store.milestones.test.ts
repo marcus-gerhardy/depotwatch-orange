@@ -93,10 +93,9 @@ describe("while working", () => {
     const p = portfolio([]);
     p.milestones = [];
     open(p);
-    // Opening the file already earns "first backup" — the portfolio lives in
-    // one. What matters here is what the *change* adds on top.
-    expect(queue()).toEqual(["firstBackup"]);
-    useAppStore.setState({ milestoneQueue: [] });
+    // Nothing is earned by merely opening an empty file: "first backup" now
+    // means a verified copy in the backup folder (§6.5), not a saved file.
+    expect(queue()).toEqual([]);
 
     useAppStore.getState().addTransaction("a1", tx({ id: "b1" }));
 

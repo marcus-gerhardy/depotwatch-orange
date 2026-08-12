@@ -17,7 +17,7 @@ import TransactionsView from "./TransactionsView";
 import WalletsView from "./WalletsView";
 import TaxView from "./TaxView";
 import WatchlistView from "./WatchlistView";
-import SettingsView from "./SettingsView";
+import SettingsView, { type SettingsSection } from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
@@ -117,6 +117,10 @@ export default function AppShell() {
   const [watchlistAdd, setWatchlistAdd] = useState(false);
   /** Year the review opens at when the dashboard hint sent us there. */
   const [reviewYear, setReviewYear] = useState<number | undefined>(undefined);
+  /** Settings group to open at, when something linked into one (§6.5). */
+  const [settingsSection, setSettingsSection] = useState<SettingsSection | undefined>(
+    undefined,
+  );
   const fileMode = useAppStore((s) => s.fileMode);
   const dirty = useAppStore((s) => s.dirty);
   const privacyMode = useAppStore((s) => s.privacyMode);
@@ -325,6 +329,7 @@ export default function AppShell() {
                   // cleared here rather than firing again on the next visit.
                   setWatchlistAdd(false);
                   setReviewYear(undefined);
+                  setSettingsSection(undefined);
                   setTab(item.id);
                   setMenuOpen(false);
                 }}
@@ -349,6 +354,10 @@ export default function AppShell() {
               setTab("transactions");
             }}
             onOpenMilestones={() => setTab("milestones")}
+            onOpenBackups={() => {
+              setSettingsSection("backups");
+              setTab("settings");
+            }}
             onOpenYearInReview={(year) => {
               setReviewYear(year);
               setTab("yearInReview");
@@ -369,7 +378,7 @@ export default function AppShell() {
           <MilestonesView onOpenYearInReview={() => setTab("yearInReview")} />
         )}
         {tab === "yearInReview" && <YearInReview initialYear={reviewYear} />}
-        {tab === "settings" && <SettingsView />}
+        {tab === "settings" && <SettingsView initialSection={settingsSection} />}
       </main>
 
       {showFileSetup && portfolio && (

@@ -230,7 +230,7 @@ describe("culture and diligence", () => {
     ).toBe(true);
   });
 
-  it("reads encryption and the first save from the runtime, not from the file", () => {
+  it("reads encryption from the runtime, not from the file", () => {
     const p = simple([tx({ id: "b1", type: "buy", date: "2024-01-01T00:00:00.000Z" })]);
     const plain = evaluateMilestones(ctxOf(p)).milestones.map((m) => m.id);
     expect(plain).not.toContain("encrypted");
@@ -239,7 +239,35 @@ describe("culture and diligence", () => {
       ctxOf(p, new Date("2026-08-11T12:00:00.000Z"), { encrypted: true, savedOnce: true }),
     ).milestones.map((m) => m.id);
     expect(saved).toContain("encrypted");
-    expect(saved).toContain("firstBackup");
+  });
+
+  it("only counts a backup that was read back, not a file that was saved", () => {
+    // Saving is not backing up: it is the same copy in the same place (§6.5).
+    const p = simple([tx({ id: "b1", type: "buy", date: "2024-01-01T00:00:00.000Z" })]);
+    const savedOnly = evaluateMilestones(
+      ctxOf(p, new Date("2026-08-11T12:00:00.000Z"), { encrypted: true, savedOnce: true }),
+    ).milestones.map((m) => m.id);
+    expect(savedOnly).not.toContain("firstBackup");
+
+    const written = simple([tx({ id: "b1", type: "buy", date: "2024-01-01T00:00:00.000Z" })]);
+    written.backupState = {
+      lastBackupAt: "2026-08-10T09:00:00.000Z",
+      lastVerified: false,
+    };
+    expect(
+      evaluateMilestones(ctxOf(written)).milestones.map((m) => m.id),
+    ).not.toContain("firstBackup");
+
+    written.backupState = {
+      lastBackupAt: "2026-08-10T09:00:00.000Z",
+      lastVerified: true,
+      lastVerifiedAt: "2026-08-10T09:00:00.000Z",
+    };
+    const record = evaluateMilestones(ctxOf(written)).milestones.find(
+      (m) => m.id === "firstBackup",
+    );
+    // Dated from when the backup verified, not from now.
+    expect(record?.achievedAt).toBe("2026-08-10T09:00:00.000Z");
   });
 });
 

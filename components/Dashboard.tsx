@@ -39,6 +39,7 @@ import { WIDGET_IDS, type WidgetDefinition } from "./widgets/registry";
 import WidgetHost from "./widgets/WidgetHost";
 import WidgetPicker from "./widgets/WidgetPicker";
 import YearInReviewHint from "./YearInReviewHint";
+import BackupReminder from "./BackupReminder";
 
 // The grid measures the DOM and drives drag/resize, so there is nothing to
 // prerender — and the static export must not try.
@@ -123,7 +124,7 @@ function WidgetStack({ widgets }: { widgets: WidgetPlacement[] }) {
   );
 }
 
-function DashboardBody() {
+function DashboardBody({ openBackups }: { openBackups: () => void }) {
   const { t } = useI18n();
   const wide = useIsWideViewport();
   const storedLayout = useAppStore((s) => s.portfolio?.uiSettings?.dashboardLayout);
@@ -221,6 +222,7 @@ function DashboardBody() {
         </div>
       </div>
 
+      <BackupReminder onOpen={openBackups} />
       <YearInReviewHint />
       <LedgerWarnings />
 
@@ -266,6 +268,7 @@ export default function Dashboard({
   onOpenWatchlist,
   onOpenMilestones,
   onOpenYearInReview,
+  onOpenBackups,
 }: {
   /** Jump to the transaction table with a filter applied (wallet or issue). */
   onOpenTransactions?: (filter: TxJumpFilter) => void;
@@ -275,6 +278,8 @@ export default function Dashboard({
   onOpenMilestones?: () => void;
   /** Jump to the year in review, at the year the December hint names. */
   onOpenYearInReview?: (year: number) => void;
+  /** Jump to the backups view (the reminder links there). */
+  onOpenBackups?: () => void;
 }) {
   const noop = useCallback(() => {}, []);
   return (
@@ -284,7 +289,7 @@ export default function Dashboard({
       openMilestones={onOpenMilestones ?? noop}
       openYearInReview={onOpenYearInReview ?? noop}
     >
-      <DashboardBody />
+      <DashboardBody openBackups={onOpenBackups ?? noop} />
     </DashboardDataProvider>
   );
 }

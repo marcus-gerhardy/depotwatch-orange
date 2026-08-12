@@ -12,6 +12,7 @@ const en: typeof de = {
     edit: "Edit",
     add: "Add",
     close: "Close",
+    actions: "Actions",
     loading: "Loading …",
     error: "Error",
     confirmDelete: "Really delete?",
@@ -24,6 +25,19 @@ const en: typeof de = {
   },
   start: {
     openFile: "Open portfolio file",
+    damagedTitle: "This file is damaged",
+    damaged: {
+      integrity:
+        "The contents do not match the checksum stored in the file. It was changed after the last save, or damaged while being written or copied.",
+      truncated:
+        "The file stops in the middle of its contents. A save was probably interrupted, or the copy is incomplete.",
+      unreadable:
+        "The file could not be read. Either it is not a portfolio file, or its contents are destroyed.",
+    },
+    damagedAdvice:
+      "It is therefore not opened automatically. Open a backup instead: backups are complete portfolio files and live in your backup folder.",
+    damagedOpenBackup: "Open a backup file",
+    damagedOpenAnyway: "Open anyway",
     createFile: "Create new portfolio",
     passwordTitle: "Enter password",
     passwordFor: "Password for {name}",
@@ -357,6 +371,9 @@ const en: typeof de = {
       selfCustody: "Self custody",
       exchangeWarning:
         "Bitcoin on an exchange is only a claim against that exchange. For long-term holdings, self custody is safer.",
+      backupOk: "Backup verified: {when}",
+      backupUnverified: "Backup from {when} not verified",
+      backupNever: "No verified backup yet",
       yearInReviewEmpty: "No completed year in the ledger yet.",
       yearInReviewStacked: "Net stacked in {year}",
       custodyEmpty: "No holdings yet.",
@@ -1476,8 +1493,76 @@ const en: typeof de = {
     stayUnlocked: "Stay unlocked",
     busyToast: "Cannot lock: an operation is still running. Try again once it is done.",
   },
+  backups: {
+    title: "Backups",
+    intro:
+      "Your data lives in a single file. So that one damaged or lost copy does not mean everything, the app writes encrypted copies into a folder you choose, and reads each one back immediately to check that it can actually be restored.",
+    unsupported:
+      "This browser cannot open a folder (no File System Access API), so automatic backups are not possible here. You can create a backup as a download at any time, but you have to trigger it yourself.",
+    noFolder:
+      "No backup folder has been chosen yet. Without one the app cannot write copies.",
+    noFolderShort: "No backup folder chosen",
+    folderHint:
+      "The portfolio file's handle cannot write neighbouring files. Backups therefore need a folder, chosen once; the choice is remembered.",
+    folder: "Folder",
+    chooseFolder: "Choose a backup folder",
+    changeFolder: "Different folder",
+    forgetFolder: "Forget folder",
+    reconnect: "Grant access again",
+    permissionNeeded:
+      "After a browser restart, write access to the folder has to be confirmed once.",
+    backupNow: "Back up now",
+    running: "Backing up …",
+    download: "Download a backup",
+    empty: "No backups in this folder yet.",
+    when: "When",
+    size: "Size",
+    contents: "Contents",
+    inspect: "Inspect",
+    restore: "Restore",
+    password: "Backup password",
+    passwordPlaceholder: "Password",
+    passwordHint:
+      "Used only to decrypt in your browser. Older backups may carry an earlier password.",
+    transactions: "{count} transactions",
+    lastTransaction: "last transaction: {date}",
+    noTransactions: "no transactions",
+    integrityMismatch: "Checksum does not match",
+    lastOk: "Backup written and verified: {name} ({pruned} old ones removed)",
+    confirmTitle: "Restore this backup?",
+    confirmBody:
+      "The current state will be replaced by the state in the backup. Check both sides before you continue.",
+    currentFile: "Currently open",
+    theBackup: "Backup",
+    safetyNote:
+      "Before restoring, a backup of the current state is written and verified automatically, so this can be undone again.",
+    restoreConfirm: "Yes, restore",
+    restoring: "Restoring …",
+    openView: "Open backups",
+    reminderNever: "There is no verified backup of this file yet.",
+    reminderDays: "The last verified backup was {days} days ago.",
+    error: {
+      noDirectory: "No backup folder chosen.",
+      noPortfolio: "No file open.",
+      writeFailed: "The backup could not be written.",
+      verifyFailed:
+        "The backup was written but could not be read back. Do not rely on it.",
+      permission: "Access to the backup folder has to be granted again.",
+      wrongPassword: "Wrong password for this backup.",
+    },
+  },
   settings: {
     title: "Settings",
+    nav: {
+      general: "General",
+      appearance: "Appearance",
+      security: "Security",
+      backups: "Backups",
+      history: "Change history",
+      import: "Import",
+      tax: "Tax",
+      explorer: "Explorer",
+    },
     general: "General",
     language: "Language",
     currencyBtc: "BTC (amounts in sats)",
@@ -1531,6 +1616,43 @@ const en: typeof de = {
       "This file is not encrypted and therefore cannot be locked: without a password there is nothing to lock it with. Set a password above and the lock takes effect.",
     lockHint:
       "Locking saves pending changes first, then removes the decrypted data and the password from memory. Unlocking needs the password again. Lock by hand with Ctrl/Cmd + L.",
+    appearance: "Appearance",
+    backupSchedule: "Schedule and retention",
+    backups: "Backups",
+    backupTriggerLabel: "Write a backup",
+    backupKeepLatest: "Keep this many recent backups",
+    backupReminderDays: "Remind after (days without a backup)",
+    backupRetentionHint:
+      "On top of that, one per day for the last {daily} days, one per week for the last {weekly} weeks and one per month for the last {monthly} months are kept. Nothing is deleted unless at least one verified backup remains afterwards.",
+    backupLastOk: "Last backup verified: {when}",
+    backupLastUnverified:
+      "The backup from {when} could not be verified. Do not rely on it.",
+    backupNever: "There is no verified backup of this file yet.",
+    backupWithNewPassword: "Create a backup with the new password",
+    passwordChangedBackups:
+      "Existing backups stay encrypted with the old password and can only be opened with it. Best to write a fresh backup right away.",
+    passwordChangeBackupWarning:
+      "A new password only applies to future saves. Every existing backup still needs the old one.",
+    changeLog: "Change history",
+    changeLogHint:
+      "The most recent changes to this file, for traceability and for taking single actions back. This is not a backup: that is what the backups are for.",
+    changeLogEmpty: "No changes recorded yet.",
+    undo: "Undo",
+    notUndoable: "too large",
+    changeKind: {
+      add: "{count} transaction(s) recorded",
+      update: "{count} transaction(s) edited",
+      delete: "{count} transaction(s) deleted",
+      move: "{count} transaction(s) moved",
+      import: "{count} transaction(s) imported",
+      importUndo: "Import undone ({count})",
+      restore: "Restore ({count} affected)",
+    },
+    backupTrigger: {
+      everySave: "On every save",
+      daily: "Once a day",
+      manual: "Manually only",
+    },
     explorer: "Explorer source (on-chain data)",
     explorerPublic: "Public API",
     explorerCustom: "Own server (Esplora-compatible)",

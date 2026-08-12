@@ -3,6 +3,9 @@
 
 import type { UserImportPreset } from "./importPresets";
 import type { MilestoneRecord } from "./milestones";
+import type { BackupSettings, BackupState } from "./backup";
+import type { ChangeLogEntry } from "./changeLog";
+import type { IntegrityStamp } from "./integrity";
 import { DEFAULT_THEME, type ThemeId, type ThemeMode } from "./theme";
 
 export type WalletType = "exchange" | "hardware" | "software" | "paper";
@@ -219,6 +222,12 @@ export interface AppSettings {
    * Optional: files written before it existed use the default.
    */
   importDuplicateToleranceMinutes?: number;
+  /**
+   * Backups (§6.5): when they are written, how many are kept, and after how
+   * many days without one the reminder appears. Optional — a file written
+   * before backups existed falls back to DEFAULT_BACKUP_SETTINGS.
+   */
+  backup?: BackupSettings;
 }
 
 /** One widget placed on the dashboard grid, in grid units (CLAUDE.md §4.1). */
@@ -302,6 +311,24 @@ export interface PortfolioFile {
   milestones?: MilestoneRecord[];
   /** Interface arrangement; absent in files written before it existed. */
   uiSettings?: UiSettings;
+  /**
+   * How backups are going (§6.5): when the last one was written and whether
+   * reading it back worked. Written by the app, read by the reminder and by
+   * the "first backup" milestone.
+   */
+  backupState?: BackupState;
+  /**
+   * The last 50 changes (§6.6). Traceability and undo for single actions and
+   * bulk operations, deliberately not a disaster measure — that is what the
+   * backups are for.
+   */
+  changeLog?: ChangeLogEntry[];
+  /**
+   * Checksum of everything above (§6.5), written on save and checked on open.
+   * Never part of what is hashed. Absent in files written before it existed,
+   * which are opened without a check rather than treated as damaged.
+   */
+  integrity?: IntegrityStamp;
 }
 
 /**

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore, deserializePortfolio } from "@/lib/store";
 import { isEncryptedEnvelope, WrongPasswordError } from "@/lib/crypto";
+import { FileIntegrityError, FileUnreadableError } from "@/lib/integrity";
 import { pickFileForOpen } from "@/lib/fileStorage";
+import type { PortfolioFile } from "@/lib/types";
 import { staticPagePath } from "@/lib/routes";
 import { Button, Card, inputCls } from "./ui";
 import NewFileWizard from "./NewFileWizard";
@@ -13,6 +15,20 @@ import LanguageSwitch from "./LanguageSwitch";
 
 type Stage =
   | { kind: "home" }
+  /**
+   * The file was read but does not match its own checksum, or could not be
+   * read at all (§6.5). Never opened silently: the user is told what is wrong
+   * and offered the way out, which is a backup rather than a stack trace.
+   */
+  | {
+      kind: "damaged";
+      fileName: string;
+      reason: "integrity" | "truncated" | "unreadable";
+      /** What the file claims to contain, when it could be parsed at all. */
+      portfolio: PortfolioFile | null;
+      handle: FileSystemFileHandle | null;
+      password: string | null;
+    }
   | {
       kind: "unlock";
       fileName: string;
@@ -24,6 +40,40 @@ type Stage =
 export default function StartScreen() {
   const { t, locale } = useI18n();
   const openPortfolio = useAppStore((s) => s.openPortfolio);
+
+  /**
+   * Turn a failed read into the damaged-file stage. Anything that is not a
+   * wrong password is a broken file, and both of the ways a file breaks get
+   * their own sentence.
+   */
+  function damaged(
+    e: unknown,
+    o: {
+      fileName: string;
+      handle: FileSystemFileHandle | null;
+      password: string | null;
+    },
+  ): boolean {
+    if (e instanceof FileIntegrityError) {
+      setStage({
+        kind: "damaged",
+        reason: "integrity",
+        portfolio: e.portfolio as PortfolioFile,
+        ...o,
+      });
+      return true;
+    }
+    if (e instanceof FileUnreadableError) {
+      setStage({
+        kind: "damaged",
+        reason: e.truncated ? "truncated" : "unreadable",
+        portfolio: null,
+        ...o,
+      });
+      return true;
+    }
+    return false;
+  }
 
   const [stage, setStage] = useState<Stage>({ kind: "home" });
   const [password, setPassword] = useState("");
@@ -61,8 +111,10 @@ export default function StartScreen() {
         fileName: picked.file.name,
         password: null,
       });
-    } catch {
-      setError(t("start.invalidFile"));
+    } catch (e) {
+      if (!damaged(e, { fileName: picked.file.name, handle: picked.handle, password: null })) {
+        setError(t("start.invalidFile"));
+      }
     }
   }
 
@@ -104,14 +156,32 @@ export default function StartScreen() {
         password,
       });
     } catch (e) {
-      setError(
-        e instanceof WrongPasswordError
-          ? t("start.wrongPassword")
-          : t("start.invalidFile"),
-      );
+      if (e instanceof WrongPasswordError) {
+        setError(t("start.wrongPassword"));
+      } else if (
+        !damaged(e, {
+          fileName: stage.fileName,
+          handle: stage.handle,
+          password,
+        })
+      ) {
+        setError(t("start.invalidFile"));
+      }
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Open a damaged file anyway — a deliberate choice, never the default. */
+  function openDamaged(stage: Extract<Stage, { kind: "damaged" }>) {
+    if (!stage.portfolio) return;
+    openPortfolio({
+      portfolio: stage.portfolio,
+      handle: stage.handle,
+      fileName: stage.fileName,
+      password: stage.password,
+      integrityWarning: "mismatch",
+    });
   }
 
   return (
@@ -216,6 +286,37 @@ export default function StartScreen() {
                   </Button>
                 </div>
               </form>
+            </Card>
+          )}
+
+          {stage.kind === "damaged" && (
+            <Card className="space-y-4 border-loss/50">
+              <div>
+                <h2 className="font-semibold text-loss">
+                  ⚠ {t("start.damagedTitle")}
+                </h2>
+                <p className="mt-1 font-mono text-xs text-muted">{stage.fileName}</p>
+              </div>
+              <p className="text-sm leading-relaxed">
+                {t(`start.damaged.${stage.reason}`)}
+              </p>
+              <p className="text-xs leading-relaxed text-muted">
+                {t("start.damagedAdvice")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {/* The way out is a backup, so it is the primary action. */}
+                <Button variant="primary" onClick={handleOpen}>
+                  {t("start.damagedOpenBackup")}
+                </Button>
+                {stage.portfolio && (
+                  <Button onClick={() => openDamaged(stage)}>
+                    {t("start.damagedOpenAnyway")}
+                  </Button>
+                )}
+                <Button variant="ghost" onClick={backHome}>
+                  {t("common.cancel")}
+                </Button>
+              </div>
             </Card>
           )}
 

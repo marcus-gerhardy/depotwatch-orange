@@ -820,7 +820,7 @@ export default function CsvImportWizard({
         })),
         importBatches: [...(p.importBatches ?? []), batch],
       };
-    });
+    }, { kind: "import", note: fileName ?? undefined });
     setImported(txs.length);
     setImportedBatchId(batchId);
   }

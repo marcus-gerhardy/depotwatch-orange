@@ -152,7 +152,8 @@ describe("the settings", () => {
     const p = portfolio();
     p.uiSettings = { laserEyes: true };
     load(p);
-    render(<SettingsView />);
+    // It lives in the appearance group now that the settings are grouped.
+    render(<SettingsView initialSection="appearance" />);
 
     expect(screen.getByLabelText("settings.laserEyes")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("settings.laserEyes"));

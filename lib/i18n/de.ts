@@ -10,6 +10,7 @@ const de = {
     edit: "Bearbeiten",
     add: "Hinzufügen",
     close: "Schließen",
+    actions: "Aktionen",
     loading: "Lädt …",
     error: "Fehler",
     confirmDelete: "Wirklich löschen?",
@@ -22,6 +23,19 @@ const de = {
   },
   start: {
     openFile: "Portfolio-Datei öffnen",
+    damagedTitle: "Diese Datei ist beschädigt",
+    damaged: {
+      integrity:
+        "Der Inhalt passt nicht zur Prüfsumme, die in der Datei steht. Sie wurde nach dem letzten Speichern verändert oder ist beim Schreiben oder Kopieren beschädigt worden.",
+      truncated:
+        "Die Datei bricht mitten im Inhalt ab. Vermutlich wurde ein Speichervorgang unterbrochen oder die Kopie ist unvollständig.",
+      unreadable:
+        "Die Datei ließ sich nicht lesen. Entweder ist es keine Portfolio-Datei oder ihr Inhalt ist zerstört.",
+    },
+    damagedAdvice:
+      "Sie wird deshalb nicht automatisch geöffnet. Öffne stattdessen ein Backup: Backups sind vollwertige Portfolio-Dateien und liegen in deinem Backup-Ordner.",
+    damagedOpenBackup: "Backup-Datei öffnen",
+    damagedOpenAnyway: "Trotzdem öffnen",
     createFile: "Neues Portfolio anlegen",
     passwordTitle: "Passwort eingeben",
     passwordFor: "Passwort für {name}",
@@ -355,6 +369,9 @@ const de = {
       selfCustody: "Eigenverwahrung",
       exchangeWarning:
         "Bitcoin auf einer Börse gehört dir nur als Forderung. Für den langfristigen Bestand ist Eigenverwahrung sicherer.",
+      backupOk: "Backup verifiziert: {when}",
+      backupUnverified: "Backup vom {when} nicht verifiziert",
+      backupNever: "Noch kein verifiziertes Backup",
       yearInReviewEmpty: "Noch kein abgeschlossenes Jahr im Bestand.",
       yearInReviewStacked: "Netto gestapelt in {year}",
       custodyEmpty: "Noch kein Bestand vorhanden.",
@@ -1486,8 +1503,77 @@ const de = {
     stayUnlocked: "Entsperrt bleiben",
     busyToast: "Sperren nicht möglich: Es läuft noch ein Vorgang. Nach dessen Abschluss wieder versuchen.",
   },
+  backups: {
+    title: "Backups",
+    intro:
+      "Deine Daten liegen in einer einzigen Datei. Damit ein beschädigtes oder verlorenes Exemplar nicht alles bedeutet, schreibt die App verschlüsselte Kopien in einen Ordner deiner Wahl und liest jede davon sofort wieder ein, um zu prüfen, dass sie sich auch wiederherstellen lässt.",
+    unsupported:
+      "Dieser Browser kann keinen Ordner öffnen (keine File System Access API). Automatische Backups sind damit nicht möglich. Du kannst jederzeit ein Backup als Download erzeugen, musst das aber selbst anstoßen.",
+    noFolder:
+      "Es ist noch kein Backup-Ordner ausgewählt. Ohne Ordner kann die App keine Kopien anlegen.",
+    noFolderShort: "Kein Backup-Ordner ausgewählt",
+    folderHint:
+      "Das Handle der Portfolio-Datei erlaubt kein Schreiben von Nachbardateien. Für Backups ist deshalb einmalig ein Ordner nötig; die Auswahl wird gemerkt.",
+    folder: "Ordner",
+    chooseFolder: "Backup-Ordner wählen",
+    changeFolder: "Anderer Ordner",
+    forgetFolder: "Ordner vergessen",
+    reconnect: "Zugriff erneut erlauben",
+    permissionNeeded:
+      "Nach einem Neustart des Browsers muss der Schreibzugriff auf den Ordner einmal bestätigt werden.",
+    backupNow: "Backup jetzt erstellen",
+    running: "Backup läuft …",
+    download: "Backup herunterladen",
+    empty: "Noch keine Backups in diesem Ordner.",
+    when: "Zeitpunkt",
+    size: "Größe",
+    contents: "Inhalt",
+    inspect: "Inhalt prüfen",
+    restore: "Wiederherstellen",
+    password: "Passwort der Backups",
+    passwordPlaceholder: "Passwort",
+    passwordHint:
+      "Wird nur zum Entschlüsseln im Browser verwendet. Ältere Backups können ein früheres Passwort haben.",
+    transactions: "{count} Transaktionen",
+    lastTransaction: "letzte Transaktion: {date}",
+    noTransactions: "keine Transaktionen",
+    integrityMismatch: "Prüfsumme stimmt nicht",
+    lastOk: "Backup geschrieben und verifiziert: {name} ({pruned} alte entfernt)",
+    confirmTitle: "Backup wiederherstellen?",
+    confirmBody:
+      "Der aktuelle Stand wird durch den Stand aus dem Backup ersetzt. Prüfe beide Seiten, bevor du fortfährst.",
+    currentFile: "Aktuell geöffnet",
+    theBackup: "Backup",
+    safetyNote:
+      "Vor dem Wiederherstellen wird automatisch ein Backup des aktuellen Zustands geschrieben und verifiziert. Der Vorgang lässt sich damit wieder rückgängig machen.",
+    restoreConfirm: "Ja, wiederherstellen",
+    restoring: "Wird wiederhergestellt …",
+    openView: "Backups öffnen",
+    reminderNever:
+      "Von dieser Datei existiert noch kein verifiziertes Backup.",
+    reminderDays: "Das letzte verifizierte Backup ist {days} Tage her.",
+    error: {
+      noDirectory: "Kein Backup-Ordner ausgewählt.",
+      noPortfolio: "Keine Datei geöffnet.",
+      writeFailed: "Das Backup konnte nicht geschrieben werden.",
+      verifyFailed:
+        "Das Backup wurde geschrieben, ließ sich aber nicht wieder einlesen. Verlasse dich nicht darauf.",
+      permission: "Der Zugriff auf den Backup-Ordner muss erneut erlaubt werden.",
+      wrongPassword: "Falsches Passwort für dieses Backup.",
+    },
+  },
   settings: {
     title: "Einstellungen",
+    nav: {
+      general: "Allgemein",
+      appearance: "Darstellung",
+      security: "Sicherheit",
+      backups: "Backups",
+      history: "Änderungsverlauf",
+      import: "Import",
+      tax: "Steuer",
+      explorer: "Explorer",
+    },
     general: "Allgemein",
     language: "Sprache",
     currencyBtc: "BTC (Beträge in Sats)",
@@ -1541,6 +1627,43 @@ const de = {
       "Diese Datei ist nicht verschlüsselt und kann deshalb nicht gesperrt werden: Ohne Passwort gibt es nichts, womit sich sperren ließe. Vergib oben ein Passwort, dann greift die Sperre.",
     lockHint:
       "Beim Sperren werden ungespeicherte Änderungen zuerst gesichert, danach werden die entschlüsselten Daten und das Passwort aus dem Speicher entfernt. Zum Entsperren wird das Passwort erneut gebraucht. Manuell sperren: Strg/Cmd + L.",
+    appearance: "Darstellung",
+    backupSchedule: "Zeitplan und Aufbewahrung",
+    backups: "Backups",
+    backupTriggerLabel: "Backup erstellen",
+    backupKeepLatest: "Anzahl jüngster Backups behalten",
+    backupReminderDays: "Erinnern nach (Tage ohne Backup)",
+    backupRetentionHint:
+      "Zusätzlich bleiben je ein tägliches der letzten {daily} Tage, ein wöchentliches der letzten {weekly} Wochen und ein monatliches der letzten {monthly} Monate erhalten. Gelöscht wird nur, wenn danach mindestens ein verifiziertes Backup übrig bleibt.",
+    backupLastOk: "Letztes Backup verifiziert: {when}",
+    backupLastUnverified:
+      "Letztes Backup vom {when} konnte nicht verifiziert werden. Verlasse dich nicht darauf.",
+    backupNever: "Von dieser Datei existiert noch kein verifiziertes Backup.",
+    backupWithNewPassword: "Backup mit neuem Passwort erstellen",
+    passwordChangedBackups:
+      "Bestehende Backups bleiben mit dem alten Passwort verschlüsselt und lassen sich nur damit öffnen. Lege am besten gleich ein frisches Backup an.",
+    passwordChangeBackupWarning:
+      "Ein neues Passwort gilt nur für künftige Speicherungen. Alle vorhandenen Backups brauchen weiterhin das alte Passwort.",
+    changeLog: "Änderungsverlauf",
+    changeLogHint:
+      "Die letzten Änderungen in dieser Datei, für Nachvollziehbarkeit und zum Zurücknehmen einzelner Aktionen. Das ist keine Datensicherung: dafür sind die Backups da.",
+    changeLogEmpty: "Noch keine Änderungen aufgezeichnet.",
+    undo: "Zurücknehmen",
+    notUndoable: "zu umfangreich",
+    changeKind: {
+      add: "{count} Transaktion(en) erfasst",
+      update: "{count} Transaktion(en) bearbeitet",
+      delete: "{count} Transaktion(en) gelöscht",
+      move: "{count} Transaktion(en) verschoben",
+      import: "{count} Transaktion(en) importiert",
+      importUndo: "Import zurückgenommen ({count})",
+      restore: "Wiederherstellung ({count} betroffen)",
+    },
+    backupTrigger: {
+      everySave: "Bei jedem Speichern",
+      daily: "Einmal täglich",
+      manual: "Nur manuell",
+    },
     explorer: "Explorer-Quelle (On-Chain-Daten)",
     explorerPublic: "Public API",
     explorerCustom: "Eigener Server (Esplora-kompatibel)",

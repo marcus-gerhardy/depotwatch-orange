@@ -362,7 +362,11 @@ export const MILESTONES: MilestoneDefinition[] = [
   {
     id: "firstBackup",
     category: "diligence",
-    reached: (ctx) => ctx.savedOnce,
+    // A saved file is not a backup: it is the same copy in the same place.
+    // What counts is a second copy that was **read back and verified** (§6.5),
+    // which is the only kind that survives the file it came from.
+    reached: (ctx) => ctx.portfolio.backupState?.lastVerified === true,
+    achievedAt: (ctx) => ctx.portfolio.backupState?.lastVerifiedAt ?? null,
   },
   {
     id: "encrypted",

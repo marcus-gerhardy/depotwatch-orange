@@ -12,13 +12,18 @@ export default function Home() {
   const locked = useAppStore((s) => s.locked);
   const initFileMode = useAppStore((s) => s.initFileMode);
   const initLockSettings = useAppStore((s) => s.initLockSettings);
+  const initBackupDirectory = useAppStore((s) => s.initBackupDirectory);
   const dirty = useAppStore((s) => s.dirty);
   const fileMode = useAppStore((s) => s.fileMode);
 
   useEffect(() => {
     initFileMode();
     initLockSettings();
-  }, [initFileMode, initLockSettings]);
+    // Reconnects to the remembered backup folder (§6.5). The permission it
+    // needs cannot be requested here — that takes a click, which the settings
+    // and the backups view offer.
+    void initBackupDirectory();
+  }, [initFileMode, initLockSettings, initBackupDirectory]);
 
   // Warn before leaving with unsaved changes in fallback mode.
   useEffect(() => {

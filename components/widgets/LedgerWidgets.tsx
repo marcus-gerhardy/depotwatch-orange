@@ -362,9 +362,13 @@ export function HoldingPeriodWidget() {
  * for fixing rather than a verdict.
  */
 export function DataQualityWidget() {
-  const { t, entries, openTransactions } = useDashboardData();
+  const { t, loc, entries, openTransactions } = useDashboardData();
   const counts = useMemo(() => countIssues(entries), [entries]);
   const clean = DATA_ISSUES.every((issue) => counts[issue] === 0);
+  // The backup state belongs here rather than in a tile of its own: "can this
+  // file be trusted" and "does it still exist tomorrow" are the same question
+  // asked twice (§6.5).
+  const backupState = useAppStore((s) => s.portfolio?.backupState);
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -400,6 +404,22 @@ export function DataQualityWidget() {
           ))}
         </ul>
       )}
+
+      <p
+        className={`mt-auto border-t border-border-c/40 pt-1.5 text-[0.65rem] leading-relaxed ${
+          backupState?.lastVerified ? "text-muted" : "text-warning"
+        }`}
+      >
+        {backupState?.lastBackupAt
+          ? backupState.lastVerified
+            ? t("dashboard.widgets.backupOk", {
+                when: formatDate(backupState.lastBackupAt, loc),
+              })
+            : t("dashboard.widgets.backupUnverified", {
+                when: formatDate(backupState.lastBackupAt, loc),
+              })
+          : t("dashboard.widgets.backupNever")}
+      </p>
     </div>
   );
 }
