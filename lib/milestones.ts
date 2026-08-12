@@ -100,7 +100,8 @@ export interface MilestoneDefinition {
 }
 
 const DAY = 86_400_000;
-const SELF_CUSTODY: WalletType[] = ["hardware", "software", "paper"];
+/** What counts as one's own custody — everything that is not an exchange. */
+export const SELF_CUSTODY: WalletType[] = ["hardware", "software", "paper"];
 
 /**
  * The four halvings that have happened. Only past ones are used: a milestone
@@ -159,8 +160,14 @@ function walletTypes(ctx: MilestoneContext): Map<string, WalletType> {
   return new Map(ctx.portfolio.wallets.map((w) => [w.id, w.type]));
 }
 
-/** Share of the holding that is not on an exchange, 0…1. */
-function selfCustodyShare(entries: LedgerEntry[], types: Map<string, WalletType>): number {
+/**
+ * Share of the holding that is not on an exchange, 0…1.
+ *
+ * Exported because the year in review asks the same question of a past point
+ * in time (§4.2), and two implementations of "how much is in own custody"
+ * would eventually disagree in front of the user.
+ */
+export function selfCustodyShare(entries: LedgerEntry[], types: Map<string, WalletType>): number {
   let self = ZERO;
   let total = ZERO;
   const perWallet = new Map<string, Decimal>();

@@ -262,6 +262,14 @@ export interface UiSettings {
   wholecoinerCelebrated?: boolean;
   /** Cosmetic laser-eyes mode, unlocked in the header and switchable in the settings. */
   laserEyes?: boolean;
+  /**
+   * Years whose December dashboard hint about the year in review (§4.2) the
+   * user has dismissed. In the file rather than in the browser, like every
+   * other UI state: a hint waved away on the desktop must stay away on the
+   * laptop. One entry per year, so next December asks again — that is a new
+   * year and a new review.
+   */
+  yearInReviewDismissed?: number[];
 }
 
 export interface PortfolioFile {

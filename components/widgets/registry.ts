@@ -38,6 +38,7 @@ import {
 import { BlockClockWidget, HalvingWidget, NetworkFeesWidget } from "./ChainWidgets";
 import { ExemptionLimitWidget, TaxFreeProceedsWidget } from "./TaxWidgets";
 import { UtxoOverviewWidget, WatchlistStatusWidget } from "./WatchlistWidgets";
+import { YearInReviewWidget } from "./YearInReviewWidget";
 
 /**
  * What a widget reads. Shown in the picker so it is obvious up front which
@@ -312,6 +313,17 @@ const BASE_WIDGETS: WidgetDefinition[] = [
     maxSize: { w: 12, h: 8 },
     dataSources: ["ledger"],
     component: MilestonesWidget,
+  },
+  {
+    id: "yearInReview",
+    titleKey: "dashboard.widgets.yearInReview.title",
+    descriptionKey: "dashboard.widgets.yearInReview.description",
+    icon: "🗓",
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 5 },
+    maxSize: { w: 12, h: 8 },
+    dataSources: ["ledger"],
+    component: YearInReviewWidget,
   },
   {
     id: "watchlistStatus",

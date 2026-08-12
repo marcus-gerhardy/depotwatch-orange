@@ -8,6 +8,7 @@ import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs
 import Celebration from "./Celebration";
 import MilestoneToast from "./MilestoneToast";
 import MilestonesView from "./MilestonesView";
+import YearInReview from "./YearInReview";
 import LaserAvatar from "./LaserAvatar";
 import Toast from "./Toast";
 import Dashboard from "./Dashboard";
@@ -27,6 +28,7 @@ type Tab =
   | "tax"
   | "watchlist"
   | "milestones"
+  | "yearInReview"
   | "settings";
 
 function FileIndicator() {
@@ -77,6 +79,8 @@ export default function AppShell() {
   const [txFilter, setTxFilter] = useState<TxJumpFilter | null>(null);
   /** A widget asked for the watchlist's add form, not just the tab. */
   const [watchlistAdd, setWatchlistAdd] = useState(false);
+  /** Year the review opens at when the dashboard hint sent us there. */
+  const [reviewYear, setReviewYear] = useState<number | undefined>(undefined);
   const fileMode = useAppStore((s) => s.fileMode);
   const dirty = useAppStore((s) => s.dirty);
   const privacyMode = useAppStore((s) => s.privacyMode);
@@ -256,6 +260,7 @@ export default function AppShell() {
                   // a tab from the navigation is not that intent, so they are
                   // cleared here rather than firing again on the next visit.
                   setWatchlistAdd(false);
+                  setReviewYear(undefined);
                   setTab(item.id);
                   setMenuOpen(false);
                 }}
@@ -280,6 +285,10 @@ export default function AppShell() {
               setTab("transactions");
             }}
             onOpenMilestones={() => setTab("milestones")}
+            onOpenYearInReview={(year) => {
+              setReviewYear(year);
+              setTab("yearInReview");
+            }}
             onOpenWatchlist={(options) => {
               setWatchlistAdd(options?.add === true);
               setTab("watchlist");
@@ -290,7 +299,12 @@ export default function AppShell() {
         {tab === "wallets" && <WalletsView />}
         {TAX_FEATURES_ENABLED && tab === "tax" && <TaxView />}
         {tab === "watchlist" && <WatchlistView initialAdd={watchlistAdd} />}
-        {tab === "milestones" && <MilestonesView />}
+        {/* Reached from the milestones page and from the dashboard, not from
+            the navigation: it is one page per year, not a place to work in. */}
+        {tab === "milestones" && (
+          <MilestonesView onOpenYearInReview={() => setTab("yearInReview")} />
+        )}
+        {tab === "yearInReview" && <YearInReview initialYear={reviewYear} />}
         {tab === "settings" && <SettingsView />}
       </main>
 

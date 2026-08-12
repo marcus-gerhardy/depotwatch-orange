@@ -84,6 +84,8 @@ export interface DashboardData {
   openWatchlist: (options?: { add?: boolean }) => void;
   /** Open the milestones overview. */
   openMilestones: () => void;
+  /** Open the year in review, at a given year (§4.2). */
+  openYearInReview: (year: number) => void;
 }
 
 const DashboardDataContext = createContext<DashboardData | null>(null);
@@ -98,11 +100,13 @@ export function DashboardDataProvider({
   openTransactions,
   openWatchlist,
   openMilestones,
+  openYearInReview,
   children,
 }: {
   openTransactions: (filter: TxJumpFilter) => void;
   openWatchlist: (options?: { add?: boolean }) => void;
   openMilestones: () => void;
+  openYearInReview: (year: number) => void;
   children: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
@@ -174,6 +178,7 @@ export function DashboardDataProvider({
       openTransactions,
       openWatchlist,
       openMilestones,
+      openYearInReview,
     };
   }, [
     t,
@@ -192,6 +197,7 @@ export function DashboardDataProvider({
     openTransactions,
     openWatchlist,
     openMilestones,
+    openYearInReview,
   ]);
 
   return (

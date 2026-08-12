@@ -136,6 +136,41 @@ export interface DailyBalance {
   btc: Decimal;
 }
 
+/**
+ * When each entry is booked against the *total* holding, keyed by id.
+ *
+ * For everything except a paired `transfer_in` this is the entry's own date.
+ * An arrival that belongs to a send is booked on the send's date instead: the
+ * two legs of one internal transfer regularly carry different timestamps (see
+ * `dailyBalanceSeries` below), and counting them on their own days makes the
+ * total holding jump by the moved amount in between — a transfer that never
+ * changed it by more than its network fee.
+ *
+ * One implementation, because more than one thing needs it: the daily series,
+ * and the year-in-review's net growth (`lib/yearInReview.ts`), where the same
+ * pair straddling New Year's Eve would otherwise show up as a year's stacking.
+ */
+export function bookingDates(entries: LedgerEntry[]): Map<string, string> {
+  // Earliest out-leg per group: normally there is exactly one.
+  const sendDateByGroup = new Map<string, string>();
+  for (const e of entries) {
+    if (e.type !== "transfer_out" || !e.transferGroupId) continue;
+    const known = sendDateByGroup.get(e.transferGroupId);
+    if (known === undefined || new Date(e.date).getTime() < new Date(known).getTime()) {
+      sendDateByGroup.set(e.transferGroupId, e.date);
+    }
+  }
+  const out = new Map<string, string>();
+  for (const e of entries) {
+    const send =
+      e.type === "transfer_in" && e.transferGroupId
+        ? sendDateByGroup.get(e.transferGroupId)
+        : undefined;
+    out.set(e.id, send ?? e.date);
+  }
+  return out;
+}
+
 export interface DailyValue {
   /** UTC day start, ms epoch. */
   time: number;
@@ -192,24 +227,12 @@ export function dailyValueSeries(
 export function dailyBalanceSeries(entries: LedgerEntry[]): DailyBalance[] {
   if (entries.length === 0) return [];
   const DAY = 86_400_000;
+  const booked = bookingDates(entries);
   const dayOf = (iso: string) => Math.floor(new Date(iso).getTime() / DAY) * DAY;
-
-  // Earliest out-leg per group: normally there is exactly one.
-  const sendDayByGroup = new Map<string, number>();
-  for (const e of entries) {
-    if (e.type !== "transfer_out" || !e.transferGroupId) continue;
-    const day = dayOf(e.date);
-    const known = sendDayByGroup.get(e.transferGroupId);
-    if (known === undefined || day < known) sendDayByGroup.set(e.transferGroupId, day);
-  }
 
   const deltasByDay = new Map<number, Decimal>();
   for (const e of entries) {
-    const sendDay =
-      e.type === "transfer_in" && e.transferGroupId
-        ? sendDayByGroup.get(e.transferGroupId)
-        : undefined;
-    const day = sendDay ?? dayOf(e.date);
+    const day = dayOf(booked.get(e.id) ?? e.date);
     deltasByDay.set(day, (deltasByDay.get(day) ?? ZERO).plus(balanceDelta(e)));
   }
   const firstDay = Math.min(...deltasByDay.keys());

@@ -177,6 +177,13 @@ interface AppState {
    */
   setWholecoinerCelebrated: () => void;
   setLaserEyes: (on: boolean) => void;
+
+  /**
+   * The December hint about the year in review has been dismissed for this
+   * year (§4.2). Recorded per year, so it stays gone for that review and
+   * reappears for the next one.
+   */
+  dismissYearInReview: (year: number) => void;
 }
 
 /** Structural comparison for values that are plain JSON (see the UI settings). */
@@ -769,5 +776,19 @@ export const useAppStore = create<AppState>((set, get) => {
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, laserEyes: on } },
       ),
+
+    dismissYearInReview: (year) =>
+      mutate((p) => {
+        const seen = p.uiSettings?.yearInReviewDismissed ?? [];
+        return seen.includes(year)
+          ? p
+          : {
+              ...p,
+              uiSettings: {
+                ...p.uiSettings,
+                yearInReviewDismissed: [...seen, year].sort((a, b) => a - b),
+              },
+            };
+      }),
   };
 });

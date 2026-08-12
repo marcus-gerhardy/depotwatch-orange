@@ -153,6 +153,20 @@ h6 {
   }
 }
 
+/* The year in review's card transition (§4.3). One short movement per step,
+   applied through `motion-safe:` like the milestone toast — anyone who asked
+   for less motion gets the same cards, they simply appear. */
+@keyframes review-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Sticky table headers.
    Two halves, and both have to sit where they do.
 

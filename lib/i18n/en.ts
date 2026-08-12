@@ -357,6 +357,8 @@ const en: typeof de = {
       selfCustody: "Self custody",
       exchangeWarning:
         "Bitcoin on an exchange is only a claim against that exchange. For long-term holdings, self custody is safer.",
+      yearInReviewEmpty: "No completed year in the ledger yet.",
+      yearInReviewStacked: "Net stacked in {year}",
       custodyEmpty: "No holdings yet.",
       taxFreeNow: "Tax-free right now",
       allTaxFree: "The entire holding is tax-free.",
@@ -395,6 +397,10 @@ const en: typeof de = {
       halvingBlock: "Halving at block",
       halvingEstimateHint:
         "Estimated from ten minutes per block. The real duration depends on the hash rate.",
+      yearInReview: {
+        title: "Year in review",
+        description: "The last completed year in a few figures.",
+      },
       milestones: {
         title: "Milestones",
         description: "The milestones reached most recently, and the overall count.",
@@ -699,6 +705,161 @@ const en: typeof de = {
         description:
           "Bought on 22 May, the day of the two most expensive pizzas in history.",
       },
+    },
+  },
+  yearInReview: {
+    title: "Year in review",
+    intro:
+      "What you did in a year: bought, held, moved into your own custody, paid in fees. No verdict on your prices: what the market did was never your decision.",
+    open: "Open the year in review",
+    noYears: {
+      title: "No year to look back on yet.",
+      body:
+        "A review exists once a year is over. {year} is still running, so any figure about it would only be an interim note.",
+    },
+    yearLabel: "Year",
+    step: "{current} of {total}",
+    next: "Next",
+    back: "Back",
+    empty: {
+      title: "Nothing happened here in {year}.",
+      body:
+        "No transactions are recorded for this year. Pick another year above; past years stay available at any time.",
+    },
+    summary: {
+      label: "Everything at a glance",
+      sentence: "{count} transactions this year. Every figure leads back to its card.",
+    },
+    market: {
+      missing:
+        "Comparing against the yearly average needs historical prices. They are only loaded when you ask for them.",
+      load: "Load price data",
+      loading: "Loading …",
+      error: "Price data could not be loaded.",
+    },
+    cards: {
+      stacked: {
+        label: "Net stacked",
+        sentence: "Your holding grew by this much over the year, out of {buys} buys. Transfers between your own wallets are netted out.",
+        sentenceNoBuys: "That is how much your holding changed on balance this year. Transfers between your own wallets are netted out.",
+        buys: "Buys",
+        inSats: "In sats",
+        growth: "Change since the start of the year",
+      },
+      invested: {
+        label: "Invested",
+        sentence: "That is what {buys} buys added up to, trading fees included.",
+        perBuy: "Average per buy",
+        withoutEur: "Buys without a EUR figure",
+      },
+      avgPrice: {
+        label: "Your average price",
+        sentenceBelow: "Volume-weighted across your buys. That is {percent} below the year's average price.",
+        sentenceAbove: "Volume-weighted across your buys. That is {percent} above the year's average price.",
+        sentenceNoMarket: "Volume-weighted across your buys: the price you actually paid on average.",
+        market: "BTC yearly average",
+        marketDays: "Days with price data",
+      },
+      priceRange: {
+        label: "Price range paid",
+        sentence: "Your {buys} buys of the year sat between these two prices.",
+        spread: "Spread",
+      },
+      rhythm: {
+        label: "Busiest month",
+        sentence: "You bought {buys} times in this month. Your most frequent weekday was {weekday}.",
+        monthAmount: "Amount in this month",
+        weekdayBuys: "Buys on this weekday",
+      },
+      streak: {
+        label: "Longest buying streak",
+        value: {
+          weeks: "{count} weeks",
+          months: "{count} months",
+        },
+        sentence: "That is how long you kept buying without a gap this year.",
+      },
+      fees: {
+        label: "Fees paid",
+        sentence: "Trading and network fees together, {percent} of what you invested.",
+        sentenceNoShare: "This year's trading and network fees together.",
+        trading: "Trading fees",
+        network: "Network fees",
+        unvalued: "BTC fees without a daily close",
+      },
+      taxFree: {
+        label: "Holding period passed",
+        sentence: "This amount, from {lots} positions, passed the one-year mark this year and is still held.",
+        unresolved: "Origin unresolved (not judgeable)",
+        disclaimer:
+          "Origin and holding period come from the assigned original buys. Positions without a resolved origin are not included here. Not tax advice.",
+      },
+      realized: {
+        label: "Realised",
+        sentence: "From {count} sells or spends this year.",
+        taxable: "of which taxable",
+        taxFree: "of which tax-free",
+        unresolved: "Origin unresolved (not judgeable)",
+        disclaimer:
+          "Gains under FIFO, over the assigned original buys. Not tax advice.",
+      },
+      custody: {
+        label: "In self custody",
+        sentence: "Share of your holding at year end that was not on an exchange. {count} transfers went from an exchange into your own wallet this year.",
+        moved: "Moved in those",
+      },
+      milestones: {
+        label: "Milestones reached",
+        sentence: "Added over this year.",
+      },
+      closing: {
+        label: "Holding at year end",
+        sentence: "Where things stood after the last day of {year}.",
+        inSats: "In sats",
+        start: "At the start of the year",
+      },
+    },
+    share: {
+      title: "Share as an image",
+      localOnly:
+        "The image is created entirely in your browser. Nothing is uploaded; no server and no external service is involved.",
+      absolute: "Show absolute amounts",
+      absoluteHint:
+        "{count} figures stating absolute amounts are hidden. Only relative figures are shared: counts, percentages, average price.",
+      absoluteWarning:
+        "Careful: the image now names the actual size of your holding and your amounts. Anyone who sees it knows how much bitcoin you own. That is a personal security risk, not just a privacy question.",
+      privacyBlocked:
+        "Privacy mode is on. While it is, no absolute amounts can be written into an image.",
+      preview: "This is what the image says:",
+      download: "Save as PNG",
+      fileName: "year-in-review-{year}.png",
+      imageTitle: "Year in review {year}",
+      imageFooter: "Created locally · DepotWatch Orange",
+      buys: "Buys",
+      growth: "Change in holding",
+      stacked: "Net stacked",
+      invested: "Invested",
+      avgPrice: "Your average price",
+      vsMarket: "Against the yearly average",
+      priceRange: "Price range paid",
+      busiestMonth: "Busiest month",
+      busiestWeekday: "Most frequent weekday",
+      streak: {
+        weeks: "Longest streak (weeks)",
+        months: "Longest streak (months)",
+      },
+      feeShare: "Fee share",
+      fees: "Fees",
+      taxFree: "Holding period passed",
+      realized: "Realised",
+      custody: "In self custody",
+      milestones: "Milestones",
+      closing: "Holding at year end",
+    },
+    hint: {
+      body: "Your year in review for {year} is ready.",
+      open: "Open the {year} review",
+      dismiss: "Dismiss",
     },
   },
   tx: {

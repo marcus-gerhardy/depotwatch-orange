@@ -25,10 +25,19 @@ import {
   type MilestoneProgress,
 } from "@/lib/milestones";
 import MilestoneIcon from "./MilestoneIcon";
-import { Card, SectionTitle } from "./ui";
+import { Button, Card, SectionTitle } from "./ui";
 import { Meter } from "./widgets/WidgetFrame";
 
-export default function MilestonesView() {
+export default function MilestonesView({
+  onOpenYearInReview,
+}: {
+  /**
+   * Open the year in review (§4.2). It lives here rather than in the main
+   * navigation: both pages answer the same question — what has this portfolio
+   * owner actually done — and one of them is only worth opening once a year.
+   */
+  onOpenYearInReview?: () => void;
+} = {}) {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
@@ -119,11 +128,16 @@ export default function MilestonesView() {
 
   return (
     <div className="max-w-3xl space-y-4">
-      <div>
-        <SectionTitle level={1}>{t("milestones.title")}</SectionTitle>
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">
-          {t("milestones.intro")}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <SectionTitle level={1}>{t("milestones.title")}</SectionTitle>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted">
+            {t("milestones.intro")}
+          </p>
+        </div>
+        {onOpenYearInReview && (
+          <Button onClick={onOpenYearInReview}>{t("yearInReview.open")} →</Button>
+        )}
       </div>
 
       <Card className="space-y-2">

@@ -200,9 +200,52 @@ export function useDailyCloses(
     [currency, day],
   );
   return useResource<DailyClose[]>(
-    day === null ? null : `binance:closes:${currency}:${day}`,
+    day === null ? null : closesKey(currency, day),
     HISTORY_TTL_MS,
     load,
+  );
+}
+
+const closesKey = (currency: FiatCurrency, day: number) =>
+  `binance:closes:${currency}:${day}`;
+
+/**
+ * Daily closes that are **already** cached — this never starts a request.
+ *
+ * The year in review compares against the market average but must not fetch a
+ * year of history for merely being opened (CLAUDE.md §4.2). So it asks what
+ * the dashboard has fetched anyway: any cached series that starts at or before
+ * the day in question covers it, and the longest one wins. The TTL is
+ * deliberately ignored — a daily close of a day that is over does not change,
+ * and the only stale value possible is today's.
+ */
+export function peekDailyCloses(
+  currency: FiatCurrency,
+  startTime: number,
+): DailyClose[] | null {
+  const prefix = `binance:closes:${currency}:`;
+  let best: DailyClose[] | null = null;
+  for (const [key, entry] of cache) {
+    if (!key.startsWith(prefix) || entry.value === undefined) continue;
+    const start = Number(key.slice(prefix.length));
+    if (!Number.isFinite(start) || start > startTime) continue;
+    const series = entry.value as DailyClose[];
+    if (best === null || series.length > best.length) best = series;
+  }
+  return best;
+}
+
+/**
+ * Fetch the daily closes on purpose — an explicit click, never a render. Uses
+ * the same cache key as `useDailyCloses`, so what one loads the other reuses.
+ */
+export function loadDailyCloses(
+  currency: FiatCurrency,
+  startTime: number,
+): Promise<DailyClose[]> {
+  const day = Math.floor(startTime / 86_400_000) * 86_400_000;
+  return fetchCached(closesKey(currency, day), HISTORY_TTL_MS, () =>
+    fetchDailyCloses(currency, day),
   );
 }
 

@@ -38,6 +38,7 @@ import {
 import { WIDGET_IDS, type WidgetDefinition } from "./widgets/registry";
 import WidgetHost from "./widgets/WidgetHost";
 import WidgetPicker from "./widgets/WidgetPicker";
+import YearInReviewHint from "./YearInReviewHint";
 
 // The grid measures the DOM and drives drag/resize, so there is nothing to
 // prerender — and the static export must not try.
@@ -220,6 +221,7 @@ function DashboardBody() {
         </div>
       </div>
 
+      <YearInReviewHint />
       <LedgerWarnings />
 
       {widgets.length === 0 ? (
@@ -263,6 +265,7 @@ export default function Dashboard({
   onOpenTransactions,
   onOpenWatchlist,
   onOpenMilestones,
+  onOpenYearInReview,
 }: {
   /** Jump to the transaction table with a filter applied (wallet or issue). */
   onOpenTransactions?: (filter: TxJumpFilter) => void;
@@ -270,6 +273,8 @@ export default function Dashboard({
   onOpenWatchlist?: (options?: { add?: boolean }) => void;
   /** Jump to the milestones overview. */
   onOpenMilestones?: () => void;
+  /** Jump to the year in review, at the year the December hint names. */
+  onOpenYearInReview?: (year: number) => void;
 }) {
   const noop = useCallback(() => {}, []);
   return (
@@ -277,6 +282,7 @@ export default function Dashboard({
       openTransactions={onOpenTransactions ?? noop}
       openWatchlist={onOpenWatchlist ?? noop}
       openMilestones={onOpenMilestones ?? noop}
+      openYearInReview={onOpenYearInReview ?? noop}
     >
       <DashboardBody />
     </DashboardDataProvider>

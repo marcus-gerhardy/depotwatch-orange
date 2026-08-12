@@ -83,15 +83,17 @@ const DEFAULT_BANDS: LayoutBand[] = [
   // 9. The watchlist: on-chain, and the only tiles that talk to the explorer
   //    about addresses.
   { h: 6, widgets: [["utxoOverview", 4], ["watchlistStatus", 4], ["blockClock", 4]] },
-  // 10. Ambient chain and portfolio facts, and the record of what the owner
-  //     has decided so far (§5.2). Interesting, rarely urgent.
+  // 10. The record of what the owner has decided so far: the milestones (§5.2)
+  //     and the last completed year (§4.2). Both look backwards, so they read
+  //     as one band rather than as two tiles among the ambient facts below.
+  { h: 6, widgets: [["milestones", 6], ["yearInReview", 6]] },
+  // 11. Ambient chain and portfolio facts. Interesting, rarely urgent.
   {
     h: 6,
     widgets: [
-      ["networkFees", 3],
-      ["halving", 3],
-      ["timeInMarket", 3],
-      ["milestones", 3],
+      ["networkFees", 4],
+      ["halving", 4],
+      ["timeInMarket", 4],
     ],
   },
 ];

@@ -355,6 +355,8 @@ const de = {
       selfCustody: "Eigenverwahrung",
       exchangeWarning:
         "Bitcoin auf einer Börse gehört dir nur als Forderung. Für den langfristigen Bestand ist Eigenverwahrung sicherer.",
+      yearInReviewEmpty: "Noch kein abgeschlossenes Jahr im Bestand.",
+      yearInReviewStacked: "Netto gestapelt in {year}",
       custodyEmpty: "Noch kein Bestand vorhanden.",
       taxFreeNow: "Aktuell steuerfrei verfügbar",
       allTaxFree: "Der gesamte Bestand ist steuerfrei.",
@@ -394,6 +396,10 @@ const de = {
       halvingBlock: "Halving bei Block",
       halvingEstimateHint:
         "Schätzung auf Basis von zehn Minuten pro Block. Die tatsächliche Dauer hängt von der Hashrate ab.",
+      yearInReview: {
+        title: "Jahresrückblick",
+        description: "Das letzte abgeschlossene Jahr in wenigen Zahlen.",
+      },
       milestones: {
         title: "Meilensteine",
         description: "Die zuletzt erreichten Meilensteine und der Gesamtstand.",
@@ -702,6 +708,161 @@ const de = {
         description:
           "Am 22. Mai gekauft, dem Tag der zwei teuersten Pizzen der Geschichte.",
       },
+    },
+  },
+  yearInReview: {
+    title: "Jahresrückblick",
+    intro:
+      "Was du in einem Jahr getan hast: gekauft, gehalten, in die eigene Verwahrung geholt, Gebühren gezahlt. Keine Bewertung deiner Kurse: was der Markt gemacht hat, war nicht deine Entscheidung.",
+    open: "Jahresrückblick ansehen",
+    noYears: {
+      title: "Noch kein Jahr zum Zurückblicken.",
+      body:
+        "Einen Rückblick gibt es erst, wenn ein Jahr vorbei ist. {year} läuft noch, deshalb wäre jede Zahl darüber nur eine Zwischenmeldung.",
+    },
+    yearLabel: "Jahr",
+    step: "{current} von {total}",
+    next: "Weiter",
+    back: "Zurück",
+    empty: {
+      title: "In {year} ist hier nichts passiert.",
+      body:
+        "Für dieses Jahr sind keine Transaktionen erfasst. Wähle oben ein anderes Jahr, vergangene Jahre bleiben jederzeit abrufbar.",
+    },
+    summary: {
+      label: "Gesamtübersicht",
+      sentence: "{count} Transaktionen in diesem Jahr. Jede Kennzahl führt zurück auf ihre Karte.",
+    },
+    market: {
+      missing:
+        "Für den Vergleich mit dem Jahresdurchschnitt fehlen historische Kurse. Sie werden nur auf ausdrückliche Anforderung geladen.",
+      load: "Kursdaten laden",
+      loading: "Wird geladen …",
+      error: "Kursdaten konnten nicht geladen werden.",
+    },
+    cards: {
+      stacked: {
+        label: "Netto gestapelt",
+        sentence: "Dein Bestand ist in diesem Jahr um diesen Betrag gewachsen, aus {buys} Käufen. Überträge zwischen deinen eigenen Wallets sind herausgerechnet.",
+        sentenceNoBuys: "So viel hat sich dein Bestand in diesem Jahr netto verändert. Überträge zwischen deinen eigenen Wallets sind herausgerechnet.",
+        buys: "Käufe",
+        inSats: "In Sats",
+        growth: "Veränderung zum Jahresanfang",
+      },
+      invested: {
+        label: "Investiert",
+        sentence: "So viel Euro sind in {buys} Käufen zusammengekommen, Handelsgebühren eingerechnet.",
+        perBuy: "Durchschnitt je Kauf",
+        withoutEur: "Käufe ohne EUR-Angabe",
+      },
+      avgPrice: {
+        label: "Dein Durchschnittskurs",
+        sentenceBelow: "Mengengewichtet über deine Käufe. Das sind {percent} unter dem Jahresdurchschnitt des Kurses.",
+        sentenceAbove: "Mengengewichtet über deine Käufe. Das sind {percent} über dem Jahresdurchschnitt des Kurses.",
+        sentenceNoMarket: "Mengengewichtet über deine Käufe: der Kurs, zu dem du im Schnitt tatsächlich gekauft hast.",
+        market: "Jahresdurchschnitt BTC",
+        marketDays: "Tage mit Kursdaten",
+      },
+      priceRange: {
+        label: "Gezahlte Kursspanne",
+        sentence: "Zwischen diesen beiden Kursen lagen deine {buys} Käufe des Jahres.",
+        spread: "Abstand",
+      },
+      rhythm: {
+        label: "Aktivster Monat",
+        sentence: "In diesem Monat hast du {buys} Mal gekauft. Dein häufigster Wochentag war {weekday}.",
+        monthAmount: "Menge in diesem Monat",
+        weekdayBuys: "Käufe an diesem Wochentag",
+      },
+      streak: {
+        label: "Längste Kaufserie",
+        value: {
+          weeks: "{count} Wochen",
+          months: "{count} Monate",
+        },
+        sentence: "So lange am Stück hast du in diesem Jahr ohne Unterbrechung gekauft.",
+      },
+      fees: {
+        label: "Gezahlte Gebühren",
+        sentence: "Handels- und Netzwerkgebühren zusammen, {percent} des investierten Betrags.",
+        sentenceNoShare: "Handels- und Netzwerkgebühren dieses Jahres zusammen.",
+        trading: "Handelsgebühren",
+        network: "Netzwerkgebühren",
+        unvalued: "BTC-Gebühren ohne Tageskurs",
+      },
+      taxFree: {
+        label: "Haltefrist überschritten",
+        sentence: "Diese Menge aus {lots} Positionen hat in diesem Jahr die Jahresfrist überschritten und wird noch gehalten.",
+        unresolved: "Herkunft ungeklärt (nicht bewertbar)",
+        disclaimer:
+          "Herkunft und Haltefrist stammen aus den zugeordneten Ursprungskäufen. Positionen ohne geklärte Herkunft sind hier nicht enthalten. Keine Steuerberatung.",
+      },
+      realized: {
+        label: "Realisiert",
+        sentence: "Aus {count} Verkäufen bzw. Ausgaben in diesem Jahr.",
+        taxable: "davon steuerpflichtig",
+        taxFree: "davon steuerfrei",
+        unresolved: "Herkunft ungeklärt (nicht bewertbar)",
+        disclaimer:
+          "Gewinne nach FIFO über die zugeordneten Ursprungskäufe. Keine Steuerberatung.",
+      },
+      custody: {
+        label: "In Eigenverwahrung",
+        sentence: "Anteil deines Bestands am Jahresende, der nicht auf einer Börse lag. {count} Überträge gingen in diesem Jahr von einer Börse in eine eigene Wallet.",
+        moved: "Davon bewegt",
+      },
+      milestones: {
+        label: "Meilensteine erreicht",
+        sentence: "In diesem Jahr dazugekommen.",
+      },
+      closing: {
+        label: "Bestand am Jahresende",
+        sentence: "Stand nach dem letzten Tag des Jahres {year}.",
+        inSats: "In Sats",
+        start: "Am Jahresanfang",
+      },
+    },
+    share: {
+      title: "Als Bild teilen",
+      localOnly:
+        "Das Bild wird vollständig in deinem Browser erzeugt. Nichts wird hochgeladen, kein Server und kein externer Dienst ist beteiligt.",
+      absolute: "Absolute Beträge einblenden",
+      absoluteHint:
+        "{count} Angaben mit absoluten Beträgen sind ausgeblendet. Geteilt werden nur relative Angaben: Anzahl, Prozent, Durchschnittskurs.",
+      absoluteWarning:
+        "Achtung: Das Bild nennt jetzt deine tatsächliche Bestandsgröße und deine Beträge. Wer es sieht, weiß, wie viel Bitcoin du besitzt. Das ist ein Sicherheitsrisiko für dich persönlich, nicht nur eine Datenschutzfrage.",
+      privacyBlocked:
+        "Der Privacy-Modus ist aktiv. Solange er läuft, können keine absoluten Beträge in ein Bild geschrieben werden.",
+      preview: "Das steht im Bild:",
+      download: "Als PNG speichern",
+      fileName: "jahresrueckblick-{year}.png",
+      imageTitle: "Jahresrückblick {year}",
+      imageFooter: "Lokal erzeugt · DepotWatch Orange",
+      buys: "Käufe",
+      growth: "Bestandsveränderung",
+      stacked: "Netto gestapelt",
+      invested: "Investiert",
+      avgPrice: "Dein Durchschnittskurs",
+      vsMarket: "Zum Jahresdurchschnitt",
+      priceRange: "Gezahlte Kursspanne",
+      busiestMonth: "Aktivster Monat",
+      busiestWeekday: "Häufigster Wochentag",
+      streak: {
+        weeks: "Längste Serie (Wochen)",
+        months: "Längste Serie (Monate)",
+      },
+      feeShare: "Gebührenanteil",
+      fees: "Gebühren",
+      taxFree: "Haltefrist überschritten",
+      realized: "Realisiert",
+      custody: "In Eigenverwahrung",
+      milestones: "Meilensteine",
+      closing: "Bestand am Jahresende",
+    },
+    hint: {
+      body: "Dein Jahresrückblick für {year} ist fertig.",
+      open: "Rückblick {year} ansehen",
+      dismiss: "Hinweis ausblenden",
     },
   },
   tx: {
