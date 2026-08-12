@@ -263,6 +263,15 @@ export interface UiSettings {
   /** Cosmetic laser-eyes mode, unlocked in the header and switchable in the settings. */
   laserEyes?: boolean;
   /**
+   * Auto-lock (§6.4): minutes of inactivity before the app locks itself
+   * (`null` = never), whether hiding the tab locks immediately, and whether
+   * the lock screen may name the file. Mirrored to a device preference like
+   * the appearance, so a new file starts from what this browser last used.
+   */
+  autoLockMinutes?: number | null;
+  lockOnHide?: boolean;
+  lockShowFileName?: boolean;
+  /**
    * Years whose December dashboard hint about the year in review (§4.2) the
    * user has dismissed. In the file rather than in the browser, like every
    * other UI state: a hint waved away on the desktop must stay away on the

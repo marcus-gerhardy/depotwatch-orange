@@ -1464,6 +1464,28 @@ const de = {
     loadError: "Live-Daten konnten nicht geladen werden: {error}",
     noLiveData: "Keine Live-Daten für xpub-Einträge.",
   },
+  lock: {
+    title: "Gesperrt",
+    passwordPlaceholder: "Passwort",
+    unlock: "Entsperren",
+    unlocking: "Wird entschlüsselt …",
+    wrongPassword: "Falsches Passwort. Bitte erneut versuchen.",
+    failed: "Entsperren fehlgeschlagen.",
+    blocked:
+      "Nach {attempts} Fehlversuchen: nächster Versuch in {seconds} Sekunden möglich.",
+    hint:
+      "Die Daten sind verschlüsselt und liegen nicht mehr entschlüsselt im Speicher. Ohne Passwort kommt niemand daran, auch du nicht.",
+    closeFile: "Datei schließen",
+    lockNow: "Jetzt sperren",
+    cannotLock: "Unverschlüsselte Dateien können nicht gesperrt werden",
+    warningTitle: "Gleich wird gesperrt",
+    warningBody:
+      "Wegen Inaktivität wird in {seconds} Sekunden gesperrt. Ungespeicherte Änderungen werden vorher gesichert.",
+    warningDeferred:
+      "Sperren wartet noch: ein laufender Vorgang wird erst abgeschlossen.",
+    stayUnlocked: "Entsperrt bleiben",
+    busyToast: "Sperren nicht möglich: Es läuft noch ein Vorgang. Nach dessen Abschluss wieder versuchen.",
+  },
   settings: {
     title: "Einstellungen",
     general: "Allgemein",
@@ -1505,6 +1527,20 @@ const de = {
     disableEncryptionConfirm:
       "Wirklich ohne Verschlüsselung speichern? Jeder mit Zugriff auf die Datei kann dann alle Daten lesen.",
     passwordChanged: "Passwort geändert. Beim nächsten Speichern wird es verwendet.",
+    lock: "Sperren bei Inaktivität",
+    lockAfter: "Automatisch sperren nach",
+    lockMinutes: "{count} Minuten",
+    lockNever: "Nie",
+    lockOnHide: "Beim Tabwechsel oder Minimieren sofort sperren",
+    lockOnHideHint:
+      "Sperrt, sobald der Tab in den Hintergrund geht. Praktisch am geteilten Rechner, kann aber unterbrechen, wenn du oft zwischen Fenstern wechselst.",
+    lockShowFileName: "Dateinamen im Sperrbildschirm zeigen",
+    lockShowFileNameHint:
+      "Aus lässt auch den Dateinamen weg, falls schon er zu viel verrät.",
+    lockNeedsEncryption:
+      "Diese Datei ist nicht verschlüsselt und kann deshalb nicht gesperrt werden: Ohne Passwort gibt es nichts, womit sich sperren ließe. Vergib oben ein Passwort, dann greift die Sperre.",
+    lockHint:
+      "Beim Sperren werden ungespeicherte Änderungen zuerst gesichert, danach werden die entschlüsselten Daten und das Passwort aus dem Speicher entfernt. Zum Entsperren wird das Passwort erneut gebraucht. Manuell sperren: Strg/Cmd + L.",
     explorer: "Explorer-Quelle (On-Chain-Daten)",
     explorerPublic: "Public API",
     explorerCustom: "Eigener Server (Esplora-kompatibel)",

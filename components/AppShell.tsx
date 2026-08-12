@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
+import AutoLock from "./AutoLock";
 import Celebration from "./Celebration";
 import MilestoneToast from "./MilestoneToast";
 import MilestonesView from "./MilestonesView";
@@ -71,6 +72,41 @@ function FileIndicator() {
   );
 }
 
+/**
+ * Lock now (§6.4). Disabled on an unencrypted file, where it says why: there
+ * is no password to lock it with, and a button that pretended otherwise would
+ * be worse than one that is honestly out of order.
+ */
+function LockButton({ onLock }: { onLock: () => void }) {
+  const { t } = useI18n();
+  const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
+  const label = encryptionEnabled ? t("lock.lockNow") : t("lock.cannotLock");
+
+  return (
+    <button
+      onClick={onLock}
+      disabled={!encryptionEnabled}
+      title={`${label}${encryptionEnabled ? " (Ctrl/Cmd+L)" : ""}`}
+      aria-label={label}
+      className="rounded-lg p-2 text-muted transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted"
+    >
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="4" y="10.5" width="16" height="10.5" rx="2" />
+        <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+      </svg>
+    </button>
+  );
+}
+
 export default function AppShell() {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("dashboard");
@@ -96,8 +132,14 @@ export default function AppShell() {
   // opening it manually via the button.
   const [fileSetupDismissed, setFileSetupDismissed] = useState(false);
   const [fileSetupOpenedManually, setFileSetupOpenedManually] = useState(false);
+  // The auto-lock asks for this step rather than locking a portfolio that has
+  // nowhere to be saved to (§6.4/§7).
+  const fileSetupRequested = useAppStore((s) => s.fileSetupRequested);
+  const requestFileSetup = useAppStore((s) => s.requestFileSetup);
   const showFileSetup =
-    fileSetupOpenedManually || (needsFileSetup && dirty && !fileSetupDismissed);
+    fileSetupOpenedManually ||
+    fileSetupRequested ||
+    (needsFileSetup && dirty && !fileSetupDismissed);
 
   // Cosmetic only, persisted in the file, and switchable in the settings.
   const laserEyes = useLaserEyes();
@@ -105,6 +147,26 @@ export default function AppShell() {
   const eggs = useEasterEggs();
   const logoClicks = useRef(0);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Locking on purpose, from the button or from Ctrl/Cmd+L. A refusal is said
+  // out loud: pressing lock during an import and seeing nothing happen would
+  // read as a broken button rather than as a deliberate wait (§6.4).
+  const lock = useAppStore((s) => s.lock);
+  const lockManually = useCallback(() => {
+    void lock().then((outcome) => {
+      if (outcome === "busy") setToast(t("lock.busyToast"));
+    });
+  }, [lock, t]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "l" || !(e.ctrlKey || e.metaKey) || e.altKey) return;
+      e.preventDefault();
+      lockManually();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lockManually]);
 
   function countLogoClick() {
     if (!eggs || laserEyes) return;
@@ -131,6 +193,7 @@ export default function AppShell() {
   return (
     <div className="flex flex-1 flex-col">
       <Celebration />
+      <AutoLock />
       <Toast message={toast} onDone={() => setToast(null)} />
       <MilestoneToast />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
@@ -165,6 +228,7 @@ export default function AppShell() {
               </span>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              <LockButton onLock={lockManually} />
               {/* Drawn, not an emoji: at this size the emoji eye rendered as a
                   few grey pixels, and its look depended on the platform's
                   emoji font rather than on the theme. */}
@@ -315,8 +379,12 @@ export default function AppShell() {
           onCancel={() => {
             setFileSetupOpenedManually(false);
             setFileSetupDismissed(true);
+            requestFileSetup(false);
           }}
-          onCreated={() => setFileSetupOpenedManually(false)}
+          onCreated={() => {
+            setFileSetupOpenedManually(false);
+            requestFileSetup(false);
+          }}
         />
       )}
     </div>

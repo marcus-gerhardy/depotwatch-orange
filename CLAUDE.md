@@ -438,6 +438,29 @@ The **BTC display unit** (§6.3) is deliberately *not* one of these: it is a rea
 - Change password / enable/disable encryption
 - Tax settings (holding period rule, the §23 EStG exemption limit in EUR, FIFO as default, possibly LIFO selectable later)
 - Autosave behavior (interval/debounce in File System Access API mode)
+- Auto-lock on inactivity (§6.4): after 1, 5, 15 or 30 minutes, or never; plus "lock as soon as the tab is hidden" and whether the lock screen may show the file name
+
+### 6.4 Auto-Lock
+
+The app locks itself after a configurable stretch without user activity (`lib/autoLock.ts` for the rules, `components/AutoLock.tsx` for the effects, `components/LockScreen.tsx` for what is left afterwards).
+
+**Locking is real, or it is not offered.** Hiding the interface behind an overlay protects against a glance over the shoulder and against nothing else: the decrypted portfolio would still be in memory, in the DOM and in a screenshot of the tab. So locking drops the plaintext **and** the password from the store and keeps only the ciphertext; unlocking is a genuine decryption with a password typed in again. `app/page.tsx` accordingly renders the lock screen *instead of* the app rather than over it — with no decrypted portfolio there is nothing left that could render a balance.
+
+The one thing that follows from this: **an unencrypted file cannot be locked.** There is no secret to lock it with, and a lock screen that kept the plaintext in memory would be the dishonest version of this feature. So the timer is never armed for such a file, the header button is disabled and says why, and the settings carry the same sentence instead of a switch that does nothing.
+
+**Nothing is lost to a lock.** Where there is a destination (File System Access mode with a handle), pending changes are written first. The ciphertext the lock keeps is made from the state in memory, not re-read from disk, so even a save that fails — a revoked permission, a full disk — costs nothing: the change is in the envelope, `dirty` stays true, and it can be saved again after unlocking. A portfolio that has **never been saved anywhere** (the demo, §7.1) is not locked at all: the lock asks for the "choose a location" step instead (`fileSetupRequested`), because the moment to pick a destination is while the owner is still there.
+
+**Expiry is a timestamp comparison on an interval, never a `setTimeout`.** Browsers throttle timers in background tabs, sometimes to once a minute — precisely the situation this feature exists for — so a timeout would fire late and unpredictably. An interval that compares `Date.now()` against the last activity gives the right answer however badly the tick itself was delayed: a tab throttled for an hour locks on its first tick back. Activity is mouse, keyboard, touch, scroll and wheel, listened for on the capture phase and **throttled** to one reset every two seconds — a mousemove fires dozens of times a second and every one of them means the same thing. The timestamp lives in a ref rather than in the store, because a store field would re-render every subscriber several times a second for a value nothing displays.
+
+**Long-running work postpones the lock** rather than being torn down by it: `busyCount` in the store (a count, not a flag — two operations can overlap) covers the import's bulk EUR valuation, and `pendingRequestCount()` in `lib/marketData.ts` covers a price series that is halfway in. While something is in flight the countdown stays at zero and the warning says it is waiting, so the lock happens the moment the work finishes instead of a full cycle later.
+
+**The warning** appears 30 seconds before, with a countdown, "stay unlocked" (which resets the clock) and "lock now". Any real activity resets it anyway — the button is for the case where somebody is reading rather than typing.
+
+**The lock screen** shows the app's name, a password field and, unless the settings say otherwise, the file name. Nothing else: no balance, no wallet, no date, not even whether anything is unsaved. A wrong password is named as one, and after two failures each further attempt waits — 5, 10, 20, 40, 60 seconds, capped (`unlockDelayMs`), on top of the ~600 000 PBKDF2 rounds each attempt already costs. For anyone who does not have the password to hand there is "close file", which drops the ciphertext too.
+
+**Manual locking**: a header button and Ctrl/Cmd+L, both in the shell rather than in the timer, because a refusal has to be said out loud — pressing lock during an import and seeing nothing happen reads as a broken button, not as a deliberate wait. **"Lock when the tab is hidden"** (Visibility API, off by default) is deliberately not tied to the countdown: it is a different intent, so it neither waits nor warns.
+
+Settings live in `uiSettings` (`autoLockMinutes`, `lockOnHide`, `lockShowFileName`) and are mirrored to a device preference like the appearance is, so a new file starts from what this browser last used. They are read through the same parser in both directions, so a hand-edited file cannot configure an interval the settings screen has no entry for — `autoLockMinutes: 0` would mean "lock instantly, forever", a state the UI could not get out of.
 
 ## 7. Tech Stack
 

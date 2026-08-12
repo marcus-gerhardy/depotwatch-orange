@@ -22,6 +22,14 @@ import {
   type Appearance,
 } from "./appearance";
 import { deleteAndRelease } from "./deletion";
+import {
+  DEFAULT_LOCK_SETTINGS,
+  lockSettingsOf,
+  lockSettingsToFields,
+  parseLockSettings,
+  unlockDelayMs,
+  type LockSettings,
+} from "./autoLock";
 import { removeBatchTransactions } from "./importBatches";
 import {
   achieveEvent,
@@ -62,6 +70,33 @@ interface AppState {
    * needs the "choose location + set password" step before it can persist.
    */
   needsFileSetup: boolean;
+  /**
+   * The file-setup step was asked for from somewhere else (the auto-lock,
+   * which refuses to lock a portfolio that has no destination yet, §6.4).
+   */
+  fileSetupRequested: boolean;
+
+  // Auto-lock (§6.4)
+  /**
+   * Locked: the decrypted portfolio and the password are gone from memory and
+   * only `lockedPayload` — the ciphertext, i.e. exactly what is on disk — is
+   * left. Unlocking decrypts it again with a freshly typed password.
+   */
+  locked: boolean;
+  lockedPayload: string | null;
+  /** Kept separately, because `fileName` is what the lock screen may show. */
+  lockedFileName: string | null;
+  /** Wrong passwords in a row; drives the delay before the next attempt. */
+  unlockFailures: number;
+  /** Epoch ms until which the lock screen refuses the next attempt. */
+  unlockBlockedUntil: number;
+  /**
+   * Long-running operations that must not be interrupted by a lock (an
+   * import, an export, a bulk valuation). A count rather than a flag: two of
+   * them can overlap, and the second finishing must not clear the first.
+   */
+  busyCount: number;
+  lockSettings: LockSettings;
 
   /**
    * Milestones reached in this session and not yet shown (§5.2). Session
@@ -184,7 +219,43 @@ interface AppState {
    * reappears for the next one.
    */
   dismissYearInReview: (year: number) => void;
+
+  // ------------------------------------------------------------ auto-lock
+  /** Read the remembered lock settings; call from an effect (never in SSR). */
+  initLockSettings: () => void;
+  /** Change part of it, in the device preference and in the open file. */
+  setLockSettings: (patch: Partial<LockSettings>) => void;
+  /**
+   * Lock now. Saves first where there is a destination, then drops the
+   * plaintext and the password. The result says why nothing happened when
+   * nothing did — the caller turns that into something the user can act on.
+   */
+  lock: () => Promise<LockOutcome>;
+  /** Decrypt again. Throws WrongPasswordError, which the lock screen reports. */
+  unlock: (password: string) => Promise<void>;
+  /** Record a failed attempt and start the backoff (see unlockDelayMs). */
+  noteUnlockFailure: () => void;
+  /** Mark a long-running operation; always pair them (or use `runBusy`). */
+  beginBusy: () => void;
+  endBusy: () => void;
+  /** Run something that must not be interrupted by a lock. */
+  runBusy: <T>(fn: () => Promise<T>) => Promise<T>;
+  /** Ask for the "choose a location" step (the auto-lock does when it must). */
+  requestFileSetup: (on: boolean) => void;
 }
+
+/** Why a lock attempt did or did not happen. */
+export type LockOutcome =
+  /** Locked; the plaintext is gone. */
+  | "locked"
+  /** No portfolio open — nothing to lock. */
+  | "noFile"
+  /** The file has no password, so there is nothing to lock it with (§6.4). */
+  | "unencrypted"
+  /** Never saved anywhere: the user has to pick a destination first. */
+  | "needsSetup"
+  /** A long-running operation is in flight; try again when it is done. */
+  | "busy";
 
 /** Structural comparison for values that are plain JSON (see the UI settings). */
 function sameJson(a: unknown, b: unknown): boolean {
@@ -331,6 +402,27 @@ function storeAppearance(appearance: Appearance): void {
   }
 }
 
+const LOCK_KEY = "depotwatch.lock.v1";
+
+function readStoredLockSettings(): LockSettings {
+  try {
+    const raw = localStorage.getItem(LOCK_KEY);
+    return raw
+      ? parseLockSettings(JSON.parse(raw), DEFAULT_LOCK_SETTINGS)
+      : DEFAULT_LOCK_SETTINGS;
+  } catch {
+    return DEFAULT_LOCK_SETTINGS; // storage unavailable (private mode)
+  }
+}
+
+function storeLockSettings(settings: LockSettings): void {
+  try {
+    localStorage.setItem(LOCK_KEY, JSON.stringify(lockSettingsToFields(settings)));
+  } catch {
+    // The preference just won't survive a reload; the open file still has it.
+  }
+}
+
 export const useAppStore = create<AppState>((set, get) => {
   async function persist(): Promise<void> {
     const { portfolio, password, encryptionEnabled, fileHandle, fileMode } = get();
@@ -443,6 +535,14 @@ export const useAppStore = create<AppState>((set, get) => {
     saving: false,
     lastSavedAt: null,
     needsFileSetup: false,
+    fileSetupRequested: false,
+    locked: false,
+    lockedPayload: null,
+    lockedFileName: null,
+    unlockFailures: 0,
+    unlockBlockedUntil: 0,
+    busyCount: 0,
+    lockSettings: DEFAULT_LOCK_SETTINGS,
     privacyMode: false,
     uiLocale: "de",
     appearance: DEFAULT_APPEARANCE,
@@ -496,6 +596,10 @@ export const useAppStore = create<AppState>((set, get) => {
       storeUiLocale(portfolio.settings.locale);
       const appearance = appearanceOf(portfolio, get().appearance);
       storeAppearance(appearance);
+      // The file's own lock configuration wins on open and becomes the device
+      // default, exactly like the language and the appearance.
+      const lockSettings = lockSettingsOf(portfolio, get().lockSettings);
+      storeLockSettings(lockSettings);
       set({
         // The runtime facts a milestone may read have to be in place first.
         encryptionEnabled: password !== null,
@@ -520,6 +624,14 @@ export const useAppStore = create<AppState>((set, get) => {
         needsFileSetup: !!isDemo,
         uiLocale: portfolio.settings.locale,
         appearance,
+        lockSettings,
+        // A newly opened file is never a locked one.
+        locked: false,
+        lockedPayload: null,
+        lockedFileName: null,
+        unlockFailures: 0,
+        unlockBlockedUntil: 0,
+        fileSetupRequested: false,
       });
     },
 
@@ -534,6 +646,14 @@ export const useAppStore = create<AppState>((set, get) => {
         dirty: false,
         needsFileSetup: false,
         privacyMode: false,
+        // Closing from the lock screen has to drop the ciphertext too, or the
+        // next visitor could keep guessing at a file nobody opened.
+        locked: false,
+        lockedPayload: null,
+        lockedFileName: null,
+        unlockFailures: 0,
+        unlockBlockedUntil: 0,
+        fileSetupRequested: false,
       });
     },
 
@@ -790,5 +910,111 @@ export const useAppStore = create<AppState>((set, get) => {
               },
             };
       }),
+    // ---------------------------------------------------------- auto-lock
+
+    initLockSettings: () => set({ lockSettings: readStoredLockSettings() }),
+
+    setLockSettings: (patch) => {
+      const lockSettings = { ...get().lockSettings, ...patch };
+      storeLockSettings(lockSettings);
+      set({ lockSettings });
+      if (!get().portfolio) return;
+      mutate((p) => ({
+        ...p,
+        uiSettings: { ...p.uiSettings, ...lockSettingsToFields(lockSettings) },
+      }));
+    },
+
+    lock: async () => {
+      const { portfolio, password, needsFileSetup, busyCount } = get();
+      if (!portfolio) return "noFile";
+      // An unencrypted file has no secret to be locked with. Hiding it behind
+      // an overlay while the plaintext stays in memory would be the dishonest
+      // version of this feature, so it is refused and said out loud (§6.4).
+      if (password === null) return "unencrypted";
+      // Loaded but never written anywhere: locking is safe (the ciphertext
+      // below holds everything), but the user should pick a destination while
+      // they are still here rather than after a reload.
+      if (needsFileSetup) {
+        set({ fileSetupRequested: true });
+        return "needsSetup";
+      }
+      if (busyCount > 0) return "busy";
+
+      // Never lose data to a lock: write what is pending, where there is
+      // somewhere to write it. A failure is not fatal — the ciphertext keeps
+      // the change and `dirty` stays true, so it can be saved after unlocking.
+      if (get().dirty && get().fileMode === "fsa" && get().fileHandle) {
+        try {
+          await persist();
+        } catch (e) {
+          console.error("save before lock failed", e);
+        }
+      }
+
+      const current = get().portfolio;
+      if (!current) return "noFile";
+      const payload = await encryptPortfolio(serializePortfolio(current), password);
+      if (autosaveTimer) clearTimeout(autosaveTimer);
+      set({
+        locked: true,
+        lockedPayload: payload,
+        lockedFileName: get().fileName,
+        // What the lock is actually about: no plaintext and no key material
+        // left in memory. Everything else about the session stays, so
+        // unlocking resumes rather than re-opens.
+        portfolio: null,
+        password: null,
+        milestoneQueue: [],
+        privacyMode: false,
+        unlockFailures: 0,
+        unlockBlockedUntil: 0,
+      });
+      return "locked";
+    },
+
+    unlock: async (password) => {
+      const payload = get().lockedPayload;
+      if (payload === null) return;
+      // A real decryption, which is what makes the lock more than a curtain:
+      // a wrong password cannot get past this line.
+      const { portfolio } = await deserializePortfolio(payload, password);
+      // Time passed while the file was locked, and time is what the patience
+      // milestones are made of — so unlocking looks, like opening does.
+      const evaluated = withMilestones(portfolio, { silent: false });
+      set({
+        portfolio: evaluated.portfolio,
+        milestoneQueue: evaluated.newly,
+        password,
+        encryptionEnabled: true,
+        locked: false,
+        lockedPayload: null,
+        lockedFileName: null,
+        unlockFailures: 0,
+        unlockBlockedUntil: 0,
+      });
+    },
+
+    noteUnlockFailure: () =>
+      set((s) => {
+        const failures = s.unlockFailures + 1;
+        return {
+          unlockFailures: failures,
+          unlockBlockedUntil: Date.now() + unlockDelayMs(failures),
+        };
+      }),
+
+    beginBusy: () => set((s) => ({ busyCount: s.busyCount + 1 })),
+    endBusy: () => set((s) => ({ busyCount: Math.max(0, s.busyCount - 1) })),
+    runBusy: async (fn) => {
+      get().beginBusy();
+      try {
+        return await fn();
+      } finally {
+        get().endBusy();
+      }
+    },
+
+    requestFileSetup: (on) => set({ fileSetupRequested: on }),
   };
 });

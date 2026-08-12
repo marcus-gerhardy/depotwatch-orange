@@ -22,6 +22,7 @@ import {
 const LIGHT_THEMES = THEME_IDS.filter((id) => THEME_META[id].scheme === "light");
 const DARK_THEMES = THEME_IDS.filter((id) => THEME_META[id].scheme === "dark");
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
+import { AUTO_LOCK_CHOICES } from "@/lib/autoLock";
 import { Button, Card, Field, Modal, SectionTitle, Switch, inputCls } from "./ui";
 
 export default function SettingsView() {
@@ -36,6 +37,8 @@ export default function SettingsView() {
   const laserEyes = useAppStore((s) => s.portfolio?.uiSettings?.laserEyes) === true;
   const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
   const fileMode = useAppStore((s) => s.fileMode);
+  const lockSettings = useAppStore((s) => s.lockSettings);
+  const setLockSettings = useAppStore((s) => s.setLockSettings);
 
   const [pwModal, setPwModal] = useState(false);
   const [pw1, setPw1] = useState("");
@@ -228,6 +231,60 @@ export default function SettingsView() {
             ? t("settings.fileModeFsa")
             : t("settings.fileModeFallback")}
         </p>
+      </Card>
+
+      <Card className="space-y-3">
+        <SectionTitle level={2}>{t("settings.lock")}</SectionTitle>
+        {/* Said before anything can be configured: without a password there is
+            nothing to lock the file with, and the switches below would be a
+            promise the app cannot keep (§6.4). */}
+        {!encryptionEnabled && (
+          <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs leading-relaxed text-warning">
+            ⚠ {t("settings.lockNeedsEncryption")}
+          </p>
+        )}
+        <Field label={t("settings.lockAfter")}>
+          <select
+            className={inputCls}
+            value={lockSettings.minutes === null ? "never" : String(lockSettings.minutes)}
+            onChange={(e) =>
+              setLockSettings({
+                minutes: e.target.value === "never" ? null : Number(e.target.value),
+              })
+            }
+          >
+            {AUTO_LOCK_CHOICES.map((m) => (
+              <option key={m ?? "never"} value={m === null ? "never" : String(m)}>
+                {m === null ? t("settings.lockNever") : t("settings.lockMinutes", { count: m })}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <label className="flex cursor-pointer items-start gap-3">
+          <Switch
+            checked={lockSettings.onHide}
+            onChange={(onHide) => setLockSettings({ onHide })}
+            label={t("settings.lockOnHide")}
+          />
+          <span className="text-sm">
+            {t("settings.lockOnHide")}
+            <span className="block text-xs text-muted">{t("settings.lockOnHideHint")}</span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3">
+          <Switch
+            checked={lockSettings.showFileName}
+            onChange={(showFileName) => setLockSettings({ showFileName })}
+            label={t("settings.lockShowFileName")}
+          />
+          <span className="text-sm">
+            {t("settings.lockShowFileName")}
+            <span className="block text-xs text-muted">
+              {t("settings.lockShowFileNameHint")}
+            </span>
+          </span>
+        </label>
+        <p className="text-xs leading-relaxed text-muted">{t("settings.lockHint")}</p>
       </Card>
 
       <Card className="space-y-3">

@@ -5,16 +5,20 @@ import { I18nProvider, useAppLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import StartScreen from "@/components/StartScreen";
 import AppShell from "@/components/AppShell";
+import LockScreen from "@/components/LockScreen";
 
 export default function Home() {
   const portfolio = useAppStore((s) => s.portfolio);
+  const locked = useAppStore((s) => s.locked);
   const initFileMode = useAppStore((s) => s.initFileMode);
+  const initLockSettings = useAppStore((s) => s.initLockSettings);
   const dirty = useAppStore((s) => s.dirty);
   const fileMode = useAppStore((s) => s.fileMode);
 
   useEffect(() => {
     initFileMode();
-  }, [initFileMode]);
+    initLockSettings();
+  }, [initFileMode, initLockSettings]);
 
   // Warn before leaving with unsaved changes in fallback mode.
   useEffect(() => {
@@ -30,7 +34,10 @@ export default function Home() {
 
   return (
     <I18nProvider locale={locale}>
-      {portfolio ? <AppShell /> : <StartScreen />}
+      {/* Locked means locked: the app is not rendered behind this screen, it
+          is not rendered at all — there is no decrypted portfolio left to
+          render it from (CLAUDE.md §6.4). */}
+      {locked ? <LockScreen /> : portfolio ? <AppShell /> : <StartScreen />}
     </I18nProvider>
   );
 }

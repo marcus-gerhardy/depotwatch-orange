@@ -1454,6 +1454,28 @@ const en: typeof de = {
     loadError: "Could not load live data: {error}",
     noLiveData: "No live data for xpub entries.",
   },
+  lock: {
+    title: "Locked",
+    passwordPlaceholder: "Password",
+    unlock: "Unlock",
+    unlocking: "Decrypting …",
+    wrongPassword: "Wrong password. Please try again.",
+    failed: "Unlocking failed.",
+    blocked:
+      "After {attempts} failed attempts: the next one is possible in {seconds} seconds.",
+    hint:
+      "The data is encrypted and no longer sits decrypted in memory. Without the password nobody gets at it, including you.",
+    closeFile: "Close file",
+    lockNow: "Lock now",
+    cannotLock: "Unencrypted files cannot be locked",
+    warningTitle: "Locking shortly",
+    warningBody:
+      "Locking in {seconds} seconds because of inactivity. Pending changes are saved first.",
+    warningDeferred:
+      "Locking is waiting: a running operation finishes first.",
+    stayUnlocked: "Stay unlocked",
+    busyToast: "Cannot lock: an operation is still running. Try again once it is done.",
+  },
   settings: {
     title: "Settings",
     general: "General",
@@ -1495,6 +1517,20 @@ const en: typeof de = {
     disableEncryptionConfirm:
       "Really save without encryption? Anyone with access to the file can read all data.",
     passwordChanged: "Password changed. It will be used on the next save.",
+    lock: "Lock on inactivity",
+    lockAfter: "Lock automatically after",
+    lockMinutes: "{count} minutes",
+    lockNever: "Never",
+    lockOnHide: "Lock as soon as the tab is hidden or minimised",
+    lockOnHideHint:
+      "Locks the moment the tab goes into the background. Useful on a shared machine, but interrupting if you switch windows often.",
+    lockShowFileName: "Show the file name on the lock screen",
+    lockShowFileNameHint:
+      "Off leaves out even the file name, in case that already says too much.",
+    lockNeedsEncryption:
+      "This file is not encrypted and therefore cannot be locked: without a password there is nothing to lock it with. Set a password above and the lock takes effect.",
+    lockHint:
+      "Locking saves pending changes first, then removes the decrypted data and the password from memory. Unlocking needs the password again. Lock by hand with Ctrl/Cmd + L.",
     explorer: "Explorer source (on-chain data)",
     explorerPublic: "Public API",
     explorerCustom: "Own server (Esplora-compatible)",

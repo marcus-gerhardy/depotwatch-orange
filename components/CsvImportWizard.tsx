@@ -715,6 +715,10 @@ export default function CsvImportWizard({
   async function valuateMissingEur() {
     const targets = rowsNeedingEur;
     if (targets.length === 0) return;
+    // One request per distinct day, and it can take a while: mark it, so the
+    // auto-lock waits for it instead of tearing the wizard down (§6.4).
+    const { beginBusy, endBusy } = useAppStore.getState();
+    beginBusy();
     setValuation({ done: 0, total: targets.length, failed: 0, running: true });
     const valuate = createEurValuator();
     let failed = 0;
@@ -751,6 +755,7 @@ export default function CsvImportWizard({
         running: i + 1 < targets.length,
       });
     }
+    endBusy();
   }
 
   function doImport() {

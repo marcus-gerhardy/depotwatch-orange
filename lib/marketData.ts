@@ -67,6 +67,18 @@ export function fetchCached<T>(
   return pending;
 }
 
+/**
+ * How many requests are in flight right now. The auto-lock (§6.4) asks before
+ * locking: a price series that is halfway in is a long-running operation like
+ * an import is, and tearing the session down under it would leave the widget
+ * that asked for it with an error instead of a figure.
+ */
+export function pendingRequestCount(): number {
+  let n = 0;
+  for (const entry of cache.values()) if (entry.pending) n += 1;
+  return n;
+}
+
 /** Drop every cached figure — used by the tests and by a manual refresh. */
 export function clearMarketDataCache(): void {
   cache.clear();
