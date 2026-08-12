@@ -5,8 +5,8 @@ import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
+import dynamic from "next/dynamic";
 import AutoLock from "./AutoLock";
-import HelpPanel from "./help/HelpPanel";
 import Celebration from "./Celebration";
 import MilestoneToast from "./MilestoneToast";
 import MilestonesView from "./MilestonesView";
@@ -22,6 +22,14 @@ import SettingsView, { type SettingsSection } from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
+
+/**
+ * The help carries its whole content (both languages, ~170 kB) and is opened
+ * by a minority of visits, so it is fetched when it is first opened rather
+ * than by everyone who loads the app. `ssr: false` because there is nothing to
+ * prerender: the panel renders only once somebody asks for it.
+ */
+const HelpPanel = dynamic(() => import("./help/HelpPanel"), { ssr: false });
 
 type Tab =
   | "dashboard"

@@ -17,7 +17,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
-import { formatBtc } from "@/lib/decimal";
 import {
   DASHBOARD_COLS,
   DASHBOARD_MARGIN,
@@ -82,7 +81,7 @@ function useIsWideViewport(): boolean {
 
 /** Portfolio-level warnings; they belong to the whole ledger, not to a widget. */
 function LedgerWarnings() {
-  const { t, loc, balanceBtc, breakdown, fifo } = useDashboardData();
+  const { t, balanceBtc, breakdown, fifo, fmtAmount } = useDashboardData();
   const uncoveredBtc = fifo.openLotsBtc.minus(balanceBtc);
 
   return (
@@ -99,7 +98,7 @@ function LedgerWarnings() {
       )}
       {uncoveredBtc.gt("0.00000001") && (
         <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
-          ⚠ {t("dashboard.uncoveredHint", { amount: formatBtc(uncoveredBtc, loc) })}
+          ⚠ {t("dashboard.uncoveredHint", { amount: fmtAmount(uncoveredBtc) })}
         </p>
       )}
     </>

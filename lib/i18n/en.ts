@@ -201,6 +201,12 @@ const en: typeof de = {
     aboutLabel: "Help for: {what}",
     openFull: "Open as a page",
   },
+  notFound: {
+    title: "This page does not exist.",
+    body:
+      "The link is probably out of date or mistyped. Your portfolio file is unaffected: it lives on your device, not here.",
+    home: "Open the app",
+  },
   nav: {
     dashboard: "Dashboard",
     transactions: "Transactions",
@@ -236,7 +242,7 @@ const en: typeof de = {
     chartPortfolio: "Portfolio value",
     chartBtcPrice: "BTC price",
     uncoveredHint:
-      "{amount} BTC of your sells, spends, or outgoing transfers have no matching purchase in the portfolio (e.g. a CSV export that starts mid-history). The holding above is correct, but cost basis, average cost, and unrealized P/L are incomplete.",
+      "{amount} of your sells, spends, or outgoing transfers have no matching purchase in the portfolio (e.g. a CSV export that starts mid-history). The holding above is correct, but cost basis, average cost, and unrealized P/L are incomplete.",
     breakdownIntro:
       "Every line already carries the BTC fees of its transactions: a buy counts amount minus fee, while sell, spend and outgoing transfer count amount plus fee (see the fee convention). A transfer between your own accounts therefore costs exactly the network fee.",
     breakdownBuys: "Buys",
@@ -284,7 +290,7 @@ const en: typeof de = {
       unrealizedAgainstCost: "unrealized against cost basis",
       pnlCoveredBtc: "Of which valued",
       pnlWithoutBasisHint:
-        "{amount} BTC of your holding have no cost basis, for example receives from outside without a price. That amount is part of neither the cost basis nor the gain, because its full market value would otherwise show up as profit.",
+        "{amount} of your holding have no cost basis, for example receives from outside without a price. That amount is part of neither the cost basis nor the gain, because its full market value would otherwise show up as profit.",
       // --- New widgets ----------------------------------------------------
       taxFreeEmpty: "No open lots.",
       taxFreeProceedsLabel: "Tax-free realisable (at the current price)",
@@ -324,7 +330,7 @@ const en: typeof de = {
       feesNetwork: "Network fees",
       feesBtc: "Of which paid in BTC",
       feesInvested: "Amount invested",
-      feesUnvalued: "{amount} BTC of fees have no daily close, so they are left out of the total.",
+      feesUnvalued: "{amount} of fees have no daily close, so they are left out of the total.",
       feesNoHistory: "Price history unavailable, so BTC fees stay unvalued.",
       whatIfEmpty: "No positions with a known cost basis.",
       whatIfValue: "Portfolio value at this price",
@@ -365,7 +371,7 @@ const en: typeof de = {
       buysPerYear: "Buys per year",
       maxDrawdown: "Maximum drawdown",
       drawdownDetail: "From {peak} to {trough} on {date}",
-      markerSummary: "{price} · {amount} BTC · {count} trade(s)",
+      markerSummary: "{price} · {amount} · {count} trade(s)",
       markerBucket: {
         week: "Markers grouped by week ({count} trades in the period)",
         month: "Markers grouped by month ({count} trades in the period)",
@@ -414,7 +420,7 @@ const en: typeof de = {
       taxFreeFrom: "Tax-free from",
       daysLeft: "Days",
       holdingPeriodUnresolved:
-        "{amount} BTC without a traceable origin: no holding period can be determined for them.",
+        "{amount} without a traceable origin: no holding period can be determined for them.",
       holdingPeriodEmpty: "No open lots.",
       dataQualityClean: "No open issues found.",
       showAffected: "Show the affected transactions",

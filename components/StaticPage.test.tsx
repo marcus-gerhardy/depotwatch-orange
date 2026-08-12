@@ -5,6 +5,7 @@ import { useAppStore } from "@/lib/store";
 import { emptyPortfolio } from "@/lib/types";
 import { STATIC_PAGE_PATHS, localeForPath, staticPagePath } from "@/lib/routes";
 import ImprintPage from "./ImprintPage";
+import HelpPage from "./HelpPage";
 
 const replace = vi.fn();
 let pathname = "/impressum";
@@ -76,5 +77,43 @@ describe("localized content-page URLs", () => {
     useAppStore.setState({ uiLocale: "en" });
     render(<ImprintPage />);
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("regression: adopting the URL's language never bounces to the other one", () => {
+    // The two rules — the URL wins on arrival, the language wins afterwards —
+    // used to be evaluated in one pass with a stale locale, which sent
+    // /help and /hilfe redirecting to each other forever.
+    pathname = "/legal-notice";
+    useAppStore.setState({ uiLocale: "de" });
+    render(<ImprintPage />);
+    expect(useAppStore.getState().uiLocale).toBe("en");
+    expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("deep links into a help topic", () => {
+  it("keeps the topic in the URL instead of bouncing to the index", () => {
+    // A saved link to one topic is the reason the topics have URLs at all.
+    pathname = "/hilfe/csv-import";
+    useAppStore.setState({ uiLocale: "de" });
+    render(<HelpPage topicId="csv-import" />);
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "CSV-Import" })).toBeTruthy();
+  });
+
+  it("carries the topic across a language switch", () => {
+    pathname = "/hilfe/csv-import";
+    useAppStore.setState({ uiLocale: "de" });
+    render(<HelpPage topicId="csv-import" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
+
+    expect(replace).toHaveBeenCalledWith("/help/csv-import");
+  });
+
+  it("reads a topic path as the language it is written in", () => {
+    expect(localeForPath("/hilfe/csv-import")).toBe("de");
+    expect(localeForPath("/help/csv-import")).toBe("en");
   });
 });

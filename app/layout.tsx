@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import Footer from "@/components/Footer";
 import ThemeEffect from "@/components/ThemeEffect";
 import { THEME_BOOT_SCRIPT } from "@/lib/themeBoot";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 // Self-hosted, not pulled from Google — see app/fonts/README.md. One variable
@@ -32,9 +33,36 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "DepotWatch Orange",
+  // Every canonical URL and the sitemap are resolved against this, so it has
+  // to be the live domain rather than a preview URL.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "DepotWatch Orange — Bitcoin-Portfolio, lokal und verschlüsselt",
+    template: "%s — DepotWatch Orange",
+  },
   description:
-    "Local-first Bitcoin portfolio tracker — your data stays in one encrypted file on your device.",
+    "Bitcoin-Portfolio verwalten ohne Konto und ohne Server: Alle Daten liegen in einer verschlüsselten Datei auf deinem Gerät. Mit FIFO-Auswertung, CSV-Import und Adress-Watchlist.",
+  applicationName: "DepotWatch Orange",
+  alternates: { canonical: "/", languages: { de: "/", en: "/" } },
+  openGraph: {
+    type: "website",
+    siteName: "DepotWatch Orange",
+    locale: "de_DE",
+    url: "/",
+    title: "DepotWatch Orange — Bitcoin-Portfolio, lokal und verschlüsselt",
+    description:
+      "Kein Konto, kein Server, keine Cloud: dein Bitcoin-Portfolio in einer verschlüsselten Datei auf deinem Gerät.",
+  },
+  // No Twitter card image and no verification tokens: both would be claims
+  // about accounts that do not exist. They belong here once they do.
+  robots: { index: true, follow: true },
+  icons: { icon: "/favicon.ico" },
+};
+
+/** The colour behind the browser UI on mobile — the app's own background. */
+export const viewport: Viewport = {
+  themeColor: "#050b14",
+  colorScheme: "dark light",
 };
 
 export default function RootLayout({

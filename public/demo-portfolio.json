@@ -553,7 +553,7 @@
               "counterpartyAccountId": "a-bitget-spot",
               "transferGroupId": "g-sparrow-1",
               "txid": "3ab7e1c95d0426f8b1c73e9a5d20f4681e7c3b95a2d08f461c9e75b3a0d26f84",
-              "address": "bc1pmzfrwwndsqmk5yh69yjr5lfgfg4ev8c0tsc06e",
+              "address": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
               "note": "Eingang von Bitget"
             },
             {
@@ -564,7 +564,7 @@
               "pricePerBtcEur": "104000",
               "totalFiatEur": null,
               "txid": "b62c9f07d3a15e84f209c7b3d5a0e6482f13c9d70b5a2e46f803d1c95a7b0e23",
-              "address": "bc1pmzfrwwndsqmk5yh69yjr5lfgfg4ev8c0tsc06e",
+              "address": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
               "note": "Bezahlung eines Auftrags in BTC — externer Zugang mit bekanntem Gegenwert"
             },
             {
@@ -5909,7 +5909,7 @@
     {
       "id": "wa-taproot",
       "type": "address",
-      "value": "bc1pmzfrwwndsqmk5yh69yjr5lfgfg4ev8c0tsc06e",
+      "value": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
       "label": "Sparrow – Taproot-Empfang",
       "tags": [
         "software-wallet",

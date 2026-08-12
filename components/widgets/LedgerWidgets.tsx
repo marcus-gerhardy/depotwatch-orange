@@ -268,7 +268,7 @@ export function HoldingCompositionWidget() {
  * This is tax-specific UI; see `TAX_FEATURES_ENABLED` in lib/features.ts.
  */
 export function HoldingPeriodWidget() {
-  const { t, loc, fifo, fmtAmountPlain } = useDashboardData();
+  const { t, loc, fifo, fmtAmount, fmtAmountPlain } = useDashboardData();
   const now = new Date();
 
   const { free, pending, unresolved, upcoming } = useMemo(() => {
@@ -318,7 +318,7 @@ export function HoldingPeriodWidget() {
         <p className="text-xs text-warning">
           ⚠{" "}
           {t("dashboard.widgets.holdingPeriodUnresolved", {
-            amount: fmtAmountPlain(unresolved),
+            amount: fmtAmount(unresolved),
           })}
         </p>
       )}
@@ -437,7 +437,7 @@ export function DataQualityWidget() {
  * went to the miners.
  */
 export function FeeBalanceWidget() {
-  const { t, loc, entries, priceCurrency, fmtDisplay, fmtAmountPlain } =
+  const { t, loc, entries, priceCurrency, fmtDisplay, fmtAmount, fmtAmountPlain } =
     useDashboardData();
   const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
   const closes = useDailyCloses(priceCurrency, startTime);
@@ -504,7 +504,7 @@ export function FeeBalanceWidget() {
       {totals.unvaluedBtc.gt(0) && (
         <p className="text-[0.65rem] leading-relaxed text-muted">
           {t("dashboard.widgets.feesUnvalued", {
-            amount: fmtAmountPlain(totals.unvaluedBtc),
+            amount: fmtAmount(totals.unvaluedBtc),
           })}
         </p>
       )}

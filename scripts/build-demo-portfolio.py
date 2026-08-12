@@ -40,7 +40,10 @@ ADDR = {
     "cold1": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
     "cold2": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
     "second": "bc1q9d4ywgfnd8h43da5tpcxcn6ajv590cg6d3tg6axemvljvt2k76zs50tv4q",
-    "sparrow": "bc1pmzfrwwndsqmk5yh69yjr5lfgfg4ev8c0tsc06e",
+    # A real bech32m address (BIP-350 test vector). The made-up one that used
+    # to be here failed the app's own address check and made every demo visit
+    # send three doomed requests to the explorer.
+    "sparrow": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
     "paper": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
     "friend": "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2",
 }

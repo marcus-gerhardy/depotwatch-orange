@@ -17,12 +17,19 @@ export default function StaticPage({
   page,
   title,
   metaTitle,
+  subPath = "",
   children,
 }: {
   /** Which content page this is — used to keep the URL in the right language. */
   page: StaticPageKey;
   title: string;
   metaTitle: string;
+  /**
+   * What comes after the page's own path, e.g. `/csv-import` for a help topic.
+   * Without it, switching the language (or merely arriving) would rewrite the
+   * URL to the page's root and drop the topic somebody linked to.
+   */
+  subPath?: string;
   children: React.ReactNode;
 }) {
   const { locale } = useAppLocale();
@@ -43,18 +50,34 @@ export default function StaticPage({
   //     (replace, not push, so the back button stays sane).
   // With a portfolio open the URL never wins: the file's language is the
   // user's explicit choice, and adopting a link's language would edit the file.
+  // URL and language must agree, and which one gives way depends on when:
+  //   • on arrival the URL wins — a shared /legal-notice link should be read
+  //     in English even if this device last used German;
+  //   • afterwards the language wins — switching to EN rewrites the path
+  //     (replace, not push, so the back button stays sane), keeping any
+  //     sub-path so a deep link into a help topic survives the switch.
+  // With a portfolio open the URL never wins: the file's language is the
+  // user's explicit choice, and adopting a link's language would edit the file.
+  //
+  // The arrival adopts **unconditionally**, without comparing against the
+  // current locale, and returns before touching the URL. Both matter: the
+  // device preference is itself hydrated from localStorage in an effect, so at
+  // this point `locale` may still be the default and a comparison would let the
+  // remembered language win a moment later — and computing a redirect target
+  // from that stale value in the same pass is what turns the two rules into a
+  // loop between /help and /hilfe.
   useEffect(() => {
-    const pathLocale = localeForPath(pathname);
     if (!arrived.current) {
       arrived.current = true;
-      if (!hasPortfolio && pathLocale && pathLocale !== locale) {
+      const pathLocale = localeForPath(pathname);
+      if (!hasPortfolio && pathLocale) {
         setUiLocale(pathLocale);
         return;
       }
     }
-    const target = staticPagePath(page, locale);
+    const target = `${staticPagePath(page, locale)}${subPath}`;
     if (pathname !== target) router.replace(target);
-  }, [page, locale, pathname, hasPortfolio, router, setUiLocale]);
+  }, [page, locale, pathname, subPath, hasPortfolio, router, setUiLocale]);
 
   return (
     <>

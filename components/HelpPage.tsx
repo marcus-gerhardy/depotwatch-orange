@@ -18,7 +18,14 @@ export default function HelpPage({ topicId }: { topicId?: string }) {
   const router = useRouter();
 
   return (
-    <StaticPage page="help" title={t("help.title")} metaTitle={t("help.metaTitle")}>
+    <StaticPage
+      page="help"
+      title={t("help.title")}
+      metaTitle={t("help.metaTitle")}
+      // Keeps the topic in the URL when the language switches: the slugs are
+      // the same in both languages, only the prefix differs.
+      subPath={topicId ? `/${topicId}` : ""}
+    >
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
         {t("help.intro")}
       </p>

@@ -53,6 +53,50 @@ describe("i18n dictionaries", () => {
   });
 });
 
+describe("units", () => {
+  it("never prints a unit twice, and never the wrong one", () => {
+    // Two formatters fill an {amount}: `fmtAmount` carries the unit that is
+    // *currently displayed* (BTC or sats, §6.3), `formatBtc` always writes a
+    // plain BTC number. So a sentence may hard-wire "BTC" only where the caller
+    // uses the second kind. Where it uses the first, the sentence must not:
+    // that combination reads "0,015 BTC BTC" in BTC mode and — worse —
+    // "1.500.000 sats BTC" in sats mode, which is what the P/L widget did
+    // until this test existed.
+    const files = (readdirSync("components", { recursive: true }) as string[]).filter(
+      (f) => f.endsWith(".tsx") && !f.includes(".test."),
+    );
+    // Found by looking **backwards** from each `amount: fmtAmount(` to the
+    // nearest `t("…")` before it. Matching forwards from the `t(` instead lets
+    // the pattern run past the end of the call and pair a key with the next
+    // call's argument, which is how the first version of this test reported
+    // three keys that take no amount at all.
+    const withUnitFormatter = new Set<string>();
+    for (const file of files) {
+      const source = readFileSync(`components/${file}`, "utf8");
+      for (const m of source.matchAll(/amount:\s*fmtAmount\(/g)) {
+        const before = source.slice(Math.max(0, (m.index ?? 0) - 300), m.index);
+        const call = [...before.matchAll(/\bt\(\s*["'`]([\w.]+)["'`]/g)].pop();
+        if (call) withUnitFormatter.add(call[1]);
+      }
+    }
+    expect(withUnitFormatter.size).toBeGreaterThan(2);
+
+    const offenders: string[] = [];
+    for (const key of withUnitFormatter) {
+      for (const [dict, flat] of [
+        ["de", deFlat],
+        ["en", enFlat],
+      ] as const) {
+        const value = new Map(flat).get(key);
+        if (value && /\{amount\}\s*(BTC|sats)\b/i.test(value)) {
+          offenders.push(`${dict}:${key}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe("wording", () => {
   it("contains no em dashes in any translation", () => {
     // Long dashes read as machine-generated prose; sentences, commas, colons

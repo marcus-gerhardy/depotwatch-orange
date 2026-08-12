@@ -507,7 +507,7 @@ Separate from the backups and deliberately not a disaster measure: the file keep
 - **On-chain data:** mempool.space/Blockstream Esplora API (default) or a configurable own Electrum server; Next.js API routes optionally usable as a proxy (e.g. to avoid sending the user's IP directly to public APIs), but not strictly required since these APIs generally support CORS
 - **Encryption:** Web Crypto API (AES-GCM + PBKDF2)
 - **Help content:** Markdown under `content/help/`, compiled to a TS module by `scripts/build-help.py`; screenshots by Playwright against the demo portfolio (§8)
-- **Hosting:** fully static/serverless possible (no persistent backend required for the MVP), e.g. Vercel/Netlify
+- **Hosting:** fully static/serverless possible (no persistent backend required for the MVP), e.g. Vercel/Netlify. The response headers a static export cannot express in `next.config.ts` live in `vercel.json`; `docs/deployment.md` says what each one is for. The one that cannot be tightened is `connect-src 'self' https:`: an allowlist of the two public explorers would break the **own server** option of §3.3, which is precisely the setup that leaks least.
 
 ### 7.1 Demo Portfolio
 

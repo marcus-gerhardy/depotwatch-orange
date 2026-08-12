@@ -197,6 +197,12 @@ const de = {
     aboutLabel: "Hilfe zu: {what}",
     openFull: "Als Seite öffnen",
   },
+  notFound: {
+    title: "Diese Seite gibt es nicht.",
+    body:
+      "Der Link ist vermutlich veraltet oder vertippt. Deine Portfolio-Datei ist davon nicht betroffen: Sie liegt auf deinem Gerät, nicht hier.",
+    home: "Zur App",
+  },
   nav: {
     dashboard: "Dashboard",
     transactions: "Transaktionen",
@@ -232,7 +238,7 @@ const de = {
     chartPortfolio: "Portfoliowert",
     chartBtcPrice: "BTC-Kurs",
     uncoveredHint:
-      "Für {amount} BTC aus Verkäufen, Ausgaben oder Abgängen fehlen die zugehörigen Käufe im Portfolio (z. B. bei einem CSV-Export, der erst mitten in der Historie beginnt). Der Bestand oben stimmt, aber Einstandswert, Ø Einstandspreis und unrealisierter G/V sind unvollständig.",
+      "Für {amount} aus Verkäufen, Ausgaben oder Abgängen fehlen die zugehörigen Käufe im Portfolio (z. B. bei einem CSV-Export, der erst mitten in der Historie beginnt). Der Bestand oben stimmt, aber Einstandswert, Ø Einstandspreis und unrealisierter G/V sind unvollständig.",
     breakdownIntro:
       "Jede Zeile enthält die BTC-Gebühren ihrer Transaktionen bereits: ein Kauf zählt Menge minus Gebühr, Verkauf, Ausgabe und Transfer-Ausgang zählen Menge plus Gebühr (siehe Gebührenkonvention). Ein Transfer zwischen eigenen Konten kostet also genau die Netzwerkgebühr.",
     breakdownBuys: "Käufe",
@@ -280,7 +286,7 @@ const de = {
       unrealizedAgainstCost: "unrealisiert gegenüber Einstandskosten",
       pnlCoveredBtc: "Davon bewertet",
       pnlWithoutBasisHint:
-        "{amount} BTC deines Bestands haben keinen Einstandswert, etwa Zugänge von außen ohne Kurs. Diese Menge steckt weder im Einstandswert noch im Gewinn, sonst würde ihr voller Kurswert als Gewinn erscheinen.",
+        "{amount} deines Bestands haben keinen Einstandswert, etwa Zugänge von außen ohne Kurs. Diese Menge steckt weder im Einstandswert noch im Gewinn, sonst würde ihr voller Kurswert als Gewinn erscheinen.",
       // --- Neue Widgets ---------------------------------------------------
       taxFreeEmpty: "Keine offenen Lots.",
       taxFreeProceedsLabel: "Steuerfrei realisierbar (aktueller Kurs)",
@@ -321,7 +327,7 @@ const de = {
       feesBtc: "Davon in BTC gezahlt",
       feesInvested: "Investitionssumme",
       feesUnvalued:
-        "Für {amount} BTC Gebühren gibt es keinen Tageskurs, sie fehlen daher in der Summe.",
+        "Für {amount} Gebühren gibt es keinen Tageskurs, sie fehlen daher in der Summe.",
       feesNoHistory: "Kurshistorie nicht erreichbar, BTC-Gebühren bleiben unbewertet.",
       whatIfEmpty: "Keine Positionen mit bekanntem Einstandswert.",
       whatIfValue: "Portfoliowert bei diesem Kurs",
@@ -362,7 +368,7 @@ const de = {
       buysPerYear: "Käufe pro Jahr",
       maxDrawdown: "Maximaler Drawdown",
       drawdownDetail: "Von {peak} auf {trough} am {date}",
-      markerSummary: "{price} · {amount} BTC · {count} Trade(s)",
+      markerSummary: "{price} · {amount} · {count} Trade(s)",
       markerBucket: {
         week: "Marker je Woche zusammengefasst ({count} Trades im Zeitraum)",
         month: "Marker je Monat zusammengefasst ({count} Trades im Zeitraum)",
@@ -411,7 +417,7 @@ const de = {
       taxFreeFrom: "Steuerfrei ab",
       daysLeft: "Tage",
       holdingPeriodUnresolved:
-        "{amount} BTC ohne auflösbare Herkunft: für sie lässt sich keine Haltefrist bestimmen.",
+        "{amount} ohne auflösbare Herkunft: für sie lässt sich keine Haltefrist bestimmen.",
       holdingPeriodEmpty: "Keine offenen Lots vorhanden.",
       dataQualityClean: "Keine offenen Punkte gefunden.",
       showAffected: "Betroffene Transaktionen anzeigen",

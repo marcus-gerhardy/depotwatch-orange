@@ -103,7 +103,7 @@ interface ChartMarker {
 export function PriceEntriesWidget() {
   // The BTC price only means something in fiat, so this chart stays in the
   // fiat currency behind the display setting even on a Bitcoin standard.
-  const { t, loc, priceCurrency: currency, entries, fmtAmountPlain } = useDashboardData();
+  const { t, loc, priceCurrency: currency, entries, fmtAmount } = useDashboardData();
   const privacyMode = useAppStore((s) => s.privacyMode);
   const c = useThemeColors();
   const tooltipStyle = useTooltipStyle();
@@ -290,7 +290,7 @@ export function PriceEntriesWidget() {
                 return [
                   t("dashboard.widgets.markerSummary", {
                     price: value,
-                    amount: fmtAmountPlain(String(p.btc ?? 0)),
+                    amount: fmtAmount(String(p.btc ?? 0)),
                     count: p.count,
                   }),
                   p.kind === "in"

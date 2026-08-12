@@ -167,7 +167,7 @@ describe("sovereignty", () => {
   it("recognises a taproot address in the watchlist", () => {
     const p = simple([]);
     p.watchedAddresses = [
-      { id: "w", type: "address", value: "bc1pmzfrwwndsqmk5yh69yjr5lfgfg4ev8c0tsc06e", label: "x", tags: [] },
+      { id: "w", type: "address", value: "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0", label: "x", tags: [] },
     ];
     const ids = evaluateMilestones(ctxOf(p)).milestones.map((m) => m.id);
     expect(ids).toContain("taprootAddress");
