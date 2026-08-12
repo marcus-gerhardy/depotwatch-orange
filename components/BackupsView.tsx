@@ -15,6 +15,7 @@
 // take a minute and tell the user nothing they asked for.
 
 import { useCallback, useEffect, useState } from "react";
+import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { formatInt } from "@/lib/decimal";
@@ -120,7 +121,14 @@ export default function BackupsView({
   return (
     <div className={embedded ? "space-y-4" : "max-w-4xl space-y-4"}>
       <div>
-        {!embedded && <SectionTitle level={1}>{t("backups.title")}</SectionTitle>}
+        <div className="flex items-center gap-2">
+          {!embedded && <SectionTitle level={1}>{t("backups.title")}</SectionTitle>}
+          <HelpButton
+            anchor="backup-folder"
+            label={t("backups.title")}
+            className={embedded ? "" : "mb-3"}
+          />
+        </div>
         <p className="max-w-2xl text-sm leading-relaxed text-muted">
           {t("backups.intro")}
         </p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import type { WalletType } from "@/lib/types";
@@ -61,7 +62,10 @@ export default function WalletsView() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionTitle level={1}>{t("wallets.title")}</SectionTitle>
+        <div className="flex items-center gap-2">
+          <SectionTitle level={1}>{t("wallets.title")}</SectionTitle>
+          <HelpButton anchor="wallets-structure" label={t("wallets.title")} className="mb-3" />
+        </div>
         <Button variant="primary" onClick={() => openDialog({ kind: "addWallet" })}>
           + {t("wallets.addWallet")}
         </Button>

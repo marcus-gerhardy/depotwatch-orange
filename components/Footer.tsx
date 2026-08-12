@@ -55,6 +55,9 @@ export default function Footer() {
           >
             {t("footer.github")} ↗
           </a>
+          <Link href={staticPagePath("help", locale)} className={linkCls}>
+            {t("footer.help")}
+          </Link>
           <Link href={staticPagePath("imprint", locale)} className={linkCls}>
             {t("footer.imprint")}
           </Link>

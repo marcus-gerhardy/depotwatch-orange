@@ -213,7 +213,7 @@ export function dailyValueSeries(
  * **Both legs of an internal transfer are booked on the out-leg's day.** The
  * two legs of one transfer regularly carry different timestamps — a hardware
  * wallet stamps the arrival when it sees it, an exchange stamps the withdrawal
- * when it completes, and two CSV exports need not agree at all (§10). Booked
+ * when it completes, and two CSV exports need not agree at all (§11). Booked
  * on their own days, such a pair makes the *total* holding jump: it rises by
  * the moved amount on the arrival day and falls back on the send day, which
  * draws a spike out of a transfer that never changed the holding by more than

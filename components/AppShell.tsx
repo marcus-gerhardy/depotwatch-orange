@@ -6,6 +6,7 @@ import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
 import AutoLock from "./AutoLock";
+import HelpPanel from "./help/HelpPanel";
 import Celebration from "./Celebration";
 import MilestoneToast from "./MilestoneToast";
 import MilestonesView from "./MilestonesView";
@@ -69,6 +70,35 @@ function FileIndicator() {
       />
       <span className="hidden text-muted lg:inline">{statusText}</span>
     </div>
+  );
+}
+
+/** The question mark in the header: opens the help at the beginning (§8). */
+function HelpHeaderButton() {
+  const { t } = useI18n();
+  const openHelp = useAppStore((s) => s.openHelp);
+  return (
+    <button
+      onClick={() => openHelp("")}
+      title={t("help.title")}
+      aria-label={t("help.title")}
+      className="rounded-lg p-2 text-muted transition-colors hover:text-foreground"
+    >
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4" />
+        <path d="M12 17.4h.01" />
+      </svg>
+    </button>
   );
 }
 
@@ -198,6 +228,7 @@ export default function AppShell() {
     <div className="flex flex-1 flex-col">
       <Celebration />
       <AutoLock />
+      <HelpPanel />
       <Toast message={toast} onDone={() => setToast(null)} />
       <MilestoneToast />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
@@ -232,6 +263,7 @@ export default function AppShell() {
               </span>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              <HelpHeaderButton />
               <LockButton onLock={lockManually} />
               {/* Drawn, not an emoji: at this size the emoji eye rendered as a
                   few grey pixels, and its look depended on the platform's

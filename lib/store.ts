@@ -165,6 +165,12 @@ interface AppState {
 
   // UI state (not persisted)
   privacyMode: boolean;
+  /**
+   * The help panel (§8): the section (or topic) it is showing, or null when it
+   * is closed. Session state — where somebody last read is not a property of
+   * their portfolio.
+   */
+  helpTarget: string | null;
 
   /**
    * Interface language. Device preference (localStorage), because the start
@@ -206,6 +212,9 @@ interface AppState {
   }) => void;
   closePortfolio: () => void;
   togglePrivacyMode: () => void;
+  /** Open the help panel at a section or topic; "" opens it at the beginning. */
+  openHelp: (target: string) => void;
+  closeHelp: () => void;
   setPassword: (password: string | null) => void;
   saveNow: () => Promise<void>;
 
@@ -760,6 +769,7 @@ export const useAppStore = create<AppState>((set, get) => {
     lastBackupRun: null,
     integrityWarning: null,
     privacyMode: false,
+    helpTarget: null,
     uiLocale: "de",
     appearance: DEFAULT_APPEARANCE,
     systemPrefersDark: true,
@@ -863,6 +873,7 @@ export const useAppStore = create<AppState>((set, get) => {
         dirty: false,
         needsFileSetup: false,
         privacyMode: false,
+        helpTarget: null,
         // Closing from the lock screen has to drop the ciphertext too, or the
         // next visitor could keep guessing at a file nobody opened.
         locked: false,
@@ -875,6 +886,9 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     togglePrivacyMode: () => set((s) => ({ privacyMode: !s.privacyMode })),
+
+    openHelp: (target) => set({ helpTarget: target }),
+    closeHelp: () => set({ helpTarget: null }),
 
     setPassword: (password) => {
       set({ password, encryptionEnabled: password !== null, dirty: true });

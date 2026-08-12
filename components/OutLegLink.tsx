@@ -277,7 +277,7 @@ export function OutLegPicker({
   }
 
   return (
-    <Modal title={t("tx.outLeg.pickTitle")} onClose={onClose} wide>
+    <Modal title={t("tx.outLeg.pickTitle")} onClose={onClose} wide help="transfer-link">
       <div className="space-y-4">
         <p className="text-xs leading-relaxed text-muted">{t("tx.outLeg.pickIntro")}</p>
 

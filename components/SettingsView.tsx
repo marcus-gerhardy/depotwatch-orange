@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import ImportBatches from "./ImportBatches";
@@ -115,7 +116,10 @@ export default function SettingsView({
 
   return (
     <div className="space-y-4">
-      <SectionTitle level={1}>{t("settings.title")}</SectionTitle>
+      <div className="flex items-center gap-2">
+        <SectionTitle level={1}>{t("settings.title")}</SectionTitle>
+        <HelpButton anchor="settings-groups" label={t("settings.title")} className="mb-3" />
+      </div>
 
       {/* A list of ten cards is a scroll, not a structure: everything that is
           rarely touched buries what is looked for. So the settings are grouped,

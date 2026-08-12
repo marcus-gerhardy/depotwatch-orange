@@ -196,7 +196,7 @@ export default function LotPicker({
   );
 
   return (
-    <Modal title={t("tx.allocations.pickTitle")} onClose={onCancel} size="lg">
+    <Modal title={t("tx.allocations.pickTitle")} onClose={onCancel} size="lg" help="sale-pick">
       <div className="space-y-3">
         <p className="text-xs leading-relaxed text-muted">
           {t("tx.allocations.pickIntro")}

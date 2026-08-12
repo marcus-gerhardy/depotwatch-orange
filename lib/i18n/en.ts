@@ -104,6 +104,7 @@ const en: typeof de = {
   footer: {
     openSource: "Open Source",
     github: "Don't trust, verify on GitHub",
+    help: "Help",
     imprint: "Legal Notice",
     privacy: "Privacy",
     genesisHeadline:
@@ -183,6 +184,22 @@ const en: typeof de = {
     rightsTitle: "Your rights",
     rightsBody:
       "You have the right to information (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object to processing based on legitimate interests (Art. 21).\n\nIn practice I hold no data about you that any information could be given from: there is no account and no server-side storage. Your portfolio file is on your device and is yours alone; you delete it by deleting the file.\n\nIndependently of that you have the right to lodge a complaint with a supervisory authority (Art. 77 GDPR); for Lower Saxony: State Commissioner for Data Protection of Lower Saxony, Prinzenstrasse 5, 30159 Hanover, Germany.",
+  },
+  help: {
+    metaTitle: "Help | DepotWatch Orange",
+    title: "Help",
+    path: "/help",
+    intro:
+      "How to use the app, sorted by topic. The security concept behind it is on \u201cHow it works\u201d; this is about the handling.",
+    topics: "Topics",
+    onThisPage: "On this page",
+    searchLabel: "Search the help",
+    searchPlaceholder: "Search …",
+    results: "{count} results",
+    noResults: "Nothing found for \u201c{query}\u201d.",
+    about: "Help for this area",
+    aboutLabel: "Help for: {what}",
+    openFull: "Open as a page",
   },
   nav: {
     dashboard: "Dashboard",

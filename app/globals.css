@@ -167,6 +167,19 @@ h6 {
   }
 }
 
+/* The help panel sliding in from the right (§8). One short movement, and only
+   for anyone who did not ask for less of it (motion-safe on the element). */
+@keyframes help-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Sticky table headers.
    Two halves, and both have to sit where they do.
 

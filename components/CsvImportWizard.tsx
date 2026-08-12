@@ -84,6 +84,16 @@ import CsvRowFilter from "./CsvRowFilter";
 const NEW = "__new__";
 const MANUAL = "";
 type StepKey = "file" | "filter" | "mapping" | "typeValues" | "preview" | "confirm";
+
+/** Which help section each step is about (§8). */
+const HELP_BY_STEP: Record<StepKey, string> = {
+  file: "csv-presets",
+  filter: "csv-overview",
+  mapping: "csv-mapping",
+  typeValues: "csv-mapping",
+  preview: "csv-duplicates",
+  confirm: "csv-undo",
+};
 const WALLET_TYPES: WalletType[] = ["exchange", "hardware", "software", "paper"];
 const TX_TYPES: TransactionType[] = [
   "buy",
@@ -978,7 +988,14 @@ export default function CsvImportWizard({
   };
 
   return (
-    <Modal title={t("csvImport.title")} onClose={onClose} wide>
+    <Modal
+      title={t("csvImport.title")}
+      onClose={onClose}
+      wide
+      // Per step: the question in the mapping step is a different question
+      // from the one in the preview (§8).
+      help={HELP_BY_STEP[currentStepKey]}
+    >
       <div className="space-y-5">
         <p className="text-xs text-muted">
           {t("wizard.stepOf", { current: step, total: TOTAL_STEPS })}

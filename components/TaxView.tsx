@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
@@ -87,7 +88,10 @@ export default function TaxView() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SectionTitle level={1}>{t("tax.title")}</SectionTitle>
+        <div className="flex items-center gap-2">
+          <SectionTitle level={1}>{t("tax.title")}</SectionTitle>
+          <HelpButton anchor="tax-disclaimer" label={t("tax.title")} className="mb-3" />
+        </div>
         <Button
           variant="ghost"
           onClick={exportCsv}

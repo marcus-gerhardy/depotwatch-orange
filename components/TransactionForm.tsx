@@ -646,6 +646,7 @@ export default function TransactionForm({
       }
       onClose={onClose}
       size="lg"
+      help={formType === "transfer" ? "transfer-create" : "tx-types"}
     >
       {/* One always-visible block with what every transaction needs, then one
           collapsible section per topic. The form scrolls, the actions do not:

@@ -5,6 +5,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import HelpButton from "./help/HelpButton";
 
 export function Card({
   children,
@@ -258,6 +259,7 @@ export function Modal({
   children,
   wide = false,
   size,
+  help,
 }: {
   title: string;
   onClose: () => void;
@@ -266,6 +268,12 @@ export function Modal({
   wide?: boolean;
   /** Dialog width: md (default), lg for form dialogs with tables, xl for wizards. */
   size?: "md" | "lg" | "xl";
+  /**
+   * Help section this dialog is about (§8). A dialog is where questions are
+   * asked, so the question mark belongs in its header rather than somewhere
+   * the reader would have to close the dialog to find.
+   */
+  help?: string;
 }) {
   const { t } = useI18n();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -313,8 +321,9 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 id={titleId} className="text-base font-semibold">
+          <h3 id={titleId} className="flex items-center gap-2 text-base font-semibold">
             {title}
+            {help && <HelpButton anchor={help} label={title} />}
           </h3>
           <button
             onClick={onClose}

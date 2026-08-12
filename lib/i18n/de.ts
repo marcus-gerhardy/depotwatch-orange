@@ -101,6 +101,7 @@ const de = {
   footer: {
     openSource: "Open Source",
     github: "Don't trust, verify on GitHub",
+    help: "Hilfe",
     imprint: "Impressum",
     privacy: "Datenschutz",
     genesisHeadline:
@@ -179,6 +180,22 @@ const de = {
     rightsTitle: "Deine Rechte",
     rightsBody:
       "Dir stehen gegenüber dem Verantwortlichen die Rechte auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen eine Verarbeitung auf Grundlage berechtigter Interessen (Art. 21) zu.\n\nIn der Praxis liegen mir zu dir keine Daten vor, aus denen sich Auskunft erteilen ließe: Es gibt kein Konto und keine serverseitige Speicherung. Deine Portfoliodatei liegt auf deinem Gerät und untersteht allein dir; löschen kannst du sie, indem du die Datei löschst.\n\nUnabhängig davon steht dir ein Beschwerderecht bei einer Aufsichtsbehörde zu (Art. 77 DSGVO), für Niedersachsen: Die Landesbeauftragte für den Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.",
+  },
+  help: {
+    metaTitle: "Hilfe | DepotWatch Orange",
+    title: "Hilfe",
+    path: "/hilfe",
+    intro:
+      "Wie die App bedient wird, nach Themen sortiert. Das Sicherheitskonzept dahinter steht auf „So funktioniert's\u201c; hier geht es um die Handgriffe.",
+    topics: "Themen",
+    onThisPage: "Auf dieser Seite",
+    searchLabel: "Hilfe durchsuchen",
+    searchPlaceholder: "Suchen …",
+    results: "{count} Treffer",
+    noResults: "Nichts gefunden für „{query}\u201c.",
+    about: "Hilfe zu diesem Bereich",
+    aboutLabel: "Hilfe zu: {what}",
+    openFull: "Als Seite öffnen",
   },
   nav: {
     dashboard: "Dashboard",

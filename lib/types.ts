@@ -1,5 +1,5 @@
 // Data model for the DepotWatch Orange portfolio file.
-// All BTC/fiat amounts are decimal strings — never JS numbers (see CLAUDE.md §10).
+// All BTC/fiat amounts are decimal strings — never JS numbers (see CLAUDE.md §11).
 
 import type { UserImportPreset } from "./importPresets";
 import type { MilestoneRecord } from "./milestones";

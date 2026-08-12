@@ -14,6 +14,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
+import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { formatBtc } from "@/lib/decimal";
@@ -198,7 +199,10 @@ function DashboardBody({ openBackups }: { openBackups: () => void }) {
           outline starts at a card heading reads as a fragment to a screen
           reader. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SectionTitle level={1}>{t("nav.dashboard")}</SectionTitle>
+        <div className="flex items-center gap-2">
+          <SectionTitle level={1}>{t("nav.dashboard")}</SectionTitle>
+          <HelpButton anchor="dash-overview" label={t("nav.dashboard")} className="mb-3" />
+        </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
         {editing && (
           <>

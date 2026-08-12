@@ -1,0 +1,15 @@
+getting-started
+files
+backups
+wallets
+transactions
+csv-import
+transfers
+sales
+tax
+dashboard
+watchlist
+utxo
+settings
+milestones
+faq

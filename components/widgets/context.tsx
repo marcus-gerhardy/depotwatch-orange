@@ -54,7 +54,7 @@ export interface DashboardData {
   fifo: FifoResult;
   balances: AccountBalance[];
   breakdown: BalanceBreakdown;
-  /** Portfolio holding from the ledger, never from the FIFO engine (§10). */
+  /** Portfolio holding from the ledger, never from the FIFO engine (§11). */
   balanceBtc: Decimal;
 
   /** Live BTC price in EUR / in the display currency; null while unavailable. */

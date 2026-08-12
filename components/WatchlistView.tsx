@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import type { WatchedAddress, WatchedAddressType } from "@/lib/types";
@@ -84,7 +85,10 @@ export default function WatchlistView({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionTitle level={1}>{t("watchlist.title")}</SectionTitle>
+        <div className="flex items-center gap-2">
+          <SectionTitle level={1}>{t("watchlist.title")}</SectionTitle>
+          <HelpButton anchor="watch-concept" label={t("watchlist.title")} className="mb-3" />
+        </div>
         <Button variant="primary" onClick={() => setShowAdd(true)}>
           + {t("watchlist.add")}
         </Button>

@@ -10,6 +10,7 @@ import {
   formatTime,
 } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import HelpButton from "./help/HelpButton";
 import {
   flattenLedger,
   type LedgerEntry,
@@ -2053,11 +2054,16 @@ export default function TransactionsView({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <SectionTitle level={1}>
-          {t("tx.title")}
-          {isFiltered &&
-            ` · ${t("tx.titleCount", { filtered: filtered.length, total: all.length })}`}
-        </SectionTitle>
+        {/* The help button sits beside the heading, not inside it: a "?" in the
+            heading would become part of its accessible name. */}
+        <div className="flex items-center gap-2">
+          <SectionTitle level={1}>
+            {t("tx.title")}
+            {isFiltered &&
+              ` · ${t("tx.titleCount", { filtered: filtered.length, total: all.length })}`}
+          </SectionTitle>
+          <HelpButton anchor="tx-types" label={t("tx.title")} className="mb-3" />
+        </div>
         <div className="flex gap-2">
           <Button
             variant="primary"

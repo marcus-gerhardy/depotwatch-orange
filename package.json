@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "help:build": "python3 scripts/build-help.py",
+    "help:screenshots": "npm run build && node scripts/help-screenshots.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "jsdom": "^29.1.1",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"
