@@ -12,6 +12,7 @@ import { staticPagePath } from "@/lib/routes";
 import { Button, Card, inputCls } from "./ui";
 import NewFileWizard from "./NewFileWizard";
 import LanguageSwitch from "./LanguageSwitch";
+import { WarnIcon } from "./icons";
 
 type Stage =
   | { kind: "home" }
@@ -293,7 +294,7 @@ export default function StartScreen() {
             <Card className="space-y-4 border-loss/50">
               <div>
                 <h2 className="font-semibold text-loss">
-                  ⚠ {t("start.damagedTitle")}
+                  <WarnIcon /> {t("start.damagedTitle")}
                 </h2>
                 <p className="mt-1 font-mono text-xs text-muted">{stage.fileName}</p>
               </div>

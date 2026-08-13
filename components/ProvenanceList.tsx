@@ -14,6 +14,7 @@ import {
 } from "@/lib/provenance";
 import type { LedgerEntry } from "@/lib/types";
 import { Amount, Button } from "./ui";
+import { WarnIcon } from "./icons";
 
 /**
  * Which original buys a transaction's coins came from (CLAUDE.md §3.2), shown
@@ -230,7 +231,7 @@ function Notices({
     <>
       {provenance.unresolvedBtc.gt(0) && (
         <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
-          ⚠{" "}
+          <WarnIcon />{" "}
           {t("tx.origin.unresolvedAmount", {
             amount: formatBtc(provenance.unresolvedBtc, loc),
           })}
@@ -238,12 +239,12 @@ function Notices({
       )}
       {!inconsistency.isZero() && (
         <p className="rounded-lg border border-loss/40 bg-loss/10 p-2 text-xs text-loss">
-          ⚠ {t("tx.origin.mismatch", { amount: formatBtc(inconsistency.abs(), loc) })}
+          <WarnIcon /> {t("tx.origin.mismatch", { amount: formatBtc(inconsistency.abs(), loc) })}
         </p>
       )}
       {provenance.truncated && (
         <p className="rounded-lg border border-loss/40 bg-loss/10 p-2 text-xs text-loss">
-          ⚠ {t("tx.origin.truncated")}
+          <WarnIcon /> {t("tx.origin.truncated")}
         </p>
       )}
       {(provenance.status === "unlinked" || provenance.status === "unresolvable") && (

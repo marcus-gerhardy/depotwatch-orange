@@ -10,6 +10,7 @@
 import { Component, type ReactNode } from "react";
 import { Amount } from "../ui";
 import WidgetIcon from "./WidgetIcon";
+import { CloseIcon, WarnIcon } from "../icons";
 
 /** Drag handle selector; react-grid-layout only starts a drag from here. */
 export const WIDGET_DRAG_HANDLE = "widget-drag-handle";
@@ -51,7 +52,7 @@ export function WidgetShell({
               aria-label={removeLabel}
               className="rounded px-1.5 text-sm leading-none text-muted transition-colors hover:bg-loss/10 hover:text-loss"
             >
-              ✕
+              <CloseIcon />
             </button>
           )}
         </div>
@@ -87,7 +88,7 @@ export function WidgetError({
 }) {
   return (
     <div className="flex h-full flex-col items-start justify-center gap-2 text-xs text-loss">
-      <p className="leading-relaxed">⚠ {message}</p>
+      <p className="leading-relaxed"><WarnIcon /> {message}</p>
       {onRetry && (
         <button
           type="button"

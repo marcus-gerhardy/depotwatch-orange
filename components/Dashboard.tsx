@@ -40,6 +40,7 @@ import WidgetHost from "./widgets/WidgetHost";
 import WidgetPicker from "./widgets/WidgetPicker";
 import YearInReviewHint from "./YearInReviewHint";
 import BackupReminder from "./BackupReminder";
+import { CheckIcon, EditIcon, WarnIcon } from "./icons";
 
 // The grid measures the DOM and drives drag/resize, so there is nothing to
 // prerender — and the static export must not try.
@@ -88,17 +89,17 @@ function LedgerWarnings() {
     <>
       {balanceBtc.lt(0) && (
         <p className="rounded-lg border border-loss/40 bg-loss/5 p-3 text-xs text-loss">
-          ⚠ {t("dashboard.negativeBalanceHint")}
+          <WarnIcon /> {t("dashboard.negativeBalanceHint")}
         </p>
       )}
       {breakdown.invalid.length > 0 && (
         <p className="rounded-lg border border-loss/40 bg-loss/5 p-3 text-xs text-loss">
-          ⚠ {t("dashboard.invalidAmountHint", { count: breakdown.invalid.length })}
+          <WarnIcon /> {t("dashboard.invalidAmountHint", { count: breakdown.invalid.length })}
         </p>
       )}
       {uncoveredBtc.gt("0.00000001") && (
         <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
-          ⚠ {t("dashboard.uncoveredHint", { amount: fmtAmount(uncoveredBtc) })}
+          <WarnIcon /> {t("dashboard.uncoveredHint", { amount: fmtAmount(uncoveredBtc) })}
         </p>
       )}
     </>
@@ -219,7 +220,15 @@ function DashboardBody({ openBackups }: { openBackups: () => void }) {
             onClick={toggleEditing}
             title={t("dashboard.widgets.editHint")}
           >
-            {editing ? `✓ ${t("dashboard.widgets.doneEditing")}` : `⚙ ${t("common.edit")}`}
+            {editing ? (
+              <>
+                <CheckIcon /> {t("dashboard.widgets.doneEditing")}
+              </>
+            ) : (
+              <>
+                <EditIcon /> {t("common.edit")}
+              </>
+            )}
           </Button>
         )}
         </div>

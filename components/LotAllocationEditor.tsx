@@ -12,6 +12,7 @@ import type { LedgerEntry, LotAllocation } from "@/lib/types";
 import { Amount, Button, inputCls } from "./ui";
 import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import LotPicker, { lotPricePerBtc } from "./LotPicker";
+import { CheckIcon, WarnIcon } from "./icons";
 
 /**
  * Which source lots an outgoing transfer closes (CLAUDE.md §3.2), editable.
@@ -232,10 +233,10 @@ export default function LotAllocationEditor({
       {/* A deviation never blocks saving — an import can legitimately land
           here half-assigned — but it is stated in BTC, not just implied. */}
       {diff.isZero() ? (
-        <p className="text-xs text-gain">✓ {t("tx.allocations.complete")}</p>
+        <p className="text-xs text-gain"><CheckIcon /> {t("tx.allocations.complete")}</p>
       ) : (
         <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
-          ⚠{" "}
+          <WarnIcon />{" "}
           {diff.gt(0)
             ? t("tx.allocations.unassigned", { amount: formatBtc(diff, loc) })
             : t("tx.allocations.over", { amount: formatBtc(diff.abs(), loc) })}

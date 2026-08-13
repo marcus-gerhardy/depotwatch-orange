@@ -22,6 +22,7 @@ import { formatInt } from "@/lib/decimal";
 import { backupMetaOf, type BackupEntry, type BackupMeta } from "@/lib/backup";
 import { supportsBackupDirectory } from "@/lib/backupStorage";
 import { Button, Card, Modal, SectionTitle, inputCls } from "./ui";
+import { WarnIcon } from "./icons";
 
 /** Bytes as something readable; a backup is a few kB to a few MB. */
 function formatSize(bytes: number, loc: string): string {
@@ -139,7 +140,7 @@ export default function BackupsView({
       {!supportsBackupDirectory() ? (
         <Card className="space-y-3">
           <p className="text-sm leading-relaxed text-warning">
-            ⚠ {t("backups.unsupported")}
+            <WarnIcon /> {t("backups.unsupported")}
           </p>
           <Button variant="primary" onClick={() => void downloadBackup()}>
             {t("backups.download")}
@@ -191,12 +192,16 @@ export default function BackupsView({
             <p
               className={`text-xs leading-relaxed ${lastRun.ok ? "text-gain" : "text-loss"}`}
             >
-              {lastRun.ok
-                ? t("backups.lastOk", {
-                    name: lastRun.fileName ?? "",
-                    pruned: lastRun.pruned ?? 0,
-                  })
-                : `⚠ ${t(`backups.error.${lastRun.error ?? "writeFailed"}`)}`}
+              {lastRun.ok ? (
+                t("backups.lastOk", {
+                  name: lastRun.fileName ?? "",
+                  pruned: lastRun.pruned ?? 0,
+                })
+              ) : (
+                <>
+                  <WarnIcon /> {t(`backups.error.${lastRun.error ?? "writeFailed"}`)}
+                </>
+              )}
             </p>
           )}
         </Card>
@@ -271,7 +276,7 @@ export default function BackupsView({
                               </span>
                               {row.meta.integrity === "mismatch" && (
                                 <span className="block text-loss">
-                                  ⚠ {t("backups.integrityMismatch")}
+                                  <WarnIcon /> {t("backups.integrityMismatch")}
                                 </span>
                               )}
                             </>

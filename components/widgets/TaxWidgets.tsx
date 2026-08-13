@@ -18,6 +18,7 @@ import { realizedInYear, taxFreeRealizable } from "@/lib/dashboardStats";
 import { DEFAULT_TAX_EXEMPTION_LIMIT_EUR } from "@/lib/types";
 import { Amount, PnlValue } from "../ui";
 import { useDashboardData } from "./context";
+import { WarnIcon } from "../icons";
 import {
   Meter,
   StatLabel,
@@ -214,7 +215,7 @@ export function ExemptionLimitWidget() {
             exceeded ? "text-loss" : "text-warning"
           }`}
         >
-          ⚠ {t("dashboard.widgets.exemptionIsLimitNotAllowance")}
+          <WarnIcon /> {t("dashboard.widgets.exemptionIsLimitNotAllowance")}
         </p>
         <p className="text-[0.65rem] leading-relaxed text-muted">
           {t("dashboard.widgets.taxDisclaimer")}

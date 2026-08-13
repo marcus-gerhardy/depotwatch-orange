@@ -12,6 +12,7 @@ import { useAppStore } from "@/lib/store";
 import { emptyPortfolio, type PortfolioFile, type WalletType } from "@/lib/types";
 import { pickFileForCreate } from "@/lib/fileStorage";
 import { Button, Card, Field, Modal, inputCls } from "./ui";
+import { CheckIcon, LockIcon, WarnIcon } from "./icons";
 
 const WALLET_TYPES: WalletType[] = ["exchange", "hardware", "software", "paper"];
 type StepKey = "location" | "password" | "wallet" | "summary";
@@ -180,7 +181,7 @@ export default function NewFileWizard({
                         : "border border-border-c text-muted"
                   }`}
                 >
-                  {done ? "✓" : n}
+                  {done ? <CheckIcon /> : n}
                 </span>
                 <span
                   className={`hidden text-[10px] sm:block ${active ? "text-accent" : "text-muted"}`}
@@ -206,7 +207,7 @@ export default function NewFileWizard({
               <Button onClick={chooseLocation}>{t("wizard.chooseLocation")}</Button>
               {handle && (
                 <p className="text-sm text-gain">
-                  ✓ {t("wizard.locationChosen", { name: handle.name })}
+                  <CheckIcon /> {t("wizard.locationChosen", { name: handle.name })}
                 </p>
               )}
             </div>
@@ -334,9 +335,15 @@ export default function NewFileWizard({
             <div className="flex justify-between gap-4">
               <dt className="text-muted">{t("wizard.summaryEncryption")}</dt>
               <dd className={noEncryption ? "text-warning" : "text-gain"}>
-                {noEncryption
-                  ? `⚠ ${t("wizard.summaryUnencrypted")}`
-                  : `🔒 ${t("wizard.summaryEncrypted")}`}
+                {noEncryption ? (
+                  <>
+                    <WarnIcon /> {t("wizard.summaryUnencrypted")}
+                  </>
+                ) : (
+                  <>
+                    <LockIcon /> {t("wizard.summaryEncrypted")}
+                  </>
+                )}
               </dd>
             </div>
             {existingSummary ? (

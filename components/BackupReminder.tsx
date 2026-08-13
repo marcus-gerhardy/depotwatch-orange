@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { useNowDate } from "@/lib/clock";
+import { CloseIcon } from "./icons";
 import {
   DEFAULT_BACKUP_SETTINGS,
   backupReminderDue,
@@ -59,7 +60,7 @@ export default function BackupReminder({ onOpen }: { onOpen: () => void }) {
         aria-label={t("common.close")}
         title={t("common.close")}
       >
-        ✕
+        <CloseIcon />
       </button>
     </div>
   );

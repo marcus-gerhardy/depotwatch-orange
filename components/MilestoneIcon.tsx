@@ -25,13 +25,15 @@ import {
   CYCLE,
   HALVING_BLOCKS,
   HOURGLASS,
+  KEY,
   LineIcon,
+  OUTBOX,
   PADLOCK,
+  PIZZA_SLICE,
   RECEIPT,
   SHIELD,
   STOPWATCH,
   TARGET,
-  iconDot as dot,
 } from "./icons";
 
 /**
@@ -80,13 +82,7 @@ const DRAWINGS: Record<string, ReactNode> = {
 
   // ---------------------------------------------------------- sovereignty
   // A key: the first withdrawal into one's own custody.
-  firstWithdrawal: (
-    <>
-      <circle cx="8" cy="16" r="3.8" />
-      <path d="M10.7 13.3 20 4" />
-      <path d="M16.5 7.5l2.2 2.2M14.2 9.8l2.2 2.2" />
-    </>
-  ),
+  firstWithdrawal: KEY,
   // A shield, split down the middle: half the holding is one's own.
   selfCustody50: (
     <>
@@ -151,12 +147,7 @@ const DRAWINGS: Record<string, ReactNode> = {
   // A receipt: every transfer has its txid.
   allTxidsRecorded: RECEIPT,
   // An outbox: a report left the app.
-  taxExported: (
-    <>
-      <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
-      <path d="M12 15.5V4M8 7.5 12 4l4 3.5" />
-    </>
-  ),
+  taxExported: OUTBOX,
   // A check: a tax year the engine could account for completely.
   taxYearClosed: (
     <>
@@ -191,15 +182,7 @@ const DRAWINGS: Record<string, ReactNode> = {
     </>
   ),
   // A slice: 22 May.
-  boughtOnPizzaDay: (
-    <>
-      <path d="M12 3 20.5 19.5c-5.5 2.5-11.5 2.5-17 0L12 3Z" />
-      <path d="M6.2 16.2c3.8 1.7 7.8 1.7 11.6 0" />
-      {dot(12, 11.5, 1.1)}
-      {dot(9.2, 15.6, 1)}
-      {dot(14.8, 15.6, 1)}
-    </>
-  ),
+  boughtOnPizzaDay: PIZZA_SLICE,
 };
 
 /** Which ids this module can draw — what the completeness test reads. */

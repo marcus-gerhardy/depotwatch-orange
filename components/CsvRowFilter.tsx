@@ -14,6 +14,7 @@ import {
   type RowFilterRule,
 } from "@/lib/csvImport";
 import { Button, Field, inputCls } from "./ui";
+import { CloseIcon, WarnIcon } from "./icons";
 
 /** Above this many distinct values the picker gets a search box. */
 const SEARCH_THRESHOLD = 8;
@@ -172,13 +173,13 @@ function RuleCard({
           aria-label={t("csvImport.filterRemoveRule")}
           className="rounded-lg border border-transparent px-2.5 py-1.5 text-sm text-muted transition-colors hover:border-loss/40 hover:bg-loss/10 hover:text-loss"
         >
-          ✕
+          <CloseIcon />
         </button>
       </div>
 
       {unknownColumn && (
         <p className="text-xs text-warning">
-          ⚠ {t("csvImport.filterUnknownColumn", { column: rule.column })}
+          <WarnIcon /> {t("csvImport.filterUnknownColumn", { column: rule.column })}
         </p>
       )}
 

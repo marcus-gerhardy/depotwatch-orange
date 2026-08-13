@@ -20,6 +20,7 @@ import { formatPizzas, isPizzaDay, pizzasFor, useEasterEggs } from "@/lib/easter
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { Amount, PnlValue, inputCls } from "../ui";
 import { useDashboardData } from "./context";
+import { PizzaIcon, StarIcon, WarnIcon } from "../icons";
 import {
   Meter,
   StatLabel,
@@ -130,7 +131,7 @@ export function PortfolioValueWidget() {
         {eggs && isPizzaDay() && balanceBtc.gt(0) && (
           <StatLabel>
             <Amount>
-              🍕{" "}
+              <PizzaIcon />{" "}
               {t("dashboard.widgets.pizzaDay", {
                 pizzas: formatPizzas(pizzasFor(balanceBtc), loc),
               })}
@@ -239,7 +240,7 @@ export function PnlWidget() {
       </dl>
       {withoutBasisBtc.gt("0.00000001") && (
         <p className="text-[0.65rem] leading-relaxed text-warning">
-          ⚠{" "}
+          <WarnIcon />{" "}
           <Amount>
             {t("dashboard.widgets.pnlWithoutBasisHint", {
               amount: fmtAmount(withoutBasisBtc),
@@ -383,7 +384,7 @@ export function SatsStackWidget() {
           </div>
         ) : (
           <p className="text-xs text-gain">
-            ★ {t("dashboard.widgets.wholecoinerReached")}
+            <StarIcon /> {t("dashboard.widgets.wholecoinerReached")}
           </p>
         )}
         <div className="text-[0.65rem] text-muted">

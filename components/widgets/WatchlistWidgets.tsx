@@ -21,6 +21,7 @@ import {
 } from "@/lib/watchlistScan";
 import { Amount, Button } from "../ui";
 import { useDashboardData } from "./context";
+import { CheckIcon, WarnIcon } from "../icons";
 import {
   StatLabel,
   StatValue,
@@ -199,7 +200,7 @@ export function WatchlistStatusWidget() {
         {/* The count is the metric; colour only reinforces it, and the symbol
             carries the same message without it. */}
         <StatValue className={serious > 0 ? "text-warning" : "text-gain"}>
-          {serious > 0 ? "⚠ " : "✓ "}
+          {serious > 0 ? <WarnIcon /> : <CheckIcon />}{" "}
           {formatInt(serious, loc)}
         </StatValue>
         <StatLabel>

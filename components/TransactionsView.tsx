@@ -55,6 +55,7 @@ import ProvenanceList from "./ProvenanceList";
 import { OutLegPicker } from "./OutLegLink";
 import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import CsvImportWizard from "./CsvImportWizard";
+import { TargetIcon, UploadIcon } from "./icons";
 
 type ColumnKey =
   | "date"
@@ -760,7 +761,7 @@ function CandidatePicker({
           <span className="shrink-0 font-mono">{formatBtc(c.amountBtc, loc)}</span>
           {i === 0 && (
             <span className="shrink-0 rounded-full bg-gain/15 px-2 py-0.5 text-[10px] text-gain">
-              {t("tx.transferBestMatch")}
+              <TargetIcon /> {t("tx.transferBestMatch")}
             </span>
           )}
         </label>
@@ -2072,7 +2073,7 @@ export default function TransactionsView({
             + {t("tx.add")}
           </Button>
           <Button onClick={() => setShowImport(true)}>
-            ⬆ {t("csvImport.button")}
+            <UploadIcon /> {t("csvImport.button")}
           </Button>
         </div>
       </div>

@@ -22,6 +22,7 @@ import SettingsView, { type SettingsSection } from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
+import { FlaskIcon, LockIcon, MenuIcon, UnlockIcon } from "./icons";
 
 /**
  * The help carries its whole content (both languages, ~170 kB) and is opened
@@ -68,7 +69,7 @@ function FileIndicator() {
       title={tooltip}
       className="flex items-center gap-2 rounded-lg border border-border-c bg-surface px-2.5 py-1.5 text-xs"
     >
-      <span aria-hidden>{encryptionEnabled ? "🔒" : "🔓"}</span>
+      {encryptionEnabled ? <LockIcon className="text-muted" /> : <UnlockIcon className="text-muted" />}
       <span className="max-w-32 truncate font-mono sm:max-w-48">{fileName}</span>
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${
@@ -249,7 +250,7 @@ export default function AppShell() {
               aria-label={t("nav.menu")}
               aria-expanded={menuOpen}
             >
-              ☰
+              <MenuIcon />
             </button>
             <div className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight">
               {/* 21 clicks unlock the cosmetic laser eyes (§5.1). A plain
@@ -307,7 +308,7 @@ export default function AppShell() {
                   variant="primary"
                   onClick={() => setFileSetupOpenedManually(true)}
                 >
-                  🧪 {t("nav.setUpFile")}
+                  <FlaskIcon /> {t("nav.setUpFile")}
                 </Button>
               )}
               {!needsFileSetup && fileMode === "fallback" && (

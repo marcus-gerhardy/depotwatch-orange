@@ -19,6 +19,7 @@ import {
   type BatchRemoval,
 } from "@/lib/importBatches";
 import { Button, Card, Modal, SectionTitle } from "./ui";
+import { WarnIcon } from "./icons";
 
 export default function ImportBatches() {
   const { t, locale } = useI18n();
@@ -85,7 +86,7 @@ export default function ImportBatches() {
             {confirming.blockers.length > 0 && (
               <div className="space-y-2 rounded-lg border border-warning/50 bg-warning/10 p-3">
                 <p className="text-xs leading-relaxed text-warning">
-                  ⚠ {t("imports.blockedIntro", { count: confirming.blockers.length })}
+                  <WarnIcon /> {t("imports.blockedIntro", { count: confirming.blockers.length })}
                 </p>
                 <ul className="space-y-1 text-xs">
                   {confirming.blockers.map((b) => (

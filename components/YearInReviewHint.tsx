@@ -19,6 +19,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { useNowDate } from "@/lib/clock";
 import { latestReviewYear } from "@/lib/yearInReview";
+import { CloseIcon } from "./icons";
 
 /** Months the note is shown in: January to March, the "last year" season. */
 const HINT_MONTHS = 3;
@@ -56,7 +57,7 @@ export default function YearInReviewHint() {
         aria-label={t("yearInReview.hint.dismiss")}
         title={t("yearInReview.hint.dismiss")}
       >
-        ✕
+        <CloseIcon />
       </button>
     </div>
   );

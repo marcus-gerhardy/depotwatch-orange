@@ -152,8 +152,8 @@ describe("every registry widget renders", () => {
         render(<Dashboard />);
         expect(screen.getAllByText(def.titleKey).length).toBeGreaterThan(0);
         // A widget that threw is replaced by the boundary's message. Matched
-        // as a pattern: the boundary renders it behind a "⚠ ", and an exact
-        // string would quietly match nothing and assert nothing.
+        // as a pattern: the boundary renders it behind a warning icon, and an
+        // exact string would quietly match nothing and assert nothing.
         expect(screen.queryByText(/dashboard\.widgets\.crashed/)).toBeNull();
       });
     }

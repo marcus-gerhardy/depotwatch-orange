@@ -15,6 +15,7 @@ import {
 import { flattenLedger, type LedgerEntry } from "@/lib/types";
 import { Amount, Button, Field, Modal, inputCls, stopEnterSubmit } from "./ui";
 import ProvenanceList from "./ProvenanceList";
+import { WarnIcon } from "./icons";
 
 /**
  * The link between an arrival and the outgoing leg it belongs to
@@ -437,7 +438,7 @@ export function OutLegPicker({
 
         {selected && selected.linkedInLegs.length > 0 && (
           <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
-            ⚠{" "}
+            <WarnIcon />{" "}
             {t("tx.outLeg.joinsGroup", {
               legs: selected.linkedInLegs
                 .map(
@@ -456,14 +457,14 @@ export function OutLegPicker({
               <p className="text-xs text-muted">{t("tx.outLeg.diffNone")}</p>
             ) : diff.diffBtc.lt(0) ? (
               <p className="text-xs text-loss">
-                ⚠{" "}
+                <WarnIcon />{" "}
                 {t("tx.outLeg.diffNegative", {
                   amount: formatBtc(diff.diffBtc.abs(), loc),
                 })}
               </p>
             ) : diff.implausible ? (
               <p className="text-xs text-loss">
-                ⚠{" "}
+                <WarnIcon />{" "}
                 {t("tx.outLeg.diffTooLarge", {
                   amount: formatBtc(diff.diffBtc, loc),
                   percent: `${(diff.ratio * 100).toFixed(1)} %`,

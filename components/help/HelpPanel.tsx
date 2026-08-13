@@ -17,6 +17,7 @@ import { useEffect, useRef } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import HelpBrowser from "./HelpBrowser";
+import { CloseIcon } from "../icons";
 
 export default function HelpPanel() {
   const { t, locale } = useI18n();
@@ -71,7 +72,7 @@ export default function HelpPanel() {
             title={`${t("common.close")} (Esc)`}
             className="rounded-md px-2 py-1 text-muted hover:text-foreground"
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
       </div>

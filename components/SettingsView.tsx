@@ -29,6 +29,7 @@ import { DEFAULT_BACKUP_SETTINGS, type BackupTrigger } from "@/lib/backup";
 import { isUndoable, type ChangeLogEntry } from "@/lib/changeLog";
 import { formatDateTime, intlLocale } from "@/lib/i18n";
 import { Button, Card, Field, Modal, SectionTitle, Switch, inputCls } from "./ui";
+import { CheckIcon, LockIcon, WarnIcon } from "./icons";
 
 /** The groups the settings are divided into, in the order they are shown. */
 export type SettingsSection =
@@ -306,9 +307,11 @@ export default function SettingsView({
                 <SectionTitle level={2}>{t("settings.security")}</SectionTitle>
                 <p className="text-sm">
                   {encryptionEnabled ? (
-                    <span className="text-gain">🔒 {t("settings.encryptionOn")}</span>
+                    <span className="text-gain">
+                      <LockIcon /> {t("settings.encryptionOn")}
+                    </span>
                   ) : (
-                    <span className="text-warning">⚠ {t("settings.encryptionOff")}</span>
+                    <span className="text-warning"><WarnIcon /> {t("settings.encryptionOff")}</span>
                   )}
                 </p>
                 {pwChanged && (
@@ -317,7 +320,7 @@ export default function SettingsView({
                     {/* The one thing a password change silently breaks: every backup
                         that exists was encrypted with the old one (§6.5). */}
                     <p className="text-xs leading-relaxed text-warning">
-                      ⚠ {t("settings.passwordChangedBackups")}
+                      <WarnIcon /> {t("settings.passwordChangedBackups")}
                     </p>
                     <Button
                       variant="primary"
@@ -362,7 +365,7 @@ export default function SettingsView({
                     promise the app cannot keep (§6.4). */}
                 {!encryptionEnabled && (
                   <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs leading-relaxed text-warning">
-                    ⚠ {t("settings.lockNeedsEncryption")}
+                    <WarnIcon /> {t("settings.lockNeedsEncryption")}
                   </p>
                 )}
                 <Field label={t("settings.lockAfter")}>
@@ -479,19 +482,29 @@ export default function SettingsView({
                     backupState?.lastVerified ? "text-gain" : "text-warning"
                   }`}
                 >
-                  {backupState?.lastBackupAt
-                    ? backupState.lastVerified
-                      ? `✓ ${t("settings.backupLastOk", {
-                          when: formatDateTime(backupState.lastBackupAt, loc),
-                        })}`
-                      : `⚠ ${t("settings.backupLastUnverified", {
-                          when: formatDateTime(backupState.lastBackupAt, loc),
-                        })}`
-                    : `⚠ ${t("settings.backupNever")}`}
+                  {!backupState?.lastBackupAt ? (
+                    <>
+                      <WarnIcon /> {t("settings.backupNever")}
+                    </>
+                  ) : backupState.lastVerified ? (
+                    <>
+                      <CheckIcon />{" "}
+                      {t("settings.backupLastOk", {
+                        when: formatDateTime(backupState.lastBackupAt, loc),
+                      })}
+                    </>
+                  ) : (
+                    <>
+                      <WarnIcon />{" "}
+                      {t("settings.backupLastUnverified", {
+                        when: formatDateTime(backupState.lastBackupAt, loc),
+                      })}
+                    </>
+                  )}
                 </p>
                 {lastBackupRun && !lastBackupRun.ok && (
                   <p className="text-xs text-loss">
-                    ⚠ {t(`backups.error.${lastBackupRun.error ?? "writeFailed"}`)}
+                    <WarnIcon /> {t(`backups.error.${lastBackupRun.error ?? "writeFailed"}`)}
                   </p>
                 )}
 
@@ -685,7 +698,7 @@ export default function SettingsView({
           >
             {encryptionEnabled && (
               <p className="rounded-lg border border-warning/40 bg-warning/5 p-2.5 text-xs leading-relaxed text-warning">
-                ⚠ {t("settings.passwordChangeBackupWarning")}
+                <WarnIcon /> {t("settings.passwordChangeBackupWarning")}
               </p>
             )}
             <Field label={t("settings.newPassword")}>

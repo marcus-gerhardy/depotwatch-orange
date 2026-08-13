@@ -1056,7 +1056,7 @@ const de = {
     transferInModeNew: "Neue Zieltransaktion anlegen",
     transferInModeExisting: "Bestehende Transaktion zuordnen",
     transferCandidateNone: "Keine passenden Kandidaten in diesem Konto gefunden.",
-    transferBestMatch: "🎯 wahrscheinlichste Übereinstimmung",
+    transferBestMatch: "wahrscheinlichste Übereinstimmung",
     transferMismatchOut:
       "Die gewählte Ausgangstransaktion hat {actual} BTC, erwartet werden {expected} BTC. Die zugeordneten Lots ergeben {lots} BTC abzüglich {fee} BTC Netzwerkgebühr.",
     transferMismatchIn:

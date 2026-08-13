@@ -47,6 +47,7 @@ import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import ProvenanceList from "./ProvenanceList";
 import LotAllocationEditor from "./LotAllocationEditor";
 import OutLegLink, { LinkedInLegs } from "./OutLegLink";
+import { CheckIcon } from "./icons";
 
 const EXTERNAL = "__external__";
 
@@ -841,11 +842,14 @@ export default function TransactionForm({
               tone={pairedInLegs.length > 0 ? "success" : "warning"}
               defaultOpen={pairedInLegs.length === 0}
               summary={
-                pairedInLegs.length > 0
-                  ? `✓ ${pairedInLegs
-                      .map((l) => `${l.walletName} / ${l.accountName}`)
-                      .join(", ")}`
-                  : t("tx.outLeg.inLegNone")
+                pairedInLegs.length > 0 ? (
+                  <>
+                    <CheckIcon />{" "}
+                    {pairedInLegs.map((l) => `${l.walletName} / ${l.accountName}`).join(", ")}
+                  </>
+                ) : (
+                  t("tx.outLeg.inLegNone")
+                )
               }
             >
               <LinkedInLegs
@@ -872,9 +876,13 @@ export default function TransactionForm({
               tone={allocationsComplete ? "success" : "warning"}
               defaultOpen={!allocationsComplete}
               summary={
-                allocationsComplete
-                  ? `✓ ${formatBtc(allocationAssigned, loc)}`
-                  : `${formatBtc(allocationAssigned, loc)} / ${formatBtc(allocationTarget, loc)}`
+                allocationsComplete ? (
+                  <>
+                    <CheckIcon /> {formatBtc(allocationAssigned, loc)}
+                  </>
+                ) : (
+                  `${formatBtc(allocationAssigned, loc)} / ${formatBtc(allocationTarget, loc)}`
+                )
               }
             >
               <LotAllocationEditor
@@ -917,9 +925,13 @@ export default function TransactionForm({
               tone={originIncomplete ? "warning" : "success"}
               defaultOpen={originIncomplete}
               summary={
-                linkedOutLeg
-                  ? `✓ ${linkedOutLeg.walletName} / ${linkedOutLeg.accountName}`
-                  : t("tx.outLeg.none")
+                linkedOutLeg ? (
+                  <>
+                    <CheckIcon /> {linkedOutLeg.walletName} / {linkedOutLeg.accountName}
+                  </>
+                ) : (
+                  t("tx.outLeg.none")
+                )
               }
             >
               <div className="space-y-2">

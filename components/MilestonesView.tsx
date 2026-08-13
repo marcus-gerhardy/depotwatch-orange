@@ -27,6 +27,7 @@ import {
 import MilestoneIcon from "./MilestoneIcon";
 import { Button, Card, SectionTitle } from "./ui";
 import { Meter } from "./widgets/WidgetFrame";
+import { CheckIcon } from "./icons";
 
 export default function MilestonesView({
   onOpenYearInReview,
@@ -117,7 +118,7 @@ export default function MilestonesView({
         </div>
         <div className="shrink-0 text-right text-xs whitespace-nowrap">
           {record ? (
-            <span className="text-gain">✓ {formatDate(record.achievedAt, loc)}</span>
+            <span className="text-gain"><CheckIcon /> {formatDate(record.achievedAt, loc)}</span>
           ) : (
             <span className="text-muted">{t("milestones.open")}</span>
           )}

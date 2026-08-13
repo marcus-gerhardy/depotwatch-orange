@@ -19,6 +19,7 @@ import type { WalletType } from "@/lib/types";
 import MilestoneIcon from "../MilestoneIcon";
 import { Amount, PnlValue } from "../ui";
 import { useDashboardData } from "./context";
+import { CheckIcon, KeyIcon, StarIcon, WarnIcon } from "../icons";
 import {
   Meter,
   StatLabel,
@@ -73,7 +74,7 @@ export function CustodyWidget() {
         {eggs && exchangeShare === 0 ? (
           <>
             <StatValue className="text-gain">
-              🔑 {t("dashboard.widgets.sovereignBadge")}
+              <KeyIcon /> {t("dashboard.widgets.sovereignBadge")}
             </StatValue>
             <StatLabel>{t("dashboard.widgets.sovereignHint")}</StatLabel>
           </>
@@ -130,7 +131,7 @@ export function CustodyWidget() {
 
       {exchangeShare > 0 && (
         <p className="mt-auto text-[0.65rem] leading-relaxed text-warning">
-          ⚠ {t("dashboard.widgets.exchangeWarning")}
+          <WarnIcon /> {t("dashboard.widgets.exchangeWarning")}
         </p>
       )}
     </div>
@@ -316,7 +317,7 @@ export function HoldingPeriodWidget() {
       <Meter value={total.gt(0) ? free.div(total).toNumber() : 0} color="bg-gain" />
       {unresolved.gt(0) && (
         <p className="text-xs text-warning">
-          ⚠{" "}
+          <WarnIcon />{" "}
           {t("dashboard.widgets.holdingPeriodUnresolved", {
             amount: fmtAmount(unresolved),
           })}
@@ -324,7 +325,7 @@ export function HoldingPeriodWidget() {
       )}
       {upcoming.length === 0 ? (
         <p className="text-xs text-gain">
-          ★ {t("dashboard.widgets.allTaxFree")}
+          <StarIcon /> {t("dashboard.widgets.allTaxFree")}
         </p>
       ) : (
         <table className="w-full text-xs">
@@ -374,7 +375,7 @@ export function DataQualityWidget() {
     <div className="flex h-full flex-col gap-2">
       {clean ? (
         <p className="flex h-full items-center justify-center text-xs text-gain">
-          ✓ {t("dashboard.widgets.dataQualityClean")}
+          <CheckIcon /> {t("dashboard.widgets.dataQualityClean")}
         </p>
       ) : (
         <ul className="space-y-1 text-xs">

@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import HelpButton from "./help/HelpButton";
+import { CloseIcon } from "./icons";
 
 export function Card({
   children,
@@ -331,7 +332,7 @@ export function Modal({
             aria-label={t("common.close")}
             title={t("common.close")}
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
         {children}

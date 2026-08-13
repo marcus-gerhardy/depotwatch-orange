@@ -1053,7 +1053,7 @@ const en: typeof de = {
     transferInModeNew: "Create new incoming transaction",
     transferInModeExisting: "Link to an existing transaction",
     transferCandidateNone: "No matching candidates found in this account.",
-    transferBestMatch: "🎯 most likely match",
+    transferBestMatch: "most likely match",
     transferMismatchOut:
       "The selected outgoing transaction is {actual} BTC, but {expected} BTC is expected. The assigned lots add up to {lots} BTC minus the {fee} BTC network fee.",
     transferMismatchIn:

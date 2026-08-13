@@ -9,6 +9,21 @@
 // The **motifs that mean the same thing in both sets** live here too. An
 // hourglass is the holding period whether it sits on a milestone or on a
 // widget, and two copies of it would drift the first time one is touched.
+//
+// The **inline marks** at the bottom are the third use: the warning triangle,
+// the check, the ✕ on a close button. Those were literal characters scattered
+// through the components, which is a worse problem than the emoji on the
+// dashboard were — `⚠` and `⭳` have no guaranteed presentation, so depending on
+// the platform's font fallback the same paragraph shows a line drawing, a
+// colour emoji, or an empty box, and none of them takes the stroke weight of
+// the icons beside it.
+//
+// **Where the line runs:** a glyph that acts as an *icon* is drawn here — a
+// status badge, a button whose whole label it is, an affordance. A glyph that
+// belongs to *running text or a numeric column* stays a character: the arrows
+// between two accounts, the `▸` of a disclosure, and above all the ▲/▼/• of
+// `PnlValue`, which exist so a direction survives without colour (§5) and have
+// to sit on the baseline of the figure they belong to.
 
 import type { ReactNode } from "react";
 
@@ -139,3 +154,181 @@ export const CYCLE: ReactNode = (
     <path d="M18.9 3.6v4h-4M5.1 20.4v-4h4" />
   </>
 );
+
+/** A key: one's own custody, and the moment the coins reached it. */
+export const KEY: ReactNode = (
+  <>
+    <circle cx="8" cy="16" r="3.8" />
+    <path d="M10.7 13.3 20 4" />
+    <path d="M16.5 7.5l2.2 2.2M14.2 9.8l2.2 2.2" />
+  </>
+);
+
+/** A slice: 22 May, wherever it is mentioned. */
+export const PIZZA_SLICE: ReactNode = (
+  <>
+    <path d="M12 3 20.5 19.5c-5.5 2.5-11.5 2.5-17 0L12 3Z" />
+    <path d="M6.2 16.2c3.8 1.7 7.8 1.7 11.6 0" />
+    {iconDot(12, 11.5, 1.1)}
+    {iconDot(9.2, 15.6, 1)}
+    {iconDot(14.8, 15.6, 1)}
+  </>
+);
+
+/** A tray with the arrow leaving it: something goes out of the app. */
+export const OUTBOX: ReactNode = (
+  <>
+    <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
+    <path d="M12 15.5V4M8 7.5 12 4l4 3.5" />
+  </>
+);
+
+/** The same tray with the arrow coming in: something enters the app. */
+export const INBOX: ReactNode = (
+  <>
+    <path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
+    <path d="M12 4v11.5M8 12l4 3.5 4-3.5" />
+  </>
+);
+
+// ----------------------------------------------------------- inline marks
+// Icons that sit *in* a line of text rather than beside a title. They are
+// sized in `em` and shifted onto the baseline, so they follow the type they
+// belong to — a badge in a 12 px hint and the same badge in a heading stay in
+// proportion without either being given a size by hand.
+
+/** The frame for a mark inside a line of text. */
+export function InlineIcon({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <svg
+      {...ICON_PROPS}
+      aria-hidden
+      className={`inline-block h-[1.15em] w-[1.15em] shrink-0 align-[-0.2em] ${className}`}
+    >
+      {children}
+    </svg>
+  );
+}
+
+/**
+ * A warning. By far the most repeated mark in the app, and the one that most
+ * needs to be a drawing: `⚠` is the character with the widest spread of
+ * presentations, from a thin outline to a yellow emoji that ignores the
+ * `text-warning` colour it was given.
+ */
+export function WarnIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M12 3.6 21.4 19.8H2.6L12 3.6Z" />
+      <path d="M12 9.6v4.3" />
+      {iconDot(12, 17.1, 1.1)}
+    </InlineIcon>
+  );
+}
+
+/** Done, complete, verified. */
+export function CheckIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M4.5 12.6 9.6 17.7 19.5 6.5" />
+    </InlineIcon>
+  );
+}
+
+/** Close, remove, discard — always the label of a button, never a status. */
+export function CloseIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M6.2 6.2 17.8 17.8M17.8 6.2 6.2 17.8" />
+    </InlineIcon>
+  );
+}
+
+/** The mobile navigation. */
+export function MenuIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </InlineIcon>
+  );
+}
+
+/**
+ * Edit. A pencil, not the gear this used to be: a gear is settings, and the
+ * button it sits on rearranges the dashboard.
+ */
+export function EditIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M4.5 19.5v-3.4L16.2 4.5a1.9 1.9 0 0 1 2.7 0l1.1 1.1a1.9 1.9 0 0 1 0 2.7L8.4 19.5H4.5Z" />
+      <path d="M14.9 5.8 18.9 9.8" />
+    </InlineIcon>
+  );
+}
+
+/** Export: something leaves the app as a file. */
+export function DownloadIcon({ className = "" }: { className?: string }) {
+  return <InlineIcon className={className}>{INBOX}</InlineIcon>;
+}
+
+/** Import: a file comes in. */
+export function UploadIcon({ className = "" }: { className?: string }) {
+  return <InlineIcon className={className}>{OUTBOX}</InlineIcon>;
+}
+
+/** The file is encrypted, or the preset cannot be changed. */
+export function LockIcon({ className = "" }: { className?: string }) {
+  return <InlineIcon className={className}>{PADLOCK}</InlineIcon>;
+}
+
+/** The file is not encrypted: the same lock with its shackle swung open. */
+export function UnlockIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <rect x="4" y="10" width="16" height="11" rx="2" />
+      <path d="M8 10V7.5a4 4 0 0 1 7.6-1.7" />
+      {iconDot(12, 15.5, 1.3)}
+    </InlineIcon>
+  );
+}
+
+/** The demo portfolio: a specimen to try things on, not somebody's money. */
+export function FlaskIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M9.5 3h5" />
+      <path d="M10.4 3.2v6.3L4.9 18a2 2 0 0 0 1.7 3h10.8a2 2 0 0 0 1.7-3l-5.5-8.5V3.2" />
+      <path d="M7.4 14.5h9.2" />
+    </InlineIcon>
+  );
+}
+
+/** Custody in one's own hands. */
+export function KeyIcon({ className = "" }: { className?: string }) {
+  return <InlineIcon className={className}>{KEY}</InlineIcon>;
+}
+
+/** 22 May (§5.1). */
+export function PizzaIcon({ className = "" }: { className?: string }) {
+  return <InlineIcon className={className}>{PIZZA_SLICE}</InlineIcon>;
+}
+
+/** Something was reached — the counterpart of the warning, not a rating. */
+export function StarIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M12 3.5l2.7 5.7 6.3.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 10.1l6.3-.9L12 3.5Z" />
+    </InlineIcon>
+  );
+}
+
+/** The best candidate in a list of them. */
+export function TargetIcon({ className = "" }: { className?: string }) {
+  return <InlineIcon className={className}>{TARGET}</InlineIcon>;
+}

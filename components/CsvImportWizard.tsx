@@ -80,6 +80,7 @@ import {
 import { Button, Field, Modal, Switch, inputCls } from "./ui";
 import NumberInput from "./NumberInput";
 import CsvRowFilter from "./CsvRowFilter";
+import { CheckIcon, LockIcon, WarnIcon } from "./icons";
 
 const NEW = "__new__";
 const MANUAL = "";
@@ -1024,7 +1025,7 @@ export default function CsvImportWizard({
                           : "border border-border-c text-muted"
                     }`}
                   >
-                    {done ? "✓" : n}
+                    {done ? <CheckIcon /> : n}
                   </span>
                   <span
                     className={`hidden text-[10px] sm:block ${active ? "text-accent" : "text-muted"}`}
@@ -1080,7 +1081,9 @@ export default function CsvImportWizard({
                 )}
               </div>
               {selectedPresetObj?.source === "system" && (
-                <p className="text-xs text-muted">🔒 {t("csvImport.presetPredefined")}</p>
+                <p className="text-xs text-muted">
+                  <LockIcon /> {t("csvImport.presetPredefined")}
+                </p>
               )}
               {presetNotice && <p className="text-xs text-gain">{presetNotice}</p>}
             </div>
@@ -1109,7 +1112,7 @@ export default function CsvImportWizard({
               )}
               {!parsing && fileName && buffer !== null && (
                 <p className="text-sm text-gain">
-                  ✓{" "}
+                  <CheckIcon />{" "}
                   {t("csvImport.fileChosen", {
                     name: fileName,
                     rows: dataRows.length,
@@ -1279,7 +1282,7 @@ export default function CsvImportWizard({
 
             {filterUnknownColumns.length > 0 && (
               <p className="text-xs text-warning">
-                ⚠{" "}
+                <WarnIcon />{" "}
                 {t("csvImport.filterUnknownColumns", {
                   columns: filterUnknownColumns.join(", "),
                 })}
@@ -1612,7 +1615,7 @@ export default function CsvImportWizard({
         {currentStepKey === "file" && sameFileBatch && (
           <div className="space-y-2 rounded-lg border border-warning/50 bg-warning/10 p-3">
             <p className="text-sm leading-relaxed text-warning">
-              ⚠{" "}
+              <WarnIcon />{" "}
               {t("csvImport.duplicateFile", {
                 date: formatDateTime(sameFileBatch.importedAt, loc),
                 count: sameFileBatch.transactionCount,
@@ -1640,7 +1643,7 @@ export default function CsvImportWizard({
             </p>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <span className="rounded-full bg-gain/15 px-2.5 py-1 text-gain">
-                ✓ {t("csvImport.validRows", { count: validRows.length })}
+                <CheckIcon /> {t("csvImport.validRows", { count: validRows.length })}
               </span>
               <span
                 className={`rounded-full px-2.5 py-1 ${
@@ -2036,7 +2039,7 @@ export default function CsvImportWizard({
             </div>
           ) : (
             <div className="space-y-4 py-4 text-center">
-              <p className="text-3xl">✓</p>
+              <CheckIcon className="text-3xl text-gain" />
               <p className="font-semibold">{t("csvImport.doneTitle")}</p>
               <p className="text-sm text-muted">
                 {t("csvImport.doneMessage", { count: imported })}

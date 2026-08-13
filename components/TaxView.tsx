@@ -10,6 +10,7 @@ import { formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
 import { downloadAsFile } from "@/lib/fileStorage";
 import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
+import { DownloadIcon, WarnIcon } from "./icons";
 
 export default function TaxView() {
   const { t, locale } = useI18n();
@@ -98,7 +99,7 @@ export default function TaxView() {
           disabled={disposals.length === 0}
           title={t("tax.exportHint")}
         >
-          ⭳ {t("tax.export")}
+          <DownloadIcon /> {t("tax.export")}
         </Button>
       </div>
       <p className="text-xs text-muted">{t("tax.disclaimer", { days: holdingDays })}</p>
@@ -107,7 +108,7 @@ export default function TaxView() {
         <Card className="border-warning/50">
           {uncovered.map((d) => (
             <p key={d.txId} className="text-sm text-warning">
-              ⚠ {t("tax.uncoveredWarning", { amount: amountFmt.formatWithUnit(d.uncoveredBtc) })}
+              <WarnIcon /> {t("tax.uncoveredWarning", { amount: amountFmt.formatWithUnit(d.uncoveredBtc) })}
             </p>
           ))}
         </Card>
