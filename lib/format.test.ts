@@ -65,6 +65,28 @@ describe("fiat formatting", () => {
   });
 });
 
+// A figure that is a change carries a "+" when it is one. The sign comes from
+// the formatter, never from a component: a hand-written one in front of an
+// already-signed number showed up as "−-10.000,00 €" in the cost-basis widget.
+describe("signed formatting", () => {
+  it("adds a plus only to positive figures, and never doubles a minus", () => {
+    expect(plain(formatFiat(-10000, "EUR", DE, true))).toBe("-10.000,00 €");
+    expect(plain(formatFiat(10000, "EUR", DE, true))).toBe("+10.000,00 €");
+    expect(plain(formatFiat(0, "EUR", DE, true))).toBe("0,00 €");
+    expect(formatInt(-4200, DE, true)).toBe("-4.200");
+    expect(formatInt(4200, DE, true)).toBe("+4.200");
+    expect(formatInt(0, DE, true)).toBe("0");
+    expect(formatBtc("-0.5", DE, true)).toBe("-0,50000000");
+    expect(formatBtc("0.5", DE, true)).toBe("+0,50000000");
+  });
+
+  it("stays unsigned by default, so a level never grows a plus", () => {
+    expect(plain(formatFiat(10000, "EUR", DE))).toBe("10.000,00 €");
+    expect(formatInt(4200, DE)).toBe("4.200");
+    expect(formatBtc("0.5", DE)).toBe("0,50000000");
+  });
+});
+
 describe("date and time formatting", () => {
   const iso = "2026-07-24T14:05:00.000Z";
   // Fixed offset so the assertions do not depend on the machine's timezone.

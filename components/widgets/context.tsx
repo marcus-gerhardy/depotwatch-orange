@@ -66,14 +66,19 @@ export interface DashboardData {
   priceError: boolean;
   /** EUR → display-currency factor via the BTC cross rate; null if unknown. */
   eurToDisplay: number | null;
-  /** Format a EUR figure (as the ledger stores it) in the display currency. */
-  fmtDisplay: (eur: number | null) => string;
+  /**
+   * Format a EUR figure (as the ledger stores it) in the display currency.
+   * `signed` puts a "+" in front of a positive figure, for the tiles that show
+   * a change rather than a level — never write that sign by hand (see
+   * `signDisplay` in lib/decimal.ts).
+   */
+  fmtDisplay: (eur: number | null, signed?: boolean) => string;
   /** Format a figure that is *already* in the display currency (sats or fiat). */
-  fmtValue: (value: number | null) => string;
+  fmtValue: (value: number | null, signed?: boolean) => string;
   /** Format a BTC amount in the unit being displayed, with its unit. */
   fmtAmount: (btc: Decimal | string) => string;
   /** The same without the unit, for columns whose header names it. */
-  fmtAmountPlain: (btc: Decimal | string) => string;
+  fmtAmountPlain: (btc: Decimal | string, signed?: boolean) => string;
 
   /** Open the transaction table with a filter applied. */
   openTransactions: (filter: TxJumpFilter) => void;
@@ -145,12 +150,12 @@ export function DashboardDataProvider({
     // one whole coin.
     const displayPrice =
       currency === "EUR" ? priceEur : currency === "BTC" ? SATS_PER_BTC : priceUsd;
-    const fmtValue = (value: number | null) =>
+    const fmtValue = (value: number | null, signed = false) =>
       value === null
         ? "—"
         : currency === "BTC"
-          ? `${formatInt(Math.round(value), loc)} sats`
-          : formatFiat(value, currency, loc);
+          ? `${formatInt(Math.round(value), loc, signed)} sats`
+          : formatFiat(value, currency, loc, signed);
     return {
       t,
       loc,
@@ -170,11 +175,15 @@ export function DashboardDataProvider({
       priceError: prices.error,
       eurToDisplay,
       fmtValue,
-      fmtDisplay: (eur) =>
-        eur === null || eurToDisplay === null ? "—" : fmtValue(eur * eurToDisplay),
+      fmtDisplay: (eur, signed = false) =>
+        eur === null || eurToDisplay === null
+          ? "—"
+          : fmtValue(eur * eurToDisplay, signed),
       fmtAmount: (btc) => formatAmount(btc, loc, currency),
-      fmtAmountPlain: (btc) =>
-        currency === "BTC" ? formatSats(btc, loc) : formatBtc(btc, loc),
+      fmtAmountPlain: (btc, signed = false) =>
+        currency === "BTC"
+          ? formatSats(btc, loc, signed)
+          : formatBtc(btc, loc, signed),
       openTransactions,
       openWatchlist,
       openMilestones,

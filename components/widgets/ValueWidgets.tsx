@@ -41,6 +41,7 @@ function DeltaChip({
   label: string;
   absolute: number | null;
   relative: number | null;
+  /** Prints the sign itself, positive ones included — see fmtValue. */
   format: (v: number) => string;
 }) {
   const { loc } = useDashboardData();
@@ -52,7 +53,6 @@ function DeltaChip({
       ) : (
         <PnlValue value={absolute} showArrow={false}>
           <span className="block truncate text-xs font-medium">
-            {absolute > 0 ? "+" : "−"}
             {format(absolute)}
           </span>
           {relative !== null && (
@@ -157,7 +157,7 @@ export function PortfolioValueWidget() {
                     ? null
                     : absolute / then
                 }
-                format={fmtValue}
+                format={(v) => fmtValue(v, true)}
               />
             );
           })}
@@ -445,8 +445,7 @@ export function AvgCostWidget() {
             <span className="text-muted">{t("dashboard.widgets.distance")}</span>
             <PnlValue value={diff ?? 0} showArrow={false}>
               <span className="font-mono">
-                {diff !== null && diff > 0 ? "+" : diff !== null && diff < 0 ? "−" : ""}
-                {fmtValue(diff)}
+                {fmtValue(diff, true)}
                 {diffPct !== null && ` (${formatPercent(diffPct, loc)})`}
               </span>
             </PnlValue>
@@ -559,8 +558,7 @@ export function WhatIfWidget() {
               "—"
             ) : (
               <PnlValue value={pnl}>
-                {pnl > 0 ? "+" : pnl < 0 ? "−" : ""}
-                {fmtDisplay(Math.abs(pnl))}
+                {fmtDisplay(pnl, true)}
                 {result.pnlPct !== null &&
                   ` (${formatPercent(result.pnlPct, loc)})`}
               </PnlValue>

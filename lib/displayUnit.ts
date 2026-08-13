@@ -20,8 +20,12 @@ export function satsOf(v: Decimal | string): number {
   return dec(v).mul(SATS_PER_BTC).toDecimalPlaces(0).toNumber();
 }
 
-export function formatSats(v: Decimal | string, locale: string): string {
-  return formatInt(satsOf(v), locale);
+export function formatSats(
+  v: Decimal | string,
+  locale: string,
+  signed = false,
+): string {
+  return formatInt(satsOf(v), locale, signed);
 }
 
 /**

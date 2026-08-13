@@ -7,6 +7,20 @@ export { Decimal };
 
 export const ZERO = new Decimal(0);
 
+/**
+ * Whether a formatter prints a "+" in front of a positive figure. Off means the
+ * usual thing: only negatives carry a sign.
+ *
+ * A figure that is a *change* rather than a level wants the plus, and it has to
+ * come from the formatter — a sign written by hand in front of an
+ * already-signed number is how a value ends up with two minus signs, and it
+ * also picks a glyph of its own that the locale's own minus then contradicts.
+ * So nothing outside this module prefixes a sign; it passes `signed` instead.
+ */
+function signDisplay(signed: boolean): "exceptZero" | "auto" {
+  return signed ? "exceptZero" : "auto";
+}
+
 export function dec(v: string | number | Decimal | null | undefined): Decimal {
   if (v === null || v === undefined || v === "") return new Decimal(0);
   try {
@@ -21,10 +35,15 @@ export function dec(v: string | number | Decimal | null | undefined): Decimal {
  * locale — "1.234,56789000" in de-DE, "1,234.56789000" in en-US. Every BTC
  * value shown anywhere in the UI goes through here.
  */
-export function formatBtc(v: Decimal | string, locale: string): string {
+export function formatBtc(
+  v: Decimal | string,
+  locale: string,
+  signed = false,
+): string {
   return new Intl.NumberFormat(locale, {
     minimumFractionDigits: 8,
     maximumFractionDigits: 8,
+    signDisplay: signDisplay(signed),
   }).format(Number(dec(v).toFixed(8)));
 }
 
@@ -33,6 +52,7 @@ export function formatFiat(
   v: Decimal | string | number,
   currency: string,
   locale: string,
+  signed = false,
 ): string {
   const n = typeof v === "number" ? v : dec(v).toNumber();
   return new Intl.NumberFormat(locale, {
@@ -40,6 +60,7 @@ export function formatFiat(
     currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+    signDisplay: signDisplay(signed),
   }).format(n);
 }
 
@@ -59,8 +80,11 @@ export function formatFiatPlain(
 }
 
 /** Plain locale-grouped integer, e.g. a sat count. */
-export function formatInt(v: number, locale: string): string {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(v);
+export function formatInt(v: number, locale: string, signed = false): string {
+  return new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 0,
+    signDisplay: signDisplay(signed),
+  }).format(v);
 }
 
 const NUMERIC = /^-?(\d+\.?\d*|\.\d+)$/;

@@ -545,8 +545,7 @@ export function StackHistoryWidget() {
             date: formatDate(data[0].time, loc),
           })}{" "}
           <PnlValue value={grown}>
-            {grown >= 0 ? "+" : "−"}
-            {fmtAmountPlain(Math.abs(inSats ? grown / SATS_PER_BTC : grown).toFixed(8))}
+            {fmtAmountPlain((inSats ? grown / SATS_PER_BTC : grown).toFixed(8), true)}
           </PnlValue>
         </StatLabel>
       </div>

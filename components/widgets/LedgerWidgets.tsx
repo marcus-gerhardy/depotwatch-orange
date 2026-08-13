@@ -577,7 +577,7 @@ export function TimeInMarketWidget() {
               "—"
             ) : (
               <PnlValue value={-drawdown.maxDrawdown}>
-                −{formatPercent(drawdown.maxDrawdown, loc).replace("+", "")}
+                {formatPercent(-drawdown.maxDrawdown, loc)}
               </PnlValue>
             )}
           </dd>
