@@ -13,7 +13,7 @@ Der Assistent führt durch fünf Schritte:
 Erst der letzte Schritt schreibt etwas in dein Portfolio.
 
 ## Presets {#csv-presets}
-**Mitgelieferte Presets** (Kraken, Bitpanda, BitBox02 und weitere) sind fest eingebaut und decken die üblichen Exporte ab. Sie lassen sich nicht ändern, aber als Ausgangspunkt verwenden.
+Ein **Preset** hält alles fest, was der Assistent fragt — Trennzeichen, Datumsformat, Spaltenzuordnung, Gebühren-Konventionen. Der nächste Import derselben Export-Art besteht damit nur noch aus Datei auswählen und prüfen.
 
 **Eigene Presets** speicherst du am Ende selbst. Sie liegen **in deiner Portfolio-Datei**, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren.
 

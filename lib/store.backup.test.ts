@@ -74,7 +74,7 @@ function portfolio(ids: string[] = ["t1", "t2"]): PortfolioFile {
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "a1", name: "Spot", transactions: ids.map((id) => tx(id)) }],
     },
@@ -122,7 +122,7 @@ describe("writing a backup", () => {
     expect(backupTimeOf(name)).not.toBeNull();
     // Encrypted with the file's own password: no wallet name in the bytes.
     expect(isEncryptedEnvelope(content)).toBe(true);
-    expect(content).not.toContain("Kraken");
+    expect(content).not.toContain("Exchange");
 
     // And the file records that it verified, which is what the milestone and
     // the reminder read.

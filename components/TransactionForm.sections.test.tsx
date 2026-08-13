@@ -12,7 +12,7 @@ function seedPortfolio(): PortfolioFile {
   p.wallets = [
     {
       id: "walletA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -35,7 +35,7 @@ function seedPortfolio(): PortfolioFile {
     },
     {
       id: "walletB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [{ id: "acctB", name: "Cold", transactions: [] }],
     },

@@ -26,7 +26,7 @@ const HOLDING_DAYS = 365;
 function lot(over: Partial<OpenLot> & { txId: string; acquiredDate: string }): OpenLot {
   return {
     accountId: "a1",
-    walletName: "Kraken",
+    walletName: "Exchange",
     accountName: "Spot",
     originalAmountBtc: dec("1"),
     remainingBtc: dec("1"),
@@ -44,7 +44,7 @@ const entry = (
   pricePerBtcEur: "20000",
   note: "",
   walletId: "w1",
-  walletName: "Kraken",
+  walletName: "Exchange",
   accountId: "a1",
   accountName: "Spot",
   ...t,

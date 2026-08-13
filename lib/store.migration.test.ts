@@ -10,7 +10,7 @@ function portfolioWith(out: Record<string, unknown>, inAmount: string): Portfoli
   p.wallets = [
     {
       id: "wA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -43,7 +43,7 @@ function portfolioWith(out: Record<string, unknown>, inAmount: string): Portfoli
     },
     {
       id: "wB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [
         {

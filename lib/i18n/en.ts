@@ -83,7 +83,7 @@ const en: typeof de = {
     strengthMedium: "medium",
     strengthStrong: "strong",
     walletIntro:
-      "Create your first wallet with an account. It is needed for your first transaction (e.g. wallet “Kraken” with account “Spot”).",
+      "Create your first wallet with an account. It is needed for your first transaction (e.g. wallet “Exchange” with account “Spot”).",
     summaryIntro:
       "Please review your entries. “Create” will initialize and save the file.",
     summaryIntroExisting:
@@ -579,6 +579,7 @@ const en: typeof de = {
     addWallet: "Add wallet",
     addAccount: "Add account",
     walletName: "Wallet name",
+    walletNamePlaceholder: "Exchange",
     accountName: "Account name",
     type: "Type",
     types: {
@@ -1276,6 +1277,7 @@ const en: typeof de = {
     newWalletOption: "+ Create new wallet …",
     newAccountOption: "+ Create new account …",
     newWalletName: "Name of the new wallet",
+    newWalletNamePlaceholder: "Exchange",
     newAccountName: "Name of the new account",
     preset: "Import preset",
     presetManual: "Manual / no preset",
@@ -1284,7 +1286,7 @@ const en: typeof de = {
     presetPredefined: "This preset is predefined and cannot be edited or deleted.",
     presetDelete: "Delete preset",
     presetApplied: "Preset “{name}” applied automatically.",
-    presetSaveAsName: "Name for the new preset (e.g. Kraken)",
+    presetSaveAsName: "Name for the new preset (e.g. Exchange export)",
     presetSaveAs: "Save as new preset",
     presetSaved: "Preset “{name}” saved.",
     column: "Column",
@@ -1468,6 +1470,7 @@ const en: typeof de = {
     add: "Add address",
     addressOrXpub: "Address or xpub",
     label: "Label",
+    labelPlaceholder: "Hardware wallet, account 1",
     tags: "Tags (comma-separated)",
     type: "Type",
     invalidValue: "Please enter a valid Bitcoin address or xpub.",

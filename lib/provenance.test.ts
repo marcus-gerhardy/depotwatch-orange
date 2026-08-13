@@ -25,7 +25,7 @@ function entry(
     pricePerBtcEur: null,
     note: "",
     walletId: "wA",
-    walletName: "Kraken",
+    walletName: "Exchange",
     accountId: "aA",
     accountName: "Spot",
     ...extra,
@@ -41,7 +41,7 @@ const inB = {
 };
 const inC = {
   walletId: "wC",
-  walletName: "Coldcard",
+  walletName: "Hardware wallet",
   accountId: "aC",
   accountName: "Vault",
 };
@@ -81,7 +81,7 @@ describe("resolveProvenance", () => {
     expect(p.origins[0].acquiredDate).toBe("2023-01-10T10:00:00Z");
     expect(p.origins[0].amountBtc.toString()).toBe("0.5");
     expect(p.origins[0].pricePerBtcEur!.toString()).toBe("20000");
-    expect(p.origins[0].walletName).toBe("Kraken");
+    expect(p.origins[0].walletName).toBe("Exchange");
     expect(p.unresolvedBtc.toString()).toBe("0");
   });
 
@@ -493,7 +493,7 @@ describe("flattenLedger integration", () => {
     const entries = flattenLedger([
       {
         id: "wA",
-        name: "Kraken",
+        name: "Exchange",
         type: "exchange",
         accounts: [{ id: "aA", name: "Spot", transactions: [buyTx, outTx] }],
       },
@@ -507,7 +507,7 @@ describe("flattenLedger integration", () => {
 
     const p = resolve(entries, "i1");
     expect(p.status).toBe("resolved");
-    expect(p.origins[0].walletName).toBe("Kraken");
+    expect(p.origins[0].walletName).toBe("Exchange");
     expect(p.origins[0].accountName).toBe("Spot");
   });
 });

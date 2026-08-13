@@ -66,14 +66,14 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
-              "text": "Beispiel: Wallet „Kraken\" mit den Konten „Spot\" und „Sparplan\", Wallet „Ledger\" mit dem Konto „Account 1\"."
+              "text": "Beispiel: Wallet „Börse\" mit den Konten „Spot\" und „Sparplan\", Wallet „Hardware-Wallet\" mit dem Konto „Konto 1\"."
             },
             {
               "kind": "p",
               "text": "Wenn du dir unsicher bist: Ein Wallet mit einem Konto genügt für den Anfang, weitere kannst du jederzeit ergänzen."
             }
           ],
-          "text": "Die Struktur ist zweistufig: Ein Wallet ist ein Ort, an dem Bitcoin liegt (eine Börse, ein Hardware-Wallet, eine Software-Wallet, ein Paper-Wallet). Ein Konto ist ein Bereich darin. Beispiel: Wallet „Kraken\" mit den Konten „Spot\" und „Sparplan\", Wallet „Ledger\" mit dem Konto „Account 1\". Wenn du dir unsicher bist: Ein Wallet mit einem Konto genügt für den Anfang, weitere kannst du jederzeit ergänzen."
+          "text": "Die Struktur ist zweistufig: Ein Wallet ist ein Ort, an dem Bitcoin liegt (eine Börse, ein Hardware-Wallet, eine Software-Wallet, ein Paper-Wallet). Ein Konto ist ein Bereich darin. Beispiel: Wallet „Börse\" mit den Konten „Spot\" und „Sparplan\", Wallet „Hardware-Wallet\" mit dem Konto „Konto 1\". Wenn du dir unsicher bist: Ein Wallet mit einem Konto genügt für den Anfang, weitere kannst du jederzeit ergänzen."
         },
         {
           "id": "gs-first-tx",
@@ -483,14 +483,14 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "**Mitgelieferte Presets** (Kraken, Bitpanda, BitBox02 und weitere) sind fest eingebaut und decken die üblichen Exporte ab. Sie lassen sich nicht ändern, aber als Ausgangspunkt verwenden."
+              "text": "Ein **Preset** hält alles fest, was der Assistent fragt — Trennzeichen, Datumsformat, Spaltenzuordnung, Gebühren-Konventionen. Der nächste Import derselben Export-Art besteht damit nur noch aus Datei auswählen und prüfen."
             },
             {
               "kind": "p",
               "text": "**Eigene Presets** speicherst du am Ende selbst. Sie liegen **in deiner Portfolio-Datei**, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren."
             }
           ],
-          "text": "Mitgelieferte Presets (Kraken, Bitpanda, BitBox02 und weitere) sind fest eingebaut und decken die üblichen Exporte ab. Sie lassen sich nicht ändern, aber als Ausgangspunkt verwenden. Eigene Presets speicherst du am Ende selbst. Sie liegen in deiner Portfolio-Datei, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren."
+          "text": "Ein Preset hält alles fest, was der Assistent fragt — Trennzeichen, Datumsformat, Spaltenzuordnung, Gebühren-Konventionen. Der nächste Import derselben Export-Art besteht damit nur noch aus Datei auswählen und prüfen. Eigene Presets speicherst du am Ende selbst. Sie liegen in deiner Portfolio-Datei, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren."
         },
         {
           "id": "csv-mapping",
@@ -1417,14 +1417,14 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
-              "text": "For example: wallet \"Kraken\" with the accounts \"Spot\" and \"Savings\", wallet \"Ledger\" with the account \"Account 1\"."
+              "text": "For example: wallet \"Exchange\" with the accounts \"Spot\" and \"Savings\", wallet \"Hardware wallet\" with the account \"Account 1\"."
             },
             {
               "kind": "p",
               "text": "If in doubt: one wallet with one account is enough to start with, and you can add more at any time."
             }
           ],
-          "text": "The structure has two levels: a wallet is a place where bitcoin sits (an exchange, a hardware wallet, a software wallet, a paper wallet). An account is an area inside it. For example: wallet \"Kraken\" with the accounts \"Spot\" and \"Savings\", wallet \"Ledger\" with the account \"Account 1\". If in doubt: one wallet with one account is enough to start with, and you can add more at any time."
+          "text": "The structure has two levels: a wallet is a place where bitcoin sits (an exchange, a hardware wallet, a software wallet, a paper wallet). An account is an area inside it. For example: wallet \"Exchange\" with the accounts \"Spot\" and \"Savings\", wallet \"Hardware wallet\" with the account \"Account 1\". If in doubt: one wallet with one account is enough to start with, and you can add more at any time."
         },
         {
           "id": "gs-first-tx",
@@ -1834,14 +1834,14 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "**Bundled presets** (Kraken, Bitpanda, BitBox02 and others) ship with the app and cover the usual exports. They cannot be edited, but they make a good starting point."
+              "text": "A **preset** holds everything the wizard asks for — delimiter, date format, column mapping, fee conventions. The next import of the same kind of export is then just picking the file and checking it."
             },
             {
               "kind": "p",
               "text": "**Your own presets** are saved at the end. They live **inside your portfolio file**, so they travel with it to other devices and survive a change of browser."
             }
           ],
-          "text": "Bundled presets (Kraken, Bitpanda, BitBox02 and others) ship with the app and cover the usual exports. They cannot be edited, but they make a good starting point. Your own presets are saved at the end. They live inside your portfolio file, so they travel with it to other devices and survive a change of browser."
+          "text": "A preset holds everything the wizard asks for — delimiter, date format, column mapping, fee conventions. The next import of the same kind of export is then just picking the file and checking it. Your own presets are saved at the end. They live inside your portfolio file, so they travel with it to other devices and survive a change of browser."
         },
         {
           "id": "csv-mapping",

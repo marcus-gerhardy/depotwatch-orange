@@ -284,7 +284,7 @@ export default function CsvImportWizard({
 
   // Type-value mapping: values with no explicit override fall back to the
   // built-in synonym table (e.g. "Kauf" → buy) so only genuinely unknown
-  // values (e.g. a BitBox02 export's "received"/"sent") need user input.
+  // values (e.g. a hardware wallet export's "received"/"sent") need user input.
   const distinctTypeValues = useMemo(
     () =>
       typeMode === "column"
@@ -1055,13 +1055,15 @@ export default function CsvImportWizard({
                       onChange={(e) => applyPreset(e.target.value)}
                     >
                       <option value={MANUAL}>{t("csvImport.presetManual")}</option>
-                      <optgroup label={t("csvImport.presetSystemGroup")}>
-                        {SYSTEM_IMPORT_PRESETS.map((p) => (
-                          <option key={p.id} value={presetKey({ source: "system", id: p.id })}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </optgroup>
+                      {SYSTEM_IMPORT_PRESETS.length > 0 && (
+                        <optgroup label={t("csvImport.presetSystemGroup")}>
+                          {SYSTEM_IMPORT_PRESETS.map((p) => (
+                            <option key={p.id} value={presetKey({ source: "system", id: p.id })}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                       {portfolio.importPresets.length > 0 && (
                         <optgroup label={t("csvImport.presetUserGroup")}>
                           {portfolio.importPresets.map((p) => (
@@ -1245,7 +1247,7 @@ export default function CsvImportWizard({
                   <Field label={t("csvImport.newWalletName")}>
                     <input
                       className={inputCls}
-                      placeholder="Kraken"
+                      placeholder={t("csvImport.newWalletNamePlaceholder")}
                       value={newWalletName}
                       onChange={(e) => setNewWalletName(e.target.value)}
                     />

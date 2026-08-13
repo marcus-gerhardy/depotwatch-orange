@@ -32,7 +32,7 @@ function seedPortfolio(linked = true): PortfolioFile {
   p.wallets = [
     {
       id: "walletA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -60,7 +60,7 @@ function seedPortfolio(linked = true): PortfolioFile {
     },
     {
       id: "walletB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [
         {
@@ -146,7 +146,7 @@ describe("origin of an incoming transfer", () => {
     expect(panel.getByText("30.000,00")).toBeTruthy();
     expect(panel.getByText("16.000,00")).toBeTruthy();
     // Origin wallet/account of every share (five buys, one source account).
-    expect(panel.getAllByText("Kraken / Spot")).toHaveLength(5);
+    expect(panel.getAllByText("Exchange / Spot")).toHaveLength(5);
   });
 
   it("adds the shares up to the amount that arrived", () => {
@@ -200,7 +200,7 @@ describe("origin of an incoming transfer", () => {
     fireEvent.click(originToggle("transfer_out"));
 
     const panel = within(originPanel());
-    expect(panel.getAllByText("Kraken / Spot")).toHaveLength(5);
+    expect(panel.getAllByText("Exchange / Spot")).toHaveLength(5);
     expect(panel.getByText("tx.origin.total")).toBeTruthy();
   });
 });

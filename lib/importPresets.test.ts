@@ -6,11 +6,9 @@ import {
 } from "./importPresets";
 
 describe("SYSTEM_IMPORT_PRESETS", () => {
-  it("ships at least a few example providers", () => {
-    expect(SYSTEM_IMPORT_PRESETS.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("has unique, non-empty ids and names", () => {
+  // None ship right now; the assertions hold whatever gets dropped into
+  // /config/import-presets/ later, so a broken file fails here.
+  it("has unique, non-empty ids and names, and maps at least one column", () => {
     const ids = SYSTEM_IMPORT_PRESETS.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const p of SYSTEM_IMPORT_PRESETS) {
@@ -19,22 +17,12 @@ describe("SYSTEM_IMPORT_PRESETS", () => {
       expect(Object.keys(p.mapping).length).toBeGreaterThan(0);
     }
   });
-
-  it("includes the BitBox02 preset with sats units and a type-value mapping", () => {
-    const preset = SYSTEM_IMPORT_PRESETS.find((p) => p.id === "bitbox02");
-    expect(preset).toBeDefined();
-    expect(preset!.amountUnit).toBe("sats");
-    expect(preset!.typeValueMapping).toEqual({
-      received: "transfer_in",
-      sent: "transfer_out",
-    });
-  });
 });
 
 describe("findMatchingPreset", () => {
   const preset: ImportPresetOption = {
-    id: "kraken",
-    name: "Kraken",
+    id: "example",
+    name: "Example",
     source: "system",
     delimiter: ",",
     decimalSeparator: ".",

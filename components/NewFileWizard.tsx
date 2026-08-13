@@ -289,7 +289,7 @@ export default function NewFileWizard({
               <input
                 autoFocus
                 className={inputCls}
-                placeholder="Kraken"
+                placeholder={t("wallets.walletNamePlaceholder")}
                 value={walletName}
                 onChange={(e) => setWalletName(e.target.value)}
               />

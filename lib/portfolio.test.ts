@@ -24,7 +24,7 @@ function entry(
     pricePerBtcEur: null,
     note: "",
     walletId: "w1",
-    walletName: "Kraken",
+    walletName: "Exchange",
     accountId: "a1",
     accountName: "Spot",
     ...extra,

@@ -19,11 +19,6 @@ import type {
 } from "./csvImport";
 import type { TransactionType } from "./types";
 
-import kraken from "../config/import-presets/kraken.json";
-import bitpanda from "../config/import-presets/bitpanda.json";
-import bitbox02 from "../config/import-presets/bitbox02.json";
-import ledgerLive from "../config/import-presets/ledger-live.json";
-
 export interface ImportPresetConfig {
   delimiter: CsvDelimiter;
   decimalSeparator: DecimalSeparator;
@@ -63,7 +58,8 @@ export type ImportPresetOption =
   | (SystemImportPreset & { source: "system" })
   | (UserImportPreset & { source: "user" });
 
-interface RawPresetJson {
+/** The shape of a JSON file under /config/import-presets/. */
+export interface RawPresetJson {
   name: string;
   delimiter: string;
   decimalSeparator: string;
@@ -100,7 +96,7 @@ function toRowFilter(raw: RawPresetJson["rowFilter"]): RowFilter | undefined {
 }
 
 /** JSON has no literal-union types, so trusted static config is cast once here. */
-function toSystemPreset(id: string, raw: RawPresetJson): SystemImportPreset {
+export function toSystemPreset(id: string, raw: RawPresetJson): SystemImportPreset {
   return {
     id,
     name: raw.name,
@@ -121,14 +117,10 @@ function toSystemPreset(id: string, raw: RawPresetJson): SystemImportPreset {
   };
 }
 
-// To add another provider: drop a new JSON file into /config/import-presets/
-// and add one line here.
-export const SYSTEM_IMPORT_PRESETS: SystemImportPreset[] = [
-  toSystemPreset("kraken", kraken),
-  toSystemPreset("bitpanda", bitpanda),
-  toSystemPreset("bitbox02", bitbox02),
-  toSystemPreset("ledger-live", ledgerLive),
-];
+// None ship at the moment — the wizard runs on "manual/no preset" plus whatever
+// the user saves into their own file. To add one: drop a JSON file into
+// /config/import-presets/, import it here, and add one line to this list.
+export const SYSTEM_IMPORT_PRESETS: SystemImportPreset[] = [];
 
 /** Preset whose mapped headers all exist in this file (→ auto-suggest on file load). */
 export function findMatchingPreset(

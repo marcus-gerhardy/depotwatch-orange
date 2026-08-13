@@ -18,13 +18,13 @@ function wallets(source: Transaction[], target: Transaction[] = []): Wallet[] {
   return [
     {
       id: "wA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "aA", name: "Spot", transactions: source }],
     },
     {
       id: "wB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [{ id: "aB", name: "Cold", transactions: target }],
     },

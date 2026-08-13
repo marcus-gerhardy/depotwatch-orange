@@ -31,7 +31,7 @@ Web app for managing a Bitcoin portfolio. MVP: manual transaction entry. Later s
 The app separates two independent data layers, because accounting lots (purchases at different times/prices) and actual on-chain UTXOs cannot be reliably mapped 1:1 (e.g. several separate purchases are often sent in one batch to a single address, forming a single UTXO there):
 
 1. **Portfolio ledger (accounting):** manually recorded buy/sell/transfer/spend events for holdings, P&L, and FIFO tax logic. Pure bookkeeping, independent of the actual on-chain structure.
-2. **Address watchlist (security/on-chain):** an independent list of Bitcoin addresses or xpubs the user adds for monitoring (watch-only principle, as in Sparrow/Electrum). All security features (sections 6.1/6.2) operate on this list with live blockchain data, independent of the ledger.
+2. **Address watchlist (security/on-chain):** an independent list of Bitcoin addresses or xpubs the user adds for monitoring (watch-only principle, as in the common desktop wallets). All security features (sections 6.1/6.2) operate on this list with live blockchain data, independent of the ledger.
 
 A ledger transaction can optionally reference an address from the watchlist (purely informative, no functional dependency).
 
@@ -46,7 +46,7 @@ Hierarchy: **Wallet → Account → Transactions**. A wallet (e.g. an exchange o
   "wallets": [
     {
       "id": "uuid",
-      "name": "Kraken",
+      "name": "Börse",
       "type": "exchange | hardware | software | paper",
       "accounts": [
         {
@@ -95,7 +95,7 @@ Transfer legs created by the transfer dialog carry the value of what they move i
 
 Linking an existing transaction as the out-leg (transfer dialog): the candidate matches when its `amountBtc` **plus** the network fee entered in the dialog equals the sum of the selected lots. Its amount is never rewritten — only `feeBtc` and the lot allocations are written back. Picking a candidate adopts its own `feeBtc` into the dialog when no fee was entered yet.
 
-**Settled in another currency** (`originalCurrency`, `originalAmount`, `originalPricePerBtc`): a transaction may have been settled in something other than EUR (e.g. a BTC buy against USDT on Bitget). Those three optional fields record it **for documentation only**. EUR stays the one binding valuation currency: FIFO, holding periods, P&L and the dashboard read `totalFiatEur`/`pricePerBtcEur` exclusively and never these fields — there is no per-field currency choice anywhere in the app. All four fields are optional, so files written before they existed stay valid without migration.
+**Settled in another currency** (`originalCurrency`, `originalAmount`, `originalPricePerBtc`): a transaction may have been settled in something other than EUR (e.g. a BTC buy against USDT on an exchange). Those three optional fields record it **for documentation only**. EUR stays the one binding valuation currency: FIFO, holding periods, P&L and the dashboard read `totalFiatEur`/`pricePerBtcEur` exclusively and never these fields — there is no per-field currency choice anywhere in the app. All four fields are optional, so files written before they existed stay valid without migration.
 
 **EUR valuation of such transactions** (`eurValuationSource`, `lib/valuation.ts`): when a buy/sell/spend has a timestamp and an amount but no EUR figure, the EUR value can be derived from the Binance BTC/EUR daily close of that day (`fetchDailyClose` in `lib/binance.ts`): `totalFiatEur = amountBtc × close`, and `eurValuationSource` is set to `"binance-klines"` so an estimated value stays distinguishable from a documented one (absent means `"manual"`). Every derived value remains freely editable, and editing it puts the source back to `"manual"`. The lookup never runs in the background or over the whole ledger at once — only on an explicit click in the transaction dialog or as one bulk action in the CSV import preview (rate limits, and every request tells a third party which days one is interested in). One request per distinct day serves all rows on it (`createEurValuator`). A day Binance has no candle for keeps asking for a manual value. The transaction table shows the original currency in an opt-in column and marks a derived EUR value with "≈".
 
@@ -169,7 +169,7 @@ Live data (current UTXOs, address history, pubkey exposure) is fetched at runtim
 
 Import configurations for the CSV import wizard (delimiter, encoding, date format, column mapping, per-field BTC/Sats unit, and the "Typ" value-mapping table) come from two sources:
 
-- **System presets:** read-only, shipped in the app's code under `/config/import-presets/` (one JSON file per provider, e.g. `kraken.json`). Not stored in the portfolio file, not editable or deletable by the user — only an app update can change them. New providers are added by dropping in another JSON file (see `lib/importPresets.ts`).
+- **System presets:** read-only, shipped in the app's code under `/config/import-presets/` (one JSON file per provider). Not stored in the portfolio file, not editable or deletable by the user — only an app update can change them. New providers are added by dropping in another JSON file and adding one line to `SYSTEM_IMPORT_PRESETS` (see `lib/importPresets.ts`). **None ship at the moment**, so the picker offers "manual/no preset" plus the user's own; the wizard hides the "predefined" group while the list is empty.
 - **User presets:** created, edited, and deleted by the user in the import wizard. Stored in the portfolio file itself (`importPresets`), so they travel with the file rather than being tied to one device/browser.
 
 ```json
@@ -213,11 +213,11 @@ Import configurations for the CSV import wizard (delimiter, encoding, date forma
 
 **Original currency in the import:** `originalCurrency`, `originalAmount` and `originalPricePerBtc` are mappable target fields like any other (the currency code is stored upper case, and a pair like "BTC/USDT" keeps its quote side). If no EUR column was mapped but date and amount are there, the preview offers to derive the missing EUR values for all affected rows in one action with a progress indicator; those rows are marked "€?" before and "≈" after.
 
-**Values on import:** an amount is stored as a magnitude, because the direction comes from the transaction type — a leading minus, as Bitvavo writes it for withdrawals, is dropped. BTC amounts and BTC fees are rounded to 8 decimals (`btcString`), the satoshi being the smallest unit the ledger stores; a value that already fits into 8 decimals is never touched. An amount that differs from the file's because of the BTC fee mode is spelled out in the preview (`btcAmountAdjustment`), so it cannot be mistaken for a rounding artifact.
+**Values on import:** an amount is stored as a magnitude, because the direction comes from the transaction type — a leading minus, as some exports write it for withdrawals, is dropped. BTC amounts and BTC fees are rounded to 8 decimals (`btcString`), the satoshi being the smallest unit the ledger stores; a value that already fits into 8 decimals is never touched. An amount that differs from the file's because of the BTC fee mode is spelled out in the preview (`btcAmountAdjustment`), so it cannot be mistaken for a rounding artifact.
 
 **Fee modes:** exports disagree on whether a fee is already part of the amount it belongs to, so the wizard asks — right at the mapped fee column, and only when that column is mapped:
 
-- **BTC fee** (`feeBtcModeIn` / `feeBtcModeOut`, at the `feeBtc` mapping): "already deducted from the BTC amount?", asked **once per direction** — `deducted` = the amount is what was really received/sent, `notDeducted` (default) = the fee is still inside it. Two questions, because one file commonly uses both conventions: a Bitget spot buy reports the amount net of the trading fee while its withdrawals report the total that left the account. Forcing one answer on both directions leaves the other wrong by exactly its fee sum, which is what a balance that will not reach zero looks like.
+- **BTC fee** (`feeBtcModeIn` / `feeBtcModeOut`, at the `feeBtc` mapping): "already deducted from the BTC amount?", asked **once per direction** — `deducted` = the amount is what was really received/sent, `notDeducted` (default) = the fee is still inside it. Two questions, because one file commonly uses both conventions: an exchange's spot buys commonly report the amount net of the trading fee while its withdrawals report the total that left the account. Forcing one answer on both directions leaves the other wrong by exactly its fee sum, which is what a balance that will not reach zero looks like.
 - **EUR fee** (`feeFiatMode`, at the `feeFiatEur` mapping): "already part of the EUR amount?" `gross` = the amount is the money that actually moved, fee included, `net` (default) = the fee comes on top.
 
 Both are converted to the ledger convention of §3.2, where a fee always sits *next to* the amount it belongs to: `feeBtc` on top of `amountBtc` (a buy credits amount − fee, an outgoing type debits amount + fee) and `feeFiatEur` outside `totalFiatEur` (the FIFO engine adds it to a buy's acquisition cost and takes it off a sale's proceeds). So each mode corrects exactly one direction: `notDeducted` turns an outgoing BTC amount into `amount − fee`, `deducted` turns a bought amount into `amount + fee`; `gross` turns a buy total into `total − fee` and a sale total into `total + fee`, `net` needs nothing. Either way the money and the coins that actually moved stay what the file says. A `transfer_in` is never touched (its credit ignores the fee, which belongs to the out-leg), and a fiat fee never changes a BTC amount, nor a BTC fee an EUR total.
@@ -226,7 +226,7 @@ Both are converted to the ledger convention of §3.2, where a fee always sits *n
 
 All fee modes are part of the import presets (system and user), so the next import from the same provider comes pre-filled; a user preset written before the BTC question was split still applies its single answer to both directions.
 
-**Row filter:** the wizard's second step restricts the import to certain lines — any number of conditions "column is (not) one of \<values\>", joined by one AND/OR combinator. Columns and values are offered from the loaded file (values with occurrence counts), so a filter always fits the file at hand; e.g. a 21bitcoin export where only `transaction_type = trade` should be imported. A rule without selected values, or one naming a column the file does not have, is ignored rather than dropping every row. Filtered-out lines never reach the mapping/type-value/preview steps, and surviving rows keep their original CSV line number.
+**Row filter:** the wizard's second step restricts the import to certain lines — any number of conditions "column is (not) one of \<values\>", joined by one AND/OR combinator. Columns and values are offered from the loaded file (values with occurrence counts), so a filter always fits the file at hand; e.g. an export where only `transaction_type = trade` should be imported. A rule without selected values, or one naming a column the file does not have, is ignored rather than dropping every row. Filtered-out lines never reach the mapping/type-value/preview steps, and surviving rows keep their original CSV line number.
 
 **Duplicate detection** (`lib/importDuplicates.ts`, `lib/importBatches.ts`): an export imported twice doubles the holding and falsifies every tax figure derived from it, and nothing looks broken afterwards — the numbers are simply wrong. Two halves guard against it.
 

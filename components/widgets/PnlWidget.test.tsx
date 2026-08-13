@@ -18,7 +18,7 @@ function load(transactions: Transaction[]) {
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "a1", name: "Spot", transactions }],
     },

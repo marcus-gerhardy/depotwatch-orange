@@ -64,7 +64,7 @@ describe("CsvRowFilter", () => {
     expect(screen.getByText("csvImport.filterRuleInactive")).toBeTruthy();
   });
 
-  it("filters to the selected values (21bitcoin case: only trades)", () => {
+  it("filters to the selected values (only trades)", () => {
     render(<Harness />);
     addRule();
     fireEvent.change(columnSelects()[0], { target: { value: "transaction_type" } });

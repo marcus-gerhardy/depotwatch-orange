@@ -26,7 +26,7 @@ function seed({ linked = false, allocated = true } = {}): PortfolioFile {
   p.wallets = [
     {
       id: "walletA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -64,7 +64,7 @@ function seed({ linked = false, allocated = true } = {}): PortfolioFile {
     },
     {
       id: "walletB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [
         {
@@ -143,7 +143,7 @@ describe("editing an outgoing transfer's lot assignments", () => {
 
     const section = screen.getByText("tx.allocations.intro").closest("div")!;
     expect(within(section).getByText("01.01.2023")).toBeTruthy();
-    expect(within(section).getByText("Kraken / Spot")).toBeTruthy();
+    expect(within(section).getByText("Exchange / Spot")).toBeTruthy();
     expect(within(section).getByText("20.000,00")).toBeTruthy();
   });
 
@@ -282,7 +282,7 @@ describe("editing an arrival's out-leg link", () => {
     openSection("tx.section.origin");
 
     const section = screen.getByText("tx.outLeg.section").closest("div")!;
-    expect(within(section).getByText("Kraken / Spot")).toBeTruthy();
+    expect(within(section).getByText("Exchange / Spot")).toBeTruthy();
     expect(within(section).getByText("0,49990000")).toBeTruthy();
   });
 

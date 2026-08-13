@@ -10,7 +10,7 @@ function seedDemoPortfolio(): PortfolioFile {
   p.wallets = [
     {
       id: "wallet-a",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {

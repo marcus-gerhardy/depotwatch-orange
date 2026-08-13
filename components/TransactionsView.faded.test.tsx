@@ -10,7 +10,7 @@ function seedPortfolio(): PortfolioFile {
   p.wallets = [
     {
       id: "walletA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -65,7 +65,7 @@ function seedPortfolio(): PortfolioFile {
     },
     {
       id: "walletB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [
         {
@@ -135,7 +135,7 @@ describe("TransactionsView: fully-transferred lots fade + popover", () => {
     // not tied to the cursor.
     const forwardIcon = within(row).getByRole("img", { name: "tx.transferredAway" });
     fireEvent.mouseEnter(forwardIcon);
-    expect(document.body.textContent).toContain("BitBox02");
+    expect(document.body.textContent).toContain("Hardware wallet");
     expect(document.body.textContent).toContain("Cold");
   });
 
@@ -176,7 +176,7 @@ describe("TransactionsView: fully-transferred lots fade + popover", () => {
       const forwardIcon = within(row).getByRole("img", { name: "tx.transferredAway" });
 
       fireEvent.mouseEnter(forwardIcon);
-      expect(document.body.textContent).toContain("BitBox02");
+      expect(document.body.textContent).toContain("Hardware wallet");
 
       // Leaving the icon starts the close timer, but entering the popover
       // itself before it fires must cancel it (hover-bridging).
@@ -184,7 +184,7 @@ describe("TransactionsView: fully-transferred lots fade + popover", () => {
       const popover = screen.getByText("tx.transferredTarget").closest("div")!;
       fireEvent.mouseEnter(popover);
       act(() => vi.advanceTimersByTime(1000));
-      expect(document.body.textContent).toContain("BitBox02");
+      expect(document.body.textContent).toContain("Hardware wallet");
 
       // Leaving the popover with nowhere else to go does close it, after the delay.
       fireEvent.mouseLeave(popover);

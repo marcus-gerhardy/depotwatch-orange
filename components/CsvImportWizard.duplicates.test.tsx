@@ -34,7 +34,7 @@ function open(existing: Transaction[] = [], patch: (p: PortfolioFile) => void = 
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "a1", name: "Spot", transactions: existing }],
     },
@@ -48,7 +48,7 @@ function open(existing: Transaction[] = [], patch: (p: PortfolioFile) => void = 
   );
 }
 
-async function chooseFile(container: HTMLElement, csv = CSV, name = "kraken.csv") {
+async function chooseFile(container: HTMLElement, csv = CSV, name = "exchange.csv") {
   const input = container.querySelector('input[type="file"]')!;
   fireEvent.change(input, {
     target: { files: [new File([csv], name, { type: "text/csv" })] },
@@ -171,7 +171,7 @@ describe("the same file twice", () => {
         {
           id: "batch-1",
           importedAt: "2026-03-01T10:00:00.000Z",
-          fileName: "kraken.csv",
+          fileName: "exchange.csv",
           fileHash: hash,
           transactionCount: 2,
           walletId: "w1",
@@ -199,7 +199,7 @@ describe("the same file twice", () => {
         {
           id: "batch-1",
           importedAt: "2026-03-01T10:00:00.000Z",
-          fileName: "kraken.csv",
+          fileName: "exchange.csv",
           fileHash: "not-this-one",
           transactionCount: 2,
           walletId: "w1",
@@ -238,7 +238,7 @@ describe("what an import records", () => {
     expect(written.every((t) => t.importBatchId === batchId)).toBe(true);
 
     const batch = p.importBatches!.find((b) => b.id === batchId)!;
-    expect(batch.fileName).toBe("kraken.csv");
+    expect(batch.fileName).toBe("exchange.csv");
     expect(batch.transactionCount).toBe(2);
     expect(batch.fileHash).toHaveLength(64);
     expect(batch.accountId).toBe("a1");

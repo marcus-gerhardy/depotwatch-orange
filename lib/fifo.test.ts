@@ -21,7 +21,7 @@ function entry(
     feeFiatEur: "0",
     note: "",
     walletId: "w1",
-    walletName: "Kraken",
+    walletName: "Exchange",
     accountId: "a1",
     accountName: "Spot",
     ...extra,
@@ -812,7 +812,7 @@ describe("an arrival recorded before the send it belongs to", () => {
   const wallets = (inDate: string): Wallet[] => [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -845,7 +845,7 @@ describe("an arrival recorded before the send it belongs to", () => {
     },
     {
       id: "w2",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [
         {
@@ -912,7 +912,7 @@ describe("flattenLedger", () => {
     const wallets: Wallet[] = [
       {
         id: "w1",
-        name: "Kraken",
+        name: "Exchange",
         type: "exchange",
         accounts: [
           {

@@ -167,7 +167,7 @@ describe("demo portfolio: every feature has an example", () => {
     expect(origins.status).toBe("resolved");
     // Two hops back to the original buys on the exchange.
     expect(Math.max(...origins.origins.map((o) => o.hops))).toBeGreaterThanOrEqual(2);
-    expect(origins.origins.every((o) => o.walletName === "Kraken")).toBe(true);
+    expect(origins.origins.every((o) => o.walletId === "w-exchange")).toBe(true);
   });
 
   it("has one send arriving in two accounts", () => {

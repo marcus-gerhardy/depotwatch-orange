@@ -10,12 +10,12 @@
   },
   "wallets": [
     {
-      "id": "w-kraken",
-      "name": "Kraken",
+      "id": "w-exchange",
+      "name": "Exchange",
       "type": "exchange",
       "accounts": [
         {
-          "id": "a-kraken-spot",
+          "id": "a-exchange-spot",
           "name": "Spot",
           "transactions": [
             {
@@ -95,7 +95,7 @@
                   "amountBtc": "0.1"
                 }
               ],
-              "counterpartyAccountId": "a-bitbox-cold",
+              "counterpartyAccountId": "a-hardware-cold",
               "transferGroupId": "g-cold-1",
               "note": "Batched withdrawal of three buys to the hardware wallet"
             },
@@ -147,7 +147,7 @@
               "amountBtc": "0.008",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-sparrow-hot",
+              "counterpartyAccountId": "a-software-hot",
               "transferGroupId": "g-open-1",
               "note": "Example: not assigned yet — which buys leave here is decided solely by the manual assignment in the dialog"
             },
@@ -165,7 +165,7 @@
                   "amountBtc": "0.01004"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-partial-1",
               "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               "note": "Withdrawal with an address but no txid in the export — the counterpart supplies it"
@@ -173,7 +173,7 @@
           ]
         },
         {
-          "id": "a-kraken-dca",
+          "id": "a-exchange-dca",
           "name": "Savings plan",
           "transactions": [
             {
@@ -342,7 +342,7 @@
                   "amountBtc": "0.00205"
                 }
               ],
-              "counterpartyAccountId": "a-bitbox-cold",
+              "counterpartyAccountId": "a-hardware-cold",
               "transferGroupId": "g-cold-2",
               "note": "Savings-plan holdings to the hardware wallet — nine buys in one transaction (example without a recorded txid)"
             }
@@ -351,12 +351,12 @@
       ]
     },
     {
-      "id": "w-bitget",
-      "name": "Bitget",
+      "id": "w-exchange2",
+      "name": "Exchange 2",
       "type": "exchange",
       "accounts": [
         {
-          "id": "a-bitget-spot",
+          "id": "a-exchange2-spot",
           "name": "Spot (USDT)",
           "transactions": [
             {
@@ -386,7 +386,7 @@
               "note": "Bought against USDT"
             },
             {
-              "id": "b-out-sparrow",
+              "id": "b-out-software",
               "type": "transfer_out",
               "date": "2025-09-01T10:00:00.000Z",
               "amountBtc": "0.0649",
@@ -403,8 +403,8 @@
                   "amountBtc": "0.025"
                 }
               ],
-              "counterpartyAccountId": "a-sparrow-hot",
-              "transferGroupId": "g-sparrow-1",
+              "counterpartyAccountId": "a-software-hot",
+              "transferGroupId": "g-software-1",
               "txid": "3ab7e1c95d0426f8b1c73e9a5d20f4681e7c3b95a2d08f461c9e75b3a0d26f84",
               "note": "Off the exchange into my own software wallet"
             },
@@ -446,12 +446,12 @@
       ]
     },
     {
-      "id": "w-bitbox",
-      "name": "BitBox02",
+      "id": "w-hardware",
+      "name": "Hardware wallet",
       "type": "hardware",
       "accounts": [
         {
-          "id": "a-bitbox-cold",
+          "id": "a-hardware-cold",
           "name": "Cold storage",
           "transactions": [
             {
@@ -461,11 +461,11 @@
               "amountBtc": "0.3999",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-kraken-spot",
+              "counterpartyAccountId": "a-exchange-spot",
               "transferGroupId": "g-cold-1",
               "txid": "9f2c4a1d0b7e5638a4c1f0d92b6e83571c4a0d9e2f8b7361a5c0e4d29f7b6183",
               "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-              "note": "Received from Kraken; txid and address come from the hardware wallet and count for both legs"
+              "note": "Received from the exchange; txid and address come from the hardware wallet and count for both legs"
             },
             {
               "id": "bb-in-2",
@@ -474,7 +474,7 @@
               "amountBtc": "0.05",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-kraken-dca",
+              "counterpartyAccountId": "a-exchange-dca",
               "transferGroupId": "g-cold-2",
               "note": "Savings-plan holdings received"
             },
@@ -496,7 +496,7 @@
               "transferGroupId": "g-paper-1",
               "txid": "e41d7b09a5c2f836d17b04e95a3c68f2019d7e4b6a25c8f03d19b7e04a5c26f38",
               "address": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
-              "note": "Long-term share to the paper backup — second hop of the chain Kraken → BitBox02 → paper"
+              "note": "Long-term share to the paper backup — second hop of the chain exchange → hardware wallet → paper"
             },
             {
               "id": "bb-in-split-1",
@@ -505,7 +505,7 @@
               "amountBtc": "0.02",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-sparrow-hot",
+              "counterpartyAccountId": "a-software-hot",
               "transferGroupId": "g-split-1",
               "txid": "5c0d38e7a1b94f26d0357c81e9a4b62f3d18e075c9a2b46f81d05e37c9a2b641",
               "address": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
@@ -514,7 +514,7 @@
           ]
         },
         {
-          "id": "a-bitbox-second",
+          "id": "a-hardware-second",
           "name": "Second account",
           "transactions": [
             {
@@ -524,7 +524,7 @@
               "amountBtc": "0.0099",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-sparrow-hot",
+              "counterpartyAccountId": "a-software-hot",
               "transferGroupId": "g-split-1",
               "txid": "5c0d38e7a1b94f26d0357c81e9a4b62f3d18e075c9a2b46f81d05e37c9a2b641",
               "address": "bc1q9d4ywgfnd8h43da5tpcxcn6ajv590cg6d3tg6axemvljvt2k76zs50tv4q",
@@ -535,26 +535,26 @@
       ]
     },
     {
-      "id": "w-sparrow",
-      "name": "Sparrow",
+      "id": "w-software",
+      "name": "Software wallet",
       "type": "software",
       "accounts": [
         {
-          "id": "a-sparrow-hot",
+          "id": "a-software-hot",
           "name": "Hot wallet",
           "transactions": [
             {
-              "id": "sp-in-bitget",
+              "id": "sp-in-exchange2",
               "type": "transfer_in",
               "date": "2025-09-01T10:31:00.000Z",
               "amountBtc": "0.0649",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-bitget-spot",
-              "transferGroupId": "g-sparrow-1",
+              "counterpartyAccountId": "a-exchange2-spot",
+              "transferGroupId": "g-software-1",
               "txid": "3ab7e1c95d0426f8b1c73e9a5d20f4681e7c3b95a2d08f461c9e75b3a0d26f84",
               "address": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
-              "note": "Received from Bitget"
+              "note": "Received from exchange 2"
             },
             {
               "id": "sp-in-invoice",
@@ -586,11 +586,11 @@
               "feeBtc": "0.0001",
               "lotAllocations": [
                 {
-                  "lotTransactionId": "sp-in-bitget",
+                  "lotTransactionId": "sp-in-exchange2",
                   "amountBtc": "0.03"
                 }
               ],
-              "counterpartyAccountId": "a-bitbox-cold",
+              "counterpartyAccountId": "a-hardware-cold",
               "transferGroupId": "g-split-1",
               "txid": "5c0d38e7a1b94f26d0357c81e9a4b62f3d18e075c9a2b46f81d05e37c9a2b641",
               "note": "One transaction to two of my own addresses; the address therefore sits on the arrivals, not here"
@@ -622,7 +622,7 @@
               "totalFiatEur": null,
               "lotAllocations": [
                 {
-                  "lotTransactionId": "sp-in-bitget",
+                  "lotTransactionId": "sp-in-exchange2",
                   "amountBtc": "0.0008"
                 }
               ],
@@ -635,7 +635,7 @@
               "amountBtc": "0.008",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-kraken-spot",
+              "counterpartyAccountId": "a-exchange-spot",
               "transferGroupId": "g-open-1",
               "note": "Counterpart of the unassigned withdrawal — its origin stays open until the buys are assigned"
             }
@@ -659,7 +659,7 @@
               "amountBtc": "0.15",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-bitbox-cold",
+              "counterpartyAccountId": "a-hardware-cold",
               "transferGroupId": "g-paper-1",
               "txid": "e41d7b09a5c2f836d17b04e95a3c68f2019d7e4b6a25c8f03d19b7e04a5c26f38",
               "address": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
@@ -670,12 +670,12 @@
       ]
     },
     {
-      "id": "w-relai",
-      "name": "Relai",
+      "id": "w-broker",
+      "name": "Savings plan provider",
       "type": "exchange",
       "accounts": [
         {
-          "id": "a-relai-weekly",
+          "id": "a-broker-weekly",
           "name": "Weekly savings plan",
           "transactions": [
             {
@@ -2420,7 +2420,7 @@
                   "amountBtc": "0.00131929"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-1",
               "note": "Half-year sweep: 28 savings-plan buys in one transaction"
             },
@@ -2538,7 +2538,7 @@
                   "amountBtc": "0.00099705"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-2",
               "note": "Half-year sweep: 26 savings-plan buys in one transaction"
             },
@@ -2656,7 +2656,7 @@
                   "amountBtc": "0.00059716"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-3",
               "note": "Half-year sweep: 26 savings-plan buys in one transaction"
             },
@@ -2766,7 +2766,7 @@
                   "amountBtc": "0.00058125"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-4",
               "note": "Half-year sweep: 24 savings-plan buys in one transaction"
             },
@@ -2876,7 +2876,7 @@
                   "amountBtc": "0.00057339"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-5",
               "note": "Half-year sweep: 24 savings-plan buys in one transaction"
             },
@@ -2923,7 +2923,7 @@
           ]
         },
         {
-          "id": "a-relai-daily",
+          "id": "a-broker-daily",
           "name": "Daily savings plan",
           "transactions": [
             {
@@ -5278,7 +5278,7 @@
                   "amountBtc": "0.00012413"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-daily-1",
               "note": "Quarterly sweep of the daily plan: 53 buys at once"
             },
@@ -5500,7 +5500,7 @@
                   "amountBtc": "0.00011976"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-daily-2",
               "note": "Quarterly sweep of the daily plan: 52 buys at once"
             },
@@ -5722,7 +5722,7 @@
                   "amountBtc": "0.00010587"
                 }
               ],
-              "counterpartyAccountId": "a-coldcard-vault",
+              "counterpartyAccountId": "a-hardware2-vault",
               "transferGroupId": "g-sweep-daily-3",
               "note": "Quarterly sweep of the daily plan: 52 buys at once"
             },
@@ -5765,12 +5765,12 @@
       ]
     },
     {
-      "id": "w-coldcard",
-      "name": "Coldcard",
+      "id": "w-hardware2",
+      "name": "Hardware wallet 2",
       "type": "hardware",
       "accounts": [
         {
-          "id": "a-coldcard-vault",
+          "id": "a-hardware2-vault",
           "name": "Long term",
           "transactions": [
             {
@@ -5780,10 +5780,10 @@
               "amountBtc": "0.04967663",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-weekly",
+              "counterpartyAccountId": "a-broker-weekly",
               "transferGroupId": "g-sweep-1",
               "address": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
-              "note": "Savings-plan holdings received on the Coldcard"
+              "note": "Savings-plan holdings received on hardware wallet 2"
             },
             {
               "id": "cc-sweep-in-2",
@@ -5792,10 +5792,10 @@
               "amountBtc": "0.02580859",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-weekly",
+              "counterpartyAccountId": "a-broker-weekly",
               "transferGroupId": "g-sweep-2",
               "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-              "note": "Savings-plan holdings received on the Coldcard"
+              "note": "Savings-plan holdings received on hardware wallet 2"
             },
             {
               "id": "cc-sweep-in-3",
@@ -5804,10 +5804,10 @@
               "amountBtc": "0.02140522",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-weekly",
+              "counterpartyAccountId": "a-broker-weekly",
               "transferGroupId": "g-sweep-3",
               "address": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
-              "note": "Savings-plan holdings received on the Coldcard"
+              "note": "Savings-plan holdings received on hardware wallet 2"
             },
             {
               "id": "cc-sweep-in-4",
@@ -5816,10 +5816,10 @@
               "amountBtc": "0.01472698",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-weekly",
+              "counterpartyAccountId": "a-broker-weekly",
               "transferGroupId": "g-sweep-4",
               "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-              "note": "Savings-plan holdings received on the Coldcard"
+              "note": "Savings-plan holdings received on hardware wallet 2"
             },
             {
               "id": "cc-sweep-in-5",
@@ -5828,10 +5828,10 @@
               "amountBtc": "0.01360312",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-weekly",
+              "counterpartyAccountId": "a-broker-weekly",
               "transferGroupId": "g-sweep-5",
               "address": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
-              "note": "Savings-plan holdings received on the Coldcard"
+              "note": "Savings-plan holdings received on hardware wallet 2"
             },
             {
               "id": "cc-sweep-daily-in-1",
@@ -5840,7 +5840,7 @@
               "amountBtc": "0.00625065",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-daily",
+              "counterpartyAccountId": "a-broker-daily",
               "transferGroupId": "g-sweep-daily-1",
               "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               "note": "Daily savings plan received"
@@ -5852,7 +5852,7 @@
               "amountBtc": "0.00669221",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-daily",
+              "counterpartyAccountId": "a-broker-daily",
               "transferGroupId": "g-sweep-daily-2",
               "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               "note": "Daily savings plan received"
@@ -5864,7 +5864,7 @@
               "amountBtc": "0.00576377",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-relai-daily",
+              "counterpartyAccountId": "a-broker-daily",
               "transferGroupId": "g-sweep-daily-3",
               "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               "note": "Daily savings plan received"
@@ -5876,10 +5876,10 @@
               "amountBtc": "0.01",
               "pricePerBtcEur": null,
               "totalFiatEur": null,
-              "counterpartyAccountId": "a-kraken-spot",
+              "counterpartyAccountId": "a-exchange-spot",
               "transferGroupId": "g-partial-1",
               "txid": "3ab7e1c95d0426f8b1c73e9a5d20f4681e7c3b95a2d08f461c9e75b3a0d26f84",
-              "note": "Received on the Coldcard; the txid comes from the wallet here, the address from the exchange"
+              "note": "Received on hardware wallet 2; the txid comes from the wallet here, the address from the exchange"
             }
           ]
         }
@@ -5891,17 +5891,17 @@
       "id": "wa-cold-1",
       "type": "address",
       "value": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-      "label": "BitBox02 – receiving address 1",
+      "label": "Hardware wallet – receiving address 1",
       "tags": [
         "hardware-wallet",
         "non-kyc"
       ]
     },
     {
-      "id": "wa-sparrow-xpub",
+      "id": "wa-software-xpub",
       "type": "zpub",
       "value": "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
-      "label": "Sparrow – account 1 (zpub)",
+      "label": "Software wallet – account 1 (zpub)",
       "tags": [
         "software-wallet"
       ]
@@ -5910,7 +5910,7 @@
       "id": "wa-taproot",
       "type": "address",
       "value": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
-      "label": "Sparrow – taproot receive",
+      "label": "Software wallet – taproot receive",
       "tags": [
         "software-wallet",
         "non-kyc",
@@ -5931,7 +5931,7 @@
       "id": "wa-cold-2",
       "type": "address",
       "value": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
-      "label": "BitBox02 – receiving address 2",
+      "label": "Hardware wallet – receiving address 2",
       "tags": [
         "hardware-wallet",
         "non-kyc"
@@ -5941,13 +5941,13 @@
       "id": "wa-second",
       "type": "address",
       "value": "bc1q9d4ywgfnd8h43da5tpcxcn6ajv590cg6d3tg6axemvljvt2k76zs50tv4q",
-      "label": "BitBox02 – second account",
+      "label": "Hardware wallet – second account",
       "tags": [
         "hardware-wallet"
       ]
     },
     {
-      "id": "wa-kraken-xpub",
+      "id": "wa-exchange-xpub",
       "type": "xpub",
       "value": "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
       "label": "Exchange withdrawals (xpub, KYC)",
@@ -5963,7 +5963,7 @@
   "utxoLabels": [
     {
       "outpoint": "9f2c4a1d0b7e5638a4c1f0d92b6e83571c4a0d9e2f8b7361a5c0e4d29f7b6183:0",
-      "label": "Batched Kraken withdrawal",
+      "label": "Batched exchange withdrawal",
       "tags": [
         "kyc"
       ]
@@ -5977,7 +5977,7 @@
     },
     {
       "outpoint": "5c0d38e7a1b94f26d0357c81e9a4b62f3d18e075c9a2b46f81d05e37c9a2b641:0",
-      "label": "Sparrow → cold storage",
+      "label": "Software wallet → cold storage",
       "tags": [
         "non-kyc",
         "consolidate"
@@ -5985,7 +5985,7 @@
     },
     {
       "outpoint": "5c0d38e7a1b94f26d0357c81e9a4b62f3d18e075c9a2b46f81d05e37c9a2b641:1",
-      "label": "Sparrow → second account",
+      "label": "Software wallet → second account",
       "tags": [
         "non-kyc"
       ]

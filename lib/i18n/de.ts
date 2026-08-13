@@ -81,7 +81,7 @@ const de = {
     strengthMedium: "mittel",
     strengthStrong: "stark",
     walletIntro:
-      "Lege dein erstes Wallet mit einem Konto an. Es wird für deine erste Transaktion benötigt (z. B. Wallet „Kraken“ mit Konto „Spot“).",
+      "Lege dein erstes Wallet mit einem Konto an. Es wird für deine erste Transaktion benötigt (z. B. Wallet „Börse“ mit Konto „Spot“).",
     summaryIntro: "Bitte prüfe deine Angaben. Mit „Erstellen“ wird die Datei angelegt und gespeichert.",
     summaryIntroExisting:
       "Bitte prüfe deine Angaben. Deine bisherigen Testdaten werden unverändert in die neue Datei übernommen.",
@@ -490,7 +490,7 @@ const de = {
         description: "Tage seit dem ersten Kauf und der tiefste Rückgang seither.",
       },
       blockClock: {
-        title: "Blockuhr",
+        title: "Blockzeit",
         description: "Die aktuelle Blockhöhe, groß und ohne Beiwerk.",
       },
       utxoOverview: {
@@ -581,6 +581,7 @@ const de = {
     addWallet: "Wallet hinzufügen",
     addAccount: "Konto hinzufügen",
     walletName: "Wallet-Name",
+    walletNamePlaceholder: "Börse",
     accountName: "Konto-Name",
     type: "Typ",
     types: {
@@ -1281,6 +1282,7 @@ const de = {
     newWalletOption: "+ Neues Wallet anlegen …",
     newAccountOption: "+ Neues Konto anlegen …",
     newWalletName: "Name des neuen Wallets",
+    newWalletNamePlaceholder: "Börse",
     newAccountName: "Name des neuen Kontos",
     preset: "Import-Preset",
     presetManual: "Manuell / ohne Vorlage",
@@ -1289,7 +1291,7 @@ const de = {
     presetPredefined: "Dieses Preset ist vordefiniert und kann nicht bearbeitet oder gelöscht werden.",
     presetDelete: "Preset löschen",
     presetApplied: "Preset „{name}“ automatisch angewendet.",
-    presetSaveAsName: "Name für neues Preset (z. B. Kraken)",
+    presetSaveAsName: "Name für neues Preset (z. B. Börsen-Export)",
     presetSaveAs: "Als neues Preset speichern",
     presetSaved: "Preset „{name}“ gespeichert.",
     column: "Spalte",
@@ -1477,6 +1479,7 @@ const de = {
     add: "Adresse hinzufügen",
     addressOrXpub: "Adresse oder xpub",
     label: "Bezeichnung",
+    labelPlaceholder: "Hardware-Wallet, Konto 1",
     tags: "Tags (kommagetrennt)",
     type: "Typ",
     invalidValue: "Bitte eine gültige Bitcoin-Adresse oder einen xpub eingeben.",

@@ -17,7 +17,7 @@ function seed(): PortfolioFile {
   p.wallets = [
     {
       id: "wA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -37,7 +37,7 @@ function seed(): PortfolioFile {
     },
     {
       id: "wB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [
         {
@@ -72,7 +72,7 @@ beforeEach(() => {
 
 describe("updateTransaction", () => {
   it("retargets the counterpart when a linked leg moves to another account", () => {
-    // The out-leg moves from Kraken/Spot to Kraken/Savings; the arrival still
+    // The out-leg moves from Exchange/Spot to Exchange/Savings; the arrival still
     // pointed at the account the leg just left (CLAUDE.md §3.2).
     const out = current("out1");
     useAppStore.getState().updateTransaction("out1", { ...out }, "aA2");

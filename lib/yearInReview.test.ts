@@ -67,7 +67,7 @@ function review(
 const simpleWallets = () =>
   walletsOf([
     {
-      id: "kraken",
+      id: "exchange",
       type: "exchange",
       accounts: [
         {
@@ -105,7 +105,7 @@ describe("what a year stacked", () => {
     // pair would show up as a whole year's worth of stacking in the new year.
     const wallets = walletsOf([
       {
-        id: "kraken",
+        id: "exchange",
         type: "exchange",
         accounts: [
           {

@@ -13,7 +13,7 @@ function seedPortfolio(): PortfolioFile {
   p.wallets = [
     {
       id: "walletA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -132,7 +132,7 @@ describe("TransactionsView: on-chain data of the counterpart leg", () => {
     p.wallets = [
       {
         id: "walletA",
-        name: "Kraken",
+        name: "Exchange",
         type: "exchange",
         accounts: [
           {
@@ -156,7 +156,7 @@ describe("TransactionsView: on-chain data of the counterpart leg", () => {
       },
       {
         id: "walletB",
-        name: "BitBox02",
+        name: "Hardware wallet",
         type: "hardware",
         accounts: [
           {

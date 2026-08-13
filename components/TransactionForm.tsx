@@ -1037,7 +1037,7 @@ export default function TransactionForm({
           )}
 
           {/* Settled in another currency or asset (e.g. BTC against USDT on
-              Bitget): recorded for documentation, never for calculations. */}
+              an exchange): recorded for documentation, never for calculations. */}
           {needsPrice && (
             <Section
               title={t("tx.originalSection")}

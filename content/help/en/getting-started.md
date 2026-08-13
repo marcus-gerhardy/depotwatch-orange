@@ -21,7 +21,7 @@ The password encrypts the file (AES-256-GCM, key derivation with PBKDF2). There 
 ## First wallet and account {#gs-first-wallet}
 The structure has two levels: a **wallet** is a place where bitcoin sits (an exchange, a hardware wallet, a software wallet, a paper wallet). An **account** is an area inside it.
 
-For example: wallet "Kraken" with the accounts "Spot" and "Savings", wallet "Ledger" with the account "Account 1".
+For example: wallet "Exchange" with the accounts "Spot" and "Savings", wallet "Hardware wallet" with the account "Account 1".
 
 If in doubt: one wallet with one account is enough to start with, and you can add more at any time.
 

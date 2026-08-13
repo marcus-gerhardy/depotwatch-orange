@@ -21,7 +21,7 @@ Das Passwort verschlüsselt die Datei (AES-256-GCM, Schlüsselableitung mit PBKD
 ## Erstes Wallet und Konto {#gs-first-wallet}
 Die Struktur ist zweistufig: Ein **Wallet** ist ein Ort, an dem Bitcoin liegt (eine Börse, ein Hardware-Wallet, eine Software-Wallet, ein Paper-Wallet). Ein **Konto** ist ein Bereich darin.
 
-Beispiel: Wallet „Kraken" mit den Konten „Spot" und „Sparplan", Wallet „Ledger" mit dem Konto „Account 1".
+Beispiel: Wallet „Börse" mit den Konten „Spot" und „Sparplan", Wallet „Hardware-Wallet" mit dem Konto „Konto 1".
 
 Wenn du dir unsicher bist: Ein Wallet mit einem Konto genügt für den Anfang, weitere kannst du jederzeit ergänzen.
 

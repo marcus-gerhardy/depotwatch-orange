@@ -21,7 +21,7 @@ function portfolio(source: Transaction[], target: Transaction[] = []): Portfolio
   p.wallets = [
     {
       id: "wA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {
@@ -44,7 +44,7 @@ function portfolio(source: Transaction[], target: Transaction[] = []): Portfolio
     },
     {
       id: "wB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [{ id: "aB", name: "Cold", transactions: target }],
     },

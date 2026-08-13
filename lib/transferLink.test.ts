@@ -33,13 +33,13 @@ function portfolio(
   p.wallets = [
     {
       id: "wA",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "aA", name: "Spot", transactions: aTransactions }],
     },
     {
       id: "wB",
-      name: "BitBox02",
+      name: "Hardware wallet",
       type: "hardware",
       accounts: [{ id: "aB", name: "Cold", transactions: bTransactions }],
     },

@@ -21,7 +21,7 @@ function portfolio(): PortfolioFile {
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken-Konto",
+      name: "Exchange-Konto",
       type: "exchange",
       accounts: [
         {
@@ -81,7 +81,7 @@ describe("the lock screen", () => {
     expect(screen.getByText("mein-depot.dwp")).toBeTruthy();
     expect(screen.getByLabelText("Passwort")).toBeTruthy();
     // Nothing from the portfolio, in any form.
-    expect(container.textContent).not.toContain("Kraken");
+    expect(container.textContent).not.toContain("Exchange");
     expect(container.textContent).not.toContain("Spot");
     expect(container.textContent).not.toMatch(/0[.,]25/);
     expect(container.textContent).not.toContain("40.000");
@@ -115,7 +115,7 @@ describe("the lock screen", () => {
     fireEvent.change(screen.getByLabelText("Passwort"), { target: { value: PASSWORD } });
     fireEvent.click(screen.getByRole("button", { name: "Entsperren" }));
     await vi.waitFor(() => expect(useAppStore.getState().locked).toBe(false));
-    expect(useAppStore.getState().portfolio?.wallets[0].name).toBe("Kraken-Konto");
+    expect(useAppStore.getState().portfolio?.wallets[0].name).toBe("Exchange-Konto");
   });
 
   it("offers to close the file for anyone without the password", async () => {

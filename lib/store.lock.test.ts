@@ -28,7 +28,7 @@ function portfolio(): PortfolioFile {
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "a1", name: "Spot", transactions: [tx] }],
     },
@@ -65,7 +65,7 @@ describe("locking", () => {
     expect(s.lockedPayload).not.toBeNull();
     // What is left is what is on disk: an envelope, not the wallet names.
     expect(isEncryptedEnvelope(s.lockedPayload!)).toBe(true);
-    expect(s.lockedPayload).not.toContain("Kraken");
+    expect(s.lockedPayload).not.toContain("Exchange");
     expect(s.lockedPayload).not.toContain("0.25");
   });
 
@@ -84,7 +84,7 @@ describe("locking", () => {
     expect(s.locked).toBe(false);
     expect(s.lockedPayload).toBeNull();
     expect(s.password).toBe(PASSWORD);
-    expect(s.portfolio?.wallets[0].name).toBe("Kraken");
+    expect(s.portfolio?.wallets[0].name).toBe("Exchange");
     expect(s.portfolio?.wallets[0].accounts[0].transactions[0].amountBtc).toBe("0.25");
   });
 

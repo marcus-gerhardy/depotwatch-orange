@@ -31,7 +31,7 @@ function load(patch: (p: PortfolioFile) => void = () => {}) {
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         {

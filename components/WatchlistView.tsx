@@ -141,7 +141,7 @@ export default function WatchlistView({
             <Field label={t("watchlist.label")}>
               <input
                 className={inputCls}
-                placeholder="Ledger Account 1"
+                placeholder={t("watchlist.labelPlaceholder")}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />

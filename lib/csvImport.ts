@@ -22,9 +22,9 @@ export type AmountUnit = "btc" | "sats";
  * means the amount is what was really received/sent, "notDeducted" that the fee
  * is still part of it (e.g. a withdrawal row showing what left the account).
  *
- * Asked once per direction, because one file commonly uses both: a Bitget spot
- * buy reports the amount with the trading fee already taken off, while its
- * withdrawal rows report the total that left the account, fee included. One
+ * Asked once per direction, because one file commonly uses both: an exchange's
+ * spot buy rows report the amount with the trading fee already taken off, while
+ * its withdrawal rows report the total that left the account, fee included. One
  * answer for the whole file would make the other direction wrong by exactly the
  * fee sum — which is what a balance that refuses to reach zero looks like.
  */
@@ -404,8 +404,8 @@ export const TIME_FORMATS = ["hms", "h12", "datetime"] as const;
 
 export type CsvTimeFormat = (typeof TIME_FORMATS)[number];
 
-// Sub-second digits are tolerated and dropped: Bitvavo writes "23:53:28.645",
-// and the ledger keeps whole seconds.
+// Sub-second digits are tolerated and dropped: some exports write
+// "23:53:28.645", and the ledger keeps whole seconds.
 const FRACTION = "(?:[.,]\\d+)?";
 const TIME_24H = new RegExp(`^(\\d{1,2}):(\\d{2})(?::(\\d{2})${FRACTION})?$`);
 const TIME_12H = new RegExp(
@@ -1338,7 +1338,7 @@ export function buildImportRows(
     if (normalized === null) return raw;
     const unit =
       field === "amountBtc" ? amountUnit : field === "feeBtc" ? feeUnit : undefined;
-    // Exports encode the direction in the sign (Bitvavo writes a withdrawal as
+    // Some exports encode the direction in the sign (a withdrawal written as
     // "-0.5"); the ledger stores magnitudes and takes the direction from the
     // transaction type, so a leading minus is dropped here.
     const value = (

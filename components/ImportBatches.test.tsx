@@ -26,7 +26,7 @@ function load(transactions: Transaction[]): PortfolioFile {
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "a1", name: "Spot", transactions }],
     },
@@ -35,9 +35,9 @@ function load(transactions: Transaction[]): PortfolioFile {
     {
       id: "batch-1",
       importedAt: "2026-03-03T08:00:00.000Z",
-      fileName: "kraken-2026.csv",
+      fileName: "exchange-2026.csv",
       fileHash: "abc",
-      presetName: "Kraken",
+      presetName: "Exchange",
       transactionCount: transactions.filter((t) => t.importBatchId).length,
       walletId: "w1",
       accountId: "a1",
@@ -62,8 +62,8 @@ describe("the imports list", () => {
     load([tx({ id: "b1", importBatchId: "batch-1" })]);
     view();
 
-    expect(screen.getByText("kraken-2026.csv")).toBeTruthy();
-    expect(screen.getByText("Kraken")).toBeTruthy();
+    expect(screen.getByText("exchange-2026.csv")).toBeTruthy();
+    expect(screen.getByText("Exchange")).toBeTruthy();
   });
 
   it("removes an import that nothing else depends on", () => {

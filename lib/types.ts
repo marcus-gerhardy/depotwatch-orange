@@ -86,7 +86,7 @@ export interface Transaction {
   address?: string;
   /**
    * Settled in another currency or asset than EUR (e.g. a BTC buy against USDT
-   * on Bitget): the currency/asset code, the amount paid/received in it, and
+   * on an exchange): the currency/asset code, the amount paid/received in it, and
    * the price per BTC in it.
    *
    * Documentation only (CLAUDE.md §3.2). EUR stays the one valuation currency:

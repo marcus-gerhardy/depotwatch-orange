@@ -249,7 +249,7 @@ describe("guessMapping", () => {
   });
 
   it("prefers the exact column over one that merely contains the word", () => {
-    // Kraken trade history: "type" is the transaction type, "ordertype" is not;
+    // Exchange trade history: "type" is the transaction type, "ordertype" is not;
     // "txid" is the trade id column, "ordertxid" the order it belongs to.
     const m = guessMapping([
       "txid",
@@ -276,7 +276,7 @@ describe("guessMapping", () => {
   });
 
   it("keeps fiat columns out of the BTC amount and unit labels out of both", () => {
-    // Bitpanda: "Amount Fiat" is the EUR total, "Amount Asset" the BTC amount.
+    // Exchange: "Amount Fiat" is the EUR total, "Amount Asset" the BTC amount.
     const m = guessMapping([
       "Transaction ID",
       "Timestamp",
@@ -300,7 +300,7 @@ describe("guessMapping", () => {
   });
 
   it("picks the first matching column when several are equally good", () => {
-    // Ledger Live has two "…Date" columns; the operation's own date comes first.
+    // Some exports have two "…Date" columns; the operation's own date comes first.
     const m = guessMapping([
       "Operation Date",
       "Status",
@@ -534,7 +534,7 @@ describe("buildImportRows", () => {
 });
 
 describe("buildImportRows: sign and precision", () => {
-  it("drops the sign an export uses for the direction (Bitvavo withdrawals)", () => {
+  it("drops the sign an export uses for the direction (withdrawal rows)", () => {
     const rows = buildImportRows(
       [["withdrawal", "2024-02-01", "12:00", "-0.5", "-1500.00", "-0.0001"]],
       ["Type", "Date", "Time", "Amount", "Total", "Fee"],
@@ -703,7 +703,7 @@ describe("time parsing", () => {
     expect(parseTimeWithFormat("14:30:09", "hms")).toEqual({ h: 14, m: 30, s: 9 });
     expect(parseTimeWithFormat("02:30 PM", "h12")).toEqual({ h: 14, m: 30, s: 0 });
     expect(parseTimeWithFormat("12:05 am", "h12")).toEqual({ h: 0, m: 5, s: 0 });
-    // Bitvavo writes milliseconds; the ledger keeps whole seconds.
+    // Some exports write milliseconds; the ledger keeps whole seconds.
     expect(parseTimeWithFormat("23:53:28.645", "hms")).toEqual({ h: 23, m: 53, s: 28 });
     expect(detectTimeFormat(["23:53:28.645", "09:15:00"])).toBe("hms");
     expect(parseTimeWithFormat("02:30:05,500 pm", "h12")).toEqual({
@@ -1061,7 +1061,7 @@ describe("BTC fee mode: what ends up in the portfolio", () => {
   });
 });
 
-describe("one file, two fee conventions (Bitget)", () => {
+describe("one file, two fee conventions (Exchange 2)", () => {
   // A spot buy reports the amount with the trading fee already taken off, a
   // withdrawal reports the total that left the account, network fee included.
   // Buys and withdrawals cover each other exactly, so the exchange account has

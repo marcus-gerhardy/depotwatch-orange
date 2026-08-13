@@ -18,7 +18,7 @@ function open() {
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "a1", name: "Spot", transactions: [] }],
     },
@@ -35,9 +35,9 @@ function open() {
 async function toPreview(container: HTMLElement, csv = CSV) {
   const input = container.querySelector('input[type="file"]')!;
   fireEvent.change(input, {
-    target: { files: [new File([csv], "kraken.csv", { type: "text/csv" })] },
+    target: { files: [new File([csv], "exchange.csv", { type: "text/csv" })] },
   });
-  await waitFor(() => expect(screen.getByText(/kraken\.csv/)).toBeTruthy());
+  await waitFor(() => expect(screen.getByText(/exchange\.csv/)).toBeTruthy());
 
   const next = () => fireEvent.click(screen.getByText(`${de.wizard.next} →`));
   next(); // file → filter

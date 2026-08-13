@@ -12,7 +12,7 @@ function portfolioWith(transactions: Transaction[]): PortfolioFile {
   p.wallets = [
     {
       id: "w1",
-      name: "21bitcoin",
+      name: "Exchange",
       type: "exchange",
       accounts: [{ id: "a1", name: "Main", transactions }],
     },

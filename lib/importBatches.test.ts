@@ -22,7 +22,7 @@ function portfolio(transactions: Transaction[], second: Transaction[] = []): Por
   p.wallets = [
     {
       id: "w1",
-      name: "Kraken",
+      name: "Exchange",
       type: "exchange",
       accounts: [
         { id: "a1", name: "Spot", transactions },
@@ -34,9 +34,9 @@ function portfolio(transactions: Transaction[], second: Transaction[] = []): Por
     {
       id: "batch-1",
       importedAt: "2026-03-03T08:00:00.000Z",
-      fileName: "kraken.csv",
+      fileName: "exchange.csv",
       fileHash: "abc",
-      presetName: "Kraken",
+      presetName: "Exchange",
       transactionCount: transactions.filter((t) => t.importBatchId === "batch-1").length,
       walletId: "w1",
       accountId: "a1",
@@ -164,7 +164,7 @@ describe("removeBatchTransactions", () => {
 describe("batchForHash", () => {
   it("recognises a file that was imported before", () => {
     const p = portfolio([tx({ id: "b1", importBatchId: "batch-1" })]);
-    expect(batchForHash(p, "abc")?.fileName).toBe("kraken.csv");
+    expect(batchForHash(p, "abc")?.fileName).toBe("exchange.csv");
     expect(batchForHash(p, "different")).toBeNull();
   });
 });

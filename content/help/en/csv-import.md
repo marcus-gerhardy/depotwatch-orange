@@ -13,7 +13,7 @@ The wizard walks through five steps:
 Only the last step writes anything into your portfolio.
 
 ## Presets {#csv-presets}
-**Bundled presets** (Kraken, Bitpanda, BitBox02 and others) ship with the app and cover the usual exports. They cannot be edited, but they make a good starting point.
+A **preset** holds everything the wizard asks for — delimiter, date format, column mapping, fee conventions. The next import of the same kind of export is then just picking the file and checking it.
 
 **Your own presets** are saved at the end. They live **inside your portfolio file**, so they travel with it to other devices and survive a change of browser.
 
