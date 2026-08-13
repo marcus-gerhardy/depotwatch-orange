@@ -30,7 +30,7 @@ function WidgetHost({
   return (
     <WidgetShell
       title={t(def.titleKey)}
-      icon={def.icon}
+      widgetId={def.id}
       editing={editing}
       onRemove={() => onRemove(placement.i)}
       removeLabel={t("dashboard.widgets.remove")}

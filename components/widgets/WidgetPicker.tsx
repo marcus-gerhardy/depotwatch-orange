@@ -6,6 +6,7 @@
 import { useI18n } from "@/lib/i18n";
 import { Modal } from "../ui";
 import { WIDGETS, type WidgetDataSource, type WidgetDefinition } from "./registry";
+import WidgetIcon from "./WidgetIcon";
 
 const SOURCE_LABEL: Record<WidgetDataSource, string> = {
   ledger: "dashboard.widgets.sources.ledger",
@@ -37,9 +38,7 @@ export default function WidgetPicker({
               onClick={() => onPick(w)}
               className="flex w-full gap-3 rounded-lg border border-border-c bg-surface-2 p-3 text-left transition-colors hover:border-accent-dim"
             >
-              <span aria-hidden className="text-xl leading-none">
-                {w.icon}
-              </span>
+              <WidgetIcon id={w.id} className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-2">
                   <span className="truncate text-sm font-medium">{t(w.titleKey)}</span>

@@ -18,21 +18,21 @@
 // space where its icon belongs.
 
 import type { ReactNode } from "react";
-
-/** The shared geometry. Nothing here is per-icon — that is the point. */
-const SVG_PROPS = {
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-};
-
-/** A solid dot, for the few icons that need one (targets, keyholes, toppings). */
-const dot = (cx: number, cy: number, r = 1.2) => (
-  <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="currentColor" stroke="none" />
-);
+import {
+  BRICKS,
+  CALENDAR,
+  COIN_STACK,
+  CYCLE,
+  HALVING_BLOCKS,
+  HOURGLASS,
+  LineIcon,
+  PADLOCK,
+  RECEIPT,
+  SHIELD,
+  STOPWATCH,
+  TARGET,
+  iconDot as dot,
+} from "./icons";
 
 /**
  * The drawings, keyed by milestone id. Each one keeps the motif its entry has
@@ -56,30 +56,12 @@ const DRAWINGS: Record<string, ReactNode> = {
       <path d="M12 11.5V21" />
     </>
   ),
-  // A brick wall: a million sats is masonry, not a single stone. Three courses
-  // with staggered joints and no more — a full bond turns to mush at 20 px.
-  sats1m: (
-    <>
-      <rect x="3" y="6" width="18" height="12" rx="1.5" />
-      <path d="M3 10h18M3 14h18M12 6v4M8 10v4M16 10v4M12 14v4" />
-    </>
-  ),
+  // A brick wall: a million sats is masonry, not a single stone.
+  sats1m: BRICKS,
   // A stack of coins: a tenth, and the pile is growing.
-  btc010: (
-    <>
-      <ellipse cx="12" cy="6.5" rx="7" ry="3" />
-      <path d="M5 6.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11" />
-      <path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3" />
-    </>
-  ),
+  btc010: COIN_STACK,
   // A target: one percent of twenty-one.
-  btc021: (
-    <>
-      <circle cx="12" cy="12" r="8.5" />
-      <circle cx="12" cy="12" r="4.5" />
-      {dot(12, 12, 1.4)}
-    </>
-  ),
+  btc021: TARGET,
   // A crown: the whole coin.
   btc1: (
     <>
@@ -108,7 +90,7 @@ const DRAWINGS: Record<string, ReactNode> = {
   // A shield, split down the middle: half the holding is one's own.
   selfCustody50: (
     <>
-      <path d="M12 3 20 6v6c0 4.2-3.2 7.4-8 9-4.8-1.6-8-4.8-8-9V6l8-3Z" />
+      {SHIELD}
       <path d="M12 3.4v17.3" />
     </>
   ),
@@ -138,48 +120,15 @@ const DRAWINGS: Record<string, ReactNode> = {
 
   // -------------------------------------------------------------- patience
   // An hourglass: the first lot past the holding period.
-  firstTaxFreeLot: (
-    <>
-      <path d="M6 3h12M6 21h12" />
-      <path d="M7.5 3v3c0 2.5 4.5 3.8 4.5 6s-4.5 3.5-4.5 6v3" />
-      <path d="M16.5 3v3c0 2.5-4.5 3.8-4.5 6s4.5 3.5 4.5 6v3" />
-    </>
-  ),
+  firstTaxFreeLot: HOURGLASS,
   // A stopwatch: a hundred days counted out.
-  days100: (
-    <>
-      <circle cx="12" cy="13.5" r="7.5" />
-      <path d="M9.5 3h5M12 3v3M18.8 6.6l1.5-1.5" />
-      <path d="M12 13.5V9.5" />
-    </>
-  ),
+  days100: STOPWATCH,
   // A calendar with a day marked: a full year.
-  year1: (
-    <>
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M3 10h18M8 3v4M16 3v4" />
-      {dot(8, 14.5, 1.1)}
-      {dot(12, 14.5, 1.1)}
-      {dot(16, 14.5, 1.1)}
-      {dot(8, 18, 1.1)}
-    </>
-  ),
+  year1: CALENDAR,
   // The step itself: two blocks, the second half the first. Held across it.
-  throughHalving: (
-    <>
-      <rect x="3.5" y="5" width="7.5" height="14" rx="1" />
-      <rect x="13" y="12" width="7.5" height="7" rx="1" />
-      <path d="M2 21.5h20" />
-    </>
-  ),
+  throughHalving: HALVING_BLOCKS,
   // A cycle: four years, one turn of the wheel.
-  years4: (
-    <>
-      <path d="M5.2 9.4A7.5 7.5 0 0 1 18.6 7.6" />
-      <path d="M18.8 14.6A7.5 7.5 0 0 1 5.4 16.4" />
-      <path d="M18.9 3.6v4h-4M5.1 20.4v-4h4" />
-    </>
-  ),
+  years4: CYCLE,
 
   // ------------------------------------------------------------- diligence
   // A floppy disk: the file was written to disk.
@@ -191,13 +140,7 @@ const DRAWINGS: Record<string, ReactNode> = {
     </>
   ),
   // A padlock: the file is encrypted.
-  encrypted: (
-    <>
-      <rect x="4" y="10" width="16" height="11" rx="2" />
-      <path d="M8 10V7.5a4 4 0 0 1 8 0V10" />
-      {dot(12, 15.5, 1.3)}
-    </>
-  ),
+  encrypted: PADLOCK,
   // Two links: every transfer paired with its counterpart.
   allTransfersLinked: (
     <>
@@ -206,12 +149,7 @@ const DRAWINGS: Record<string, ReactNode> = {
     </>
   ),
   // A receipt: every transfer has its txid.
-  allTxidsRecorded: (
-    <>
-      <path d="M6 21V3h12v18l-2.4-1.7-2.4 1.7-2.4-1.7-2.4 1.7L6 19.3Z" />
-      <path d="M9 8h6M9 12h6" />
-    </>
-  ),
+  allTxidsRecorded: RECEIPT,
   // An outbox: a report left the app.
   taxExported: (
     <>
@@ -278,11 +216,10 @@ export default function MilestoneIcon({
   id: string;
   className?: string;
 }) {
-  const drawing = DRAWINGS[id];
   return (
-    <svg {...SVG_PROPS} aria-hidden className={className}>
+    <LineIcon className={className}>
       {/* An id with no drawing gets the neutral marker rather than a hole. */}
-      {drawing ?? <circle cx="12" cy="12" r="8.5" />}
-    </svg>
+      {DRAWINGS[id] ?? <circle cx="12" cy="12" r="8.5" />}
+    </LineIcon>
   );
 }

@@ -9,20 +9,22 @@
 
 import { Component, type ReactNode } from "react";
 import { Amount } from "../ui";
+import WidgetIcon from "./WidgetIcon";
 
 /** Drag handle selector; react-grid-layout only starts a drag from here. */
 export const WIDGET_DRAG_HANDLE = "widget-drag-handle";
 
 export function WidgetShell({
   title,
-  icon,
+  widgetId,
   editing,
   onRemove,
   removeLabel,
   children,
 }: {
   title: string;
-  icon: string;
+  /** Which widget this is — the header icon is drawn from it (§4.1). */
+  widgetId: string;
   /** Edit mode: header becomes the drag handle and a remove button appears. */
   editing?: boolean;
   onRemove?: () => void;
@@ -36,9 +38,7 @@ export function WidgetShell({
           editing ? `${WIDGET_DRAG_HANDLE} cursor-move select-none` : ""
         }`}
       >
-        <span aria-hidden className="text-xs opacity-70">
-          {icon}
-        </span>
+        <WidgetIcon id={widgetId} className="h-4 w-4 shrink-0 text-muted" />
         <h3 className="truncate text-xs font-semibold uppercase tracking-wider text-muted">
           {title}
         </h3>
