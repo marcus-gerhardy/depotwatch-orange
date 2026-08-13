@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "help:build": "python3 scripts/build-help.py",
+    "icons:build": "node scripts/build-icons.mjs",
     "help:screenshots": "npm run build && node scripts/help-screenshots.mjs",
     "test": "vitest run"
   },

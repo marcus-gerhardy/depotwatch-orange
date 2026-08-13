@@ -56,7 +56,9 @@ export const metadata: Metadata = {
   // No Twitter card image and no verification tokens: both would be claims
   // about accounts that do not exist. They belong here once they do.
   robots: { index: true, follow: true },
-  icons: { icon: "/favicon.ico" },
+  // No `icons` here on purpose: app/favicon.ico, app/icon.svg and
+  // app/apple-icon.png are picked up by Next's file conventions, and naming
+  // them again would override that with a shorter list.
 };
 
 /** The colour behind the browser UI on mobile — the app's own background. */

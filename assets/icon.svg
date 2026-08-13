@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DepotWatch Orange">
+  <!--
+    The app mark, and the single source for every icon it ships
+    (scripts/build-icons.mjs).
+
+    A block, drawn as a solid object rather than a wireframe: one lit face, one
+    in shadow, one outlined. Not a ₿ — that glyph belongs to bitcoin, not to
+    this app, and at 16 px a letterform is the hardest thing there is to keep
+    legible. A block is the opposite: three straight faces on a hexagonal
+    silhouette, which survives being rasterised into 16 pixels and still reads
+    as one shape.
+
+    It also says what the app is. A block is what the chain is made of, and it
+    is a container — one object holding everything, which is exactly the
+    premise: one file, on your device, holding the whole portfolio.
+
+    Colours are theme tokens (lib/theme.ts): the accent, and the near-black the
+    app already uses for text on an accent-filled surface. Accent-filled with a
+    dark mark is the inverse of the header lockup on purpose — at 16 px an
+    orange tile is legible on a light *and* a dark tab strip, dark-on-dark is
+    not.
+  -->
+  <rect width="64" height="64" rx="14" fill="#f7931a" />
+  <g
+    transform="translate(32 32) scale(0.95) translate(-32 -32)"
+    stroke="#0b0b0d"
+    stroke-width="6"
+    stroke-linejoin="round"
+  >
+    <!-- The silhouette: a cube seen from above, corner on. -->
+    <path fill="none" d="M32 9 10 21.5v21L32 55l22-12.5v-21L32 9Z" />
+    <!-- The face in shadow, which is what turns the outline into an object. -->
+    <path fill="#0b0b0d" d="M32 32 10 21.5v21L32 55V32Z" />
+    <!-- The seam to the lit face. -->
+    <path fill="none" d="M32 32 54 21.5" />
+  </g>
+</svg>

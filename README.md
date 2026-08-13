@@ -57,11 +57,14 @@ npm run lint
 npm run build            # static export to ./out
 npm run help:build       # content/help/*.md → lib/help/content.ts
 npm run help:screenshots # rebuild + Playwright shots of the demo portfolio
+npm run icons:build      # assets/icon.svg → favicon, touch, manifest icons
 ```
 
 Generated files are committed and have generators next to them:
 `scripts/build-theme-css.py`, `scripts/build-demo-portfolio.py`,
-`scripts/build-help.py`. Run the matching script after editing a source.
+`scripts/build-help.py`, `scripts/build-icons.mjs`. Run the matching script
+after editing a source — `assets/icon.svg` is the only place the app mark is
+drawn, everything else is rasterised from it.
 
 Screenshots need a Chromium: either `npx playwright install chromium` once, or
 point `CHROMIUM_PATH` at a system install.
