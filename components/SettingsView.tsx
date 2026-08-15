@@ -5,6 +5,7 @@ import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import ImportBatches from "./ImportBatches";
+import ImportPresetsView from "./ImportPresetsView";
 import BackupsView from "./BackupsView";
 import {
   DEFAULT_DUPLICATE_TOLERANCE_MINUTES,
@@ -571,6 +572,7 @@ export default function SettingsView({
                   {t("settings.duplicateToleranceHint")}
                 </p>
               </Card>
+              <ImportPresetsView />
               <ImportBatches />
             </>
           )}

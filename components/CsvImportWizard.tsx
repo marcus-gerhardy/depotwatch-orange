@@ -71,12 +71,15 @@ import {
   type RowFilter,
 } from "@/lib/csvImport";
 import {
-  findMatchingPreset,
+  groupByProvider,
+  matchPresets,
   SYSTEM_IMPORT_PRESETS,
   type ImportPresetConfig,
   type ImportPresetOption,
+  type PresetMatch,
   type UserImportPreset,
 } from "@/lib/importPresets";
+import ImportPresetExport from "./ImportPresetExport";
 import { Button, Field, Modal, Switch, inputCls } from "./ui";
 import NumberInput from "./NumberInput";
 import CsvRowFilter from "./CsvRowFilter";
@@ -121,6 +124,11 @@ const ERROR_FIELDS: Record<RowErrorCode, MappingField[]> = {
 
 function presetKey(p: { source: string; id: string }): string {
   return `${p.source}:${p.id}`;
+}
+
+/** Name plus format version, so two versions of one export are distinguishable. */
+function presetLabel(p: { name: string; formatVersion?: string }): string {
+  return p.formatVersion ? `${p.name} (v${p.formatVersion})` : p.name;
 }
 
 function makeHeaders(
@@ -168,6 +176,8 @@ export default function CsvImportWizard({
   );
   const [selectedPreset, setSelectedPreset] = useState<string>(MANUAL);
   const [presetNotice, setPresetNotice] = useState<string | null>(null);
+  /** Presets whose header signature fits the loaded file, best first (§3.4). */
+  const [presetCandidates, setPresetCandidates] = useState<PresetMatch[]>([]);
   const selectedPresetObj = presetOptions.find(
     (p) => presetKey(p) === selectedPreset,
   );
@@ -235,6 +245,7 @@ export default function CsvImportWizard({
   const [importedBatchId, setImportedBatchId] = useState<string | null>(null);
   const [newPresetName, setNewPresetName] = useState("");
   const [presetSavedNotice, setPresetSavedNotice] = useState<string | null>(null);
+  const [presetExportOpen, setPresetExportOpen] = useState(false);
 
   const headers = useMemo(
     () =>
@@ -328,7 +339,13 @@ export default function CsvImportWizard({
    *  correct for it, so delimiter/encoding never need to change here — see applyPreset
    *  for the explicit, user-driven case which does touch them. */
   function suggestMapping(hdrs: string[], rows: string[][], initialLoad = false) {
-    const preset = findMatchingPreset(presetOptions, hdrs);
+    // Every preset whose header signature fits this file, best first (§3.4).
+    // The best one is applied and the rest are offered, because two format
+    // versions of one provider can both fit and only the user knows which
+    // export this is.
+    const candidates = matchPresets(presetOptions, hdrs);
+    setPresetCandidates(candidates);
+    const preset = candidates[0]?.preset;
     if (preset) {
       applyPresetMappingFields(preset);
       // Only override the user's decimal choice on initial file load.
@@ -413,16 +430,17 @@ export default function CsvImportWizard({
       setEncoding(enc);
       setDelimiter(delim);
       setParsed(rowsParsed);
+      const hdrs = makeHeaders(rowsParsed[0], hasHeader, t("csvImport.column"));
       if (preset) {
+        // A preset was picked before the file: it wins, but the other presets
+        // that fit are still worth naming — picking the wrong version of a
+        // provider's format is exactly the mistake this list prevents.
+        setPresetCandidates(matchPresets(presetOptions, hdrs));
         setDecimalSep(preset.decimalSeparator);
         applyPresetMappingFields(preset);
       } else {
         setDecimalSep(detectDecimalSeparator(rowsParsed));
-        suggestMapping(
-          makeHeaders(rowsParsed[0], hasHeader, t("csvImport.column")),
-          hasHeader ? rowsParsed.slice(1) : rowsParsed,
-          true,
-        );
+        suggestMapping(hdrs, hasHeader ? rowsParsed.slice(1) : rowsParsed, true);
       }
     } catch {
       setFileError(t("csvImport.readError"));
@@ -465,12 +483,9 @@ export default function CsvImportWizard({
     setParsing(false);
   }
 
-  function saveCurrentAsPreset() {
-    const name = newPresetName.trim();
-    if (!name) return;
-    const preset: UserImportPreset = {
-      id: crypto.randomUUID(),
-      name,
+  /** Everything the wizard was configured with, as a preset configuration. */
+  function currentConfig(): ImportPresetConfig {
+    return {
       delimiter,
       decimalSeparator: decimalSep,
       encoding,
@@ -488,6 +503,21 @@ export default function CsvImportWizard({
         ? { typeValueMapping: effectiveTypeValueMapping }
         : {}),
       ...(filterRuleCount > 0 ? { rowFilter } : {}),
+    };
+  }
+
+  function saveCurrentAsPreset() {
+    const name = newPresetName.trim();
+    if (!name) return;
+    const preset: UserImportPreset = {
+      id: crypto.randomUUID(),
+      name,
+      ...currentConfig(),
+      // The header row of the file this worked on: what lets the next import
+      // recognise the same export by itself (§3.4). Recorded here rather than
+      // asked for, because this is the only moment it is known for certain.
+      headerSignature: headers,
+      createdAt: new Date().toISOString(),
     };
     saveImportPresetAction(preset);
     setNewPresetName("");
@@ -1055,24 +1085,42 @@ export default function CsvImportWizard({
                       onChange={(e) => applyPreset(e.target.value)}
                     >
                       <option value={MANUAL}>{t("csvImport.presetManual")}</option>
-                      {SYSTEM_IMPORT_PRESETS.length > 0 && (
-                        <optgroup label={t("csvImport.presetSystemGroup")}>
-                          {SYSTEM_IMPORT_PRESETS.map((p) => (
+                      {/* Grouped by provider, newest format version first: one
+                          provider can have several export formats side by side
+                          and the version is what tells them apart (§3.4). */}
+                      {groupByProvider(SYSTEM_IMPORT_PRESETS).map((group) => (
+                        <optgroup
+                          key={`system:${group.provider}`}
+                          label={
+                            group.provider
+                              ? `${t("csvImport.presetSystemGroup")} · ${group.provider}`
+                              : t("csvImport.presetSystemGroup")
+                          }
+                        >
+                          {group.presets.map((p) => (
                             <option key={p.id} value={presetKey({ source: "system", id: p.id })}>
-                              {p.name}
+                              {presetLabel(p)}
                             </option>
                           ))}
                         </optgroup>
-                      )}
-                      {portfolio.importPresets.length > 0 && (
-                        <optgroup label={t("csvImport.presetUserGroup")}>
-                          {portfolio.importPresets.map((p) => (
-                            <option key={p.id} value={presetKey({ source: "user", id: p.id })}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
+                      ))}
+                      {portfolio.importPresets.length > 0 &&
+                        groupByProvider(portfolio.importPresets).map((group) => (
+                          <optgroup
+                            key={`user:${group.provider}`}
+                            label={
+                              group.provider
+                                ? `${t("csvImport.presetUserGroup")} · ${group.provider}`
+                                : t("csvImport.presetUserGroup")
+                            }
+                          >
+                            {group.presets.map((p) => (
+                              <option key={p.id} value={presetKey({ source: "user", id: p.id })}>
+                                {presetLabel(p)}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
                     </select>
                   </Field>
                 </div>
@@ -1088,6 +1136,41 @@ export default function CsvImportWizard({
                 </p>
               )}
               {presetNotice && <p className="text-xs text-gain">{presetNotice}</p>}
+              {/* More than one preset fits these columns — usually two format
+                  versions of the same provider. The app applied the newest and
+                  says so; which export this actually is, only the user knows. */}
+              {presetCandidates.length > 1 && (
+                <div className="rounded-lg border border-border-c bg-surface-2/40 p-2">
+                  <p className="mb-1 text-xs text-muted">
+                    {t("csvImport.presetCandidates", {
+                      count: presetCandidates.length,
+                    })}
+                  </p>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {presetCandidates.map(({ preset }) => {
+                      const key = presetKey(preset);
+                      const active = key === selectedPreset;
+                      return (
+                        <li key={key}>
+                          <button
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => applyPreset(key)}
+                            className={`rounded-full border px-2 py-0.5 text-xs ${
+                              active
+                                ? "border-accent text-accent"
+                                : "border-border-c text-muted hover:border-accent-dim"
+                            }`}
+                          >
+                            {preset.provider ? `${preset.provider} · ` : ""}
+                            {presetLabel(preset)}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -2038,6 +2121,18 @@ export default function CsvImportWizard({
               {presetSavedNotice && (
                 <p className="text-xs text-gain">{presetSavedNotice}</p>
               )}
+              {/* A configuration that has just been proved to work on a real
+                  file is exactly what a shared preset should be made of (§3.4).
+                  Configuration only — the export carries nothing of the file
+                  itself, not even its name. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="ghost" onClick={() => setPresetExportOpen(true)}>
+                  {t("presets.export.action")}
+                </Button>
+                <span className="text-xs text-muted">
+                  {t("csvImport.presetExportHint")}
+                </span>
+              </div>
             </div>
           ) : (
             <div className="space-y-4 py-4 text-center">
@@ -2068,9 +2163,14 @@ export default function CsvImportWizard({
                 </div>
               </dl>
               <p className="text-xs text-muted">{t("csvImport.doneUndoHint")}</p>
-              <Button variant="primary" onClick={onClose}>
-                {t("csvImport.goToTable")}
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button onClick={() => setPresetExportOpen(true)}>
+                  {t("presets.export.action")}
+                </Button>
+                <Button variant="primary" onClick={onClose}>
+                  {t("csvImport.goToTable")}
+                </Button>
+              </div>
             </div>
           ))}
 
@@ -2095,6 +2195,21 @@ export default function CsvImportWizard({
           </div>
         )}
       </div>
+
+      {presetExportOpen && (
+        <ImportPresetExport
+          config={currentConfig()}
+          suggestedName={selectedPresetObj?.name ?? newPresetName.trim() ?? ""}
+          provider={selectedPresetObj?.provider}
+          formatVersion={selectedPresetObj?.formatVersion}
+          description={selectedPresetObj?.description}
+          // The header row of the file this configuration was proved on — the
+          // only thing of the file that travels, and only because it is what
+          // recognises the same export next time.
+          headerSignature={headers}
+          onClose={() => setPresetExportOpen(false)}
+        />
+      )}
     </Modal>
   );
 }

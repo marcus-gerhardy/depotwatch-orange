@@ -17,6 +17,12 @@ Ein **Preset** hält alles fest, was der Assistent fragt — Trennzeichen, Datum
 
 **Eigene Presets** speicherst du am Ende selbst. Sie liegen **in deiner Portfolio-Datei**, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren.
 
+**Erkannt wird eine Datei an ihrer Kopfzeile.** Beim Speichern merkt sich ein Preset die Spaltenüberschriften der Datei, mit der es funktioniert hat. Lädst du später eine Datei mit denselben Spalten, schlägt der Assistent das Preset vor und wendet es an — Groß- und Kleinschreibung, Leerzeichen und die Spaltenreihenfolge spielen dabei keine Rolle, und zusätzliche Spalten stören nicht. Passen mehrere Presets, wird das mit der neuesten Formatversion angewendet und die übrigen stehen zum Wechseln daneben.
+
+**Presets weitergeben.** Unter *Einstellungen → Import → Import-Presets* verwaltest du sie: umbenennen, duplizieren, löschen, als JSON exportieren und ein geteiltes Preset aus JSON übernehmen. Vordefinierte Presets kommen mit der App und sind schreibgeschützt; brauchst du eine abweichende Variante, duplizierst du sie als eigenes Preset.
+
+> Ein exportiertes Preset enthält ausschließlich die Konfiguration: keine Transaktionen, Beträge, Adressen oder Dateinamen. Was nach Daten statt nach Einstellung aussieht, wird vor dem Export entfernt und dir aufgezählt.
+
 ## Spalten zuordnen {#csv-mapping}
 Die App schlägt eine Zuordnung anhand der Spaltenüberschriften vor; prüfen musst du sie trotzdem.
 

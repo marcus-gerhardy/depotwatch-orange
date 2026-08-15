@@ -1294,6 +1294,10 @@ const de = {
     presetSaveAsName: "Name für neues Preset (z. B. Börsen-Export)",
     presetSaveAs: "Als neues Preset speichern",
     presetSaved: "Preset „{name}“ gespeichert.",
+    presetCandidates:
+      "{count} Presets passen zu diesen Spalten. Das neueste ist ausgewählt; hier wechseln:",
+    presetExportHint:
+      "Enthält nur die Konfiguration, keine Beträge, Adressen oder Dateinamen.",
     column: "Spalte",
     mappingIntro:
       "Ordne die CSV-Spalten den Transaktionsfeldern zu. Felder ohne Zuordnung werden leer übernommen.",
@@ -1447,6 +1451,80 @@ const de = {
     emptyDisposals: "Noch keine Verkäufe oder Ausgaben.",
     year: "Jahr",
     totalRealized: "Realisiert gesamt",
+  },
+  presets: {
+    title: "Import-Presets",
+    intro:
+      "Ein Preset hält fest, wie ein bestimmter Export gelesen wird: Trennzeichen, Formate, Spaltenzuordnung, Gebühren-Konventionen. Vordefinierte Presets kommen mit der App und sind schreibgeschützt; eigene liegen in deiner Portfolio-Datei und wandern mit ihr.",
+    systemTitle: "Vordefiniert",
+    systemEmpty:
+      "Zurzeit liefert die App keine vordefinierten Presets aus. Ein funktionierender Import lässt sich am Ende des Assistenten als JSON exportieren und beitragen; siehe config/import-presets/README.md.",
+    userTitle: "Eigene Presets",
+    userEmpty:
+      "Noch keine eigenen Presets. Am Ende eines Imports kannst du die Einstellungen als Preset speichern.",
+    readOnly: "Schreibgeschützt: Nur ein App-Update ändert dieses Preset.",
+    noProvider: "Ohne Anbieter",
+    noSignature: "keine Spaltensignatur",
+    signatureColumns: "{count} Spalten in der Signatur",
+    formatVersionShort: "Format v{version}",
+    rename: "Umbenennen",
+    duplicate: "Als eigenes Preset duplizieren",
+    copySuffix: "(Kopie)",
+    duplicated: "„{name}“ angelegt.",
+    delete: "Löschen",
+    deleteConfirm: "Preset „{name}“ löschen?",
+    importTitle: "Preset aus JSON übernehmen",
+    importIntro:
+      "Eine geteilte Preset-Datei wird geprüft und als eigenes Preset übernommen. Passt sie nicht zum Schema, wird sie mit Begründung abgelehnt statt halb übernommen.",
+    importAction: "JSON-Datei wählen",
+    importFailed: "Diese Datei ist kein gültiges Preset:",
+    imported: "Preset „{name}“ übernommen.",
+    field: {
+      name: "Name",
+      provider: "Anbieter",
+      formatVersion: "Formatversion",
+      id: "ID",
+      description: "Beschreibung",
+      headerSignature: "Spaltensignatur",
+    },
+    export: {
+      action: "Preset als JSON exportieren",
+      title: "Preset exportieren",
+      intro:
+        "Die Datei enthält ausschließlich die Konfiguration, also keine Transaktionen, Beträge, Adressen oder Dateinamen. Anbieter und Formatversion sorgen dafür, dass mehrere Exportformate desselben Anbieters nebeneinander bestehen können.",
+      headerHint:
+        "Die Spaltensignatur ist die Kopfzeile der eingelesenen Datei. Daran erkennt der Assistent denselben Export beim nächsten Mal wieder; sie darf angepasst werden.",
+      removedTitle: "Aus dem Export entfernt",
+      removedHint:
+        "Diese Werte sehen nach Daten statt nach Konfiguration aus und gehören nicht in ein geteiltes Preset.",
+      reason: {
+        address: "Bitcoin-Adresse",
+        txid: "Transaktions-ID",
+        amount: "Betrag",
+        email: "E-Mail-Adresse",
+        iban: "IBAN",
+      },
+      invalid: "So kann das Preset noch nicht exportiert werden:",
+      preview: "JSON ansehen",
+      copy: "In die Zwischenablage",
+      copied: "Kopiert.",
+      download: "Als Datei speichern",
+    },
+    issue: {
+      notJson: "Die Datei ist kein lesbares JSON.",
+      notObject: "Die Datei enthält kein Preset-Objekt.",
+      missing: "Pflichtfeld fehlt.",
+      invalidValue: "Unzulässiger Wert (erlaubt: {detail}).",
+      unsupportedSchemaVersion:
+        "Schema-Version {detail} ist dieser App-Version unbekannt.",
+      emptyMapping: "Keine einzige Spalte zugeordnet.",
+      emptyHeaderSignature:
+        "Ohne Spaltensignatur kann keine Datei erkannt werden.",
+      typeConflict:
+        "Fester Typ und zugeordnete Typ-Spalte schließen sich gegenseitig aus.",
+      personalData:
+        "Sieht nach persönlichen Daten aus: {detail}. Presets enthalten ausschließlich Konfiguration.",
+    },
   },
   imports: {
     title: "Importe",

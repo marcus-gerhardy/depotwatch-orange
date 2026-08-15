@@ -17,6 +17,12 @@ A **preset** holds everything the wizard asks for — delimiter, date format, co
 
 **Your own presets** are saved at the end. They live **inside your portfolio file**, so they travel with it to other devices and survive a change of browser.
 
+**A file is recognised by its header row.** When you save a preset it remembers the column headers of the file it worked on. Load a file with the same columns later and the wizard suggests that preset and applies it — case, spacing and column order do not matter, and extra columns do no harm. If several presets fit, the one with the newest format version is applied and the others sit next to it to switch to.
+
+**Passing presets on.** *Settings → Import → Import presets* is where you manage them: rename, duplicate, delete, export as JSON, and take a shared preset in from JSON. Predefined presets ship with the app and are read-only; if you need a variant, duplicate one as your own.
+
+> An exported preset holds the configuration only: no transactions, amounts, addresses or file names. Anything that looks like data rather than a setting is removed before the export and listed for you.
+
 ## Mapping columns {#csv-mapping}
 The app proposes a mapping from the column headers; you still have to check it.
 

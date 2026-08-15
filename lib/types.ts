@@ -10,12 +10,15 @@ import { DEFAULT_THEME, type ThemeId, type ThemeMode } from "./theme";
 
 export type WalletType = "exchange" | "hardware" | "software" | "paper";
 
-export type TransactionType =
-  | "buy"
-  | "sell"
-  | "transfer_in"
-  | "transfer_out"
-  | "spend";
+export const TRANSACTION_TYPES = [
+  "buy",
+  "sell",
+  "transfer_in",
+  "transfer_out",
+  "spend",
+] as const;
+
+export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
 /**
  * Which lot (= buy/transfer_in transaction) a sell/spend/transfer_out took

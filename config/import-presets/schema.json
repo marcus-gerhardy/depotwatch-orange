@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://depotwatch-orange.com/schemas/import-preset-1.json",
+  "title": "DepotWatch CSV import preset",
+  "description": "One provider's CSV export format, described completely enough for the import wizard to run on it without a single question. Configuration only: a preset never carries transactions, amounts, addresses or file names (see README.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "provider",
+    "formatVersion",
+    "delimiter",
+    "decimalSeparator",
+    "encoding",
+    "columnMapping",
+    "headerSignature",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "description": "Version of THIS schema, not of the provider's export format.",
+      "const": 1
+    },
+    "id": {
+      "description": "Stable, unique across all shipped presets. Kebab case, usually provider + format version.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "minLength": 2,
+      "maxLength": 64
+    },
+    "name": {
+      "description": "What the picker shows.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "provider": {
+      "description": "Exchange, broker or wallet the export comes from. Groups the picker.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "formatVersion": {
+      "description": "Version of the provider's export format, so several presets of one provider can live side by side. Free text, compared numerically where it can be (\"2\" < \"10\", \"2024.1\" < \"2024.2\").",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "description": {
+      "description": "One or two sentences: which export this is, where it is found in the provider's UI, what it does not cover.",
+      "type": "string",
+      "maxLength": 500
+    },
+    "delimiter": { "enum": [",", ";"] },
+    "decimalSeparator": { "enum": [".", ","] },
+    "encoding": { "enum": ["utf-8", "iso-8859-1", "iso-8859-15"] },
+    "dateFormat": {
+      "description": "How the mapped date column reads.",
+      "enum": ["iso", "de", "mdy", "dmy", "ymd", "unix-s", "unix-ms"]
+    },
+    "timeFormat": {
+      "description": "How the mapped time column reads; \"datetime\" means the clock time is taken out of a full timestamp.",
+      "enum": ["hms", "h12", "datetime"]
+    },
+    "columnMapping": {
+      "description": "Target field → column header, exactly as the header row spells it. Unmapped fields are simply absent.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "type": { "$ref": "#/$defs/columnName" },
+        "date": { "$ref": "#/$defs/columnName" },
+        "time": { "$ref": "#/$defs/columnName" },
+        "amountBtc": { "$ref": "#/$defs/columnName" },
+        "pricePerBtcEur": { "$ref": "#/$defs/columnName" },
+        "totalFiatEur": { "$ref": "#/$defs/columnName" },
+        "feeBtc": { "$ref": "#/$defs/columnName" },
+        "feeFiatEur": { "$ref": "#/$defs/columnName" },
+        "originalCurrency": { "$ref": "#/$defs/columnName" },
+        "originalAmount": { "$ref": "#/$defs/columnName" },
+        "originalPricePerBtc": { "$ref": "#/$defs/columnName" },
+        "txid": { "$ref": "#/$defs/columnName" },
+        "address": { "$ref": "#/$defs/columnName" },
+        "note": { "$ref": "#/$defs/columnName" }
+      }
+    },
+    "unitMapping": {
+      "description": "Which unit the amount and fee columns are written in.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "amount": { "enum": ["btc", "sats"] },
+        "fee": { "enum": ["btc", "sats"] }
+      }
+    },
+    "valueMapping": {
+      "description": "What the type column's values mean. Keys are the values as the file writes them.",
+      "type": "object",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "$ref": "#/$defs/transactionType" }
+    },
+    "fixedType": {
+      "description": "Every row gets this type; for exports that hold one kind of row only (a withdrawal report, say). Mutually exclusive with a mapped type column.",
+      "$ref": "#/$defs/transactionType"
+    },
+    "feeInterpretation": {
+      "description": "Whether a fee is already inside the amount it belongs to — asked once per direction for BTC, once for fiat (CLAUDE.md §3.4).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "btcIn": {
+          "description": "Buys: \"deducted\" = the BTC amount is what was really credited, \"notDeducted\" = the fee is still inside it.",
+          "enum": ["deducted", "notDeducted"]
+        },
+        "btcOut": {
+          "description": "Sells, spends, outgoing transfers: same question.",
+          "enum": ["deducted", "notDeducted"]
+        },
+        "fiat": {
+          "description": "\"gross\" = the EUR amount already contains the fee, \"net\" = the fee comes on top.",
+          "enum": ["gross", "net"]
+        }
+      }
+    },
+    "rowFilter": {
+      "description": "Which lines take part in the import at all. A rule naming a column the file does not have is ignored rather than dropping every row.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["combinator", "rules"],
+      "properties": {
+        "combinator": { "enum": ["and", "or"] },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["column", "values"],
+            "properties": {
+              "column": { "$ref": "#/$defs/columnName" },
+              "match": { "enum": ["isAnyOf", "isNoneOf"] },
+              "values": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "headerSignature": {
+      "description": "The header row of a real export from this provider, so the wizard can recognise the file. Compared case-insensitively, whitespace-collapsed, order-independent; extra columns in the file do not disqualify a match.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/columnName" }
+    },
+    "createdAt": {
+      "description": "When this preset was exported (ISO-8601). Documentation only — nothing reads it to decide anything.",
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 40
+    }
+  },
+  "$defs": {
+    "columnName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "transactionType": {
+      "enum": ["buy", "sell", "transfer_in", "transfer_out", "spend"]
+    }
+  }
+}

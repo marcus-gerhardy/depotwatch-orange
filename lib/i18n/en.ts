@@ -1289,6 +1289,10 @@ const en: typeof de = {
     presetSaveAsName: "Name for the new preset (e.g. Exchange export)",
     presetSaveAs: "Save as new preset",
     presetSaved: "Preset “{name}” saved.",
+    presetCandidates:
+      "{count} presets fit these columns. The newest one is selected; switch here:",
+    presetExportHint:
+      "Configuration only, no amounts, addresses or file names.",
     column: "Column",
     mappingIntro:
       "Map the CSV columns to the transaction fields. Unmapped fields are imported empty.",
@@ -1439,6 +1443,80 @@ const en: typeof de = {
     emptyDisposals: "No sells or spends yet.",
     year: "Year",
     totalRealized: "Total realized",
+  },
+  presets: {
+    title: "Import presets",
+    intro:
+      "A preset records how one particular export is read: delimiter, formats, column mapping, fee conventions. Predefined presets ship with the app and are read-only; your own live in your portfolio file and travel with it.",
+    systemTitle: "Predefined",
+    systemEmpty:
+      "The app ships no predefined presets at the moment. A working import can be exported as JSON at the end of the wizard and contributed; see config/import-presets/README.md.",
+    userTitle: "My presets",
+    userEmpty:
+      "No presets of your own yet. At the end of an import you can save the settings as a preset.",
+    readOnly: "Read-only: only an app update changes this preset.",
+    noProvider: "No provider",
+    noSignature: "no column signature",
+    signatureColumns: "{count} columns in the signature",
+    formatVersionShort: "format v{version}",
+    rename: "Rename",
+    duplicate: "Duplicate as my own preset",
+    copySuffix: "(copy)",
+    duplicated: "“{name}” created.",
+    delete: "Delete",
+    deleteConfirm: "Delete preset “{name}”?",
+    importTitle: "Take a preset in from JSON",
+    importIntro:
+      "A shared preset file is validated and taken in as your own preset. One that does not match the schema is refused with a reason instead of being half applied.",
+    importAction: "Choose JSON file",
+    importFailed: "This file is not a valid preset:",
+    imported: "Preset “{name}” taken in.",
+    field: {
+      name: "Name",
+      provider: "Provider",
+      formatVersion: "Format version",
+      id: "ID",
+      description: "Description",
+      headerSignature: "Column signature",
+    },
+    export: {
+      action: "Export preset as JSON",
+      title: "Export preset",
+      intro:
+        "The file contains the configuration only, so no transactions, amounts, addresses or file names. Provider and format version are what let several export formats of one provider exist side by side.",
+      headerHint:
+        "The column signature is the header row of the file you imported. It is how the wizard recognises the same export next time; you may adjust it.",
+      removedTitle: "Left out of the export",
+      removedHint:
+        "These values look like data rather than configuration, so they do not belong in a shared preset.",
+      reason: {
+        address: "bitcoin address",
+        txid: "transaction id",
+        amount: "amount",
+        email: "e-mail address",
+        iban: "IBAN",
+      },
+      invalid: "The preset cannot be exported yet:",
+      preview: "Show JSON",
+      copy: "Copy to clipboard",
+      copied: "Copied.",
+      download: "Save as file",
+    },
+    issue: {
+      notJson: "The file is not readable JSON.",
+      notObject: "The file holds no preset object.",
+      missing: "Required field is missing.",
+      invalidValue: "Value not allowed (allowed: {detail}).",
+      unsupportedSchemaVersion:
+        "Schema version {detail} is unknown to this app version.",
+      emptyMapping: "Not a single column is mapped.",
+      emptyHeaderSignature:
+        "Without a column signature no file can be recognised.",
+      typeConflict:
+        "A fixed type and a mapped type column exclude each other.",
+      personalData:
+        "Looks like personal data: {detail}. Presets hold configuration only.",
+    },
   },
   imports: {
     title: "Imports",

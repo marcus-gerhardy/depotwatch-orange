@@ -170,7 +170,17 @@ Live data (current UTXOs, address history, pubkey exposure) is fetched at runtim
 Import configurations for the CSV import wizard (delimiter, encoding, date format, column mapping, per-field BTC/Sats unit, and the "Typ" value-mapping table) come from two sources:
 
 - **System presets:** read-only, shipped in the app's code under `/config/import-presets/` (one JSON file per provider). Not stored in the portfolio file, not editable or deletable by the user — only an app update can change them. New providers are added by dropping in another JSON file and adding one line to `SYSTEM_IMPORT_PRESETS` (see `lib/importPresets.ts`). **None ship at the moment**, so the picker offers "manual/no preset" plus the user's own; the wizard hides the "predefined" group while the list is empty.
-- **User presets:** created, edited, and deleted by the user in the import wizard. Stored in the portfolio file itself (`importPresets`), so they travel with the file rather than being tied to one device/browser.
+- **User presets:** created, edited, and deleted by the user in the import wizard and in the preset management (§6.3). Stored in the portfolio file itself (`importPresets`), so they travel with the file rather than being tied to one device/browser.
+
+**A system preset is not written by hand — it is an import that worked, exported.** Nobody can write a mapping table for an export they have never seen, and one written from a provider's documentation is a guess that fails in front of a user. So the two kinds are the same configuration in two places, and the path between them is a file: `config/import-presets/schema.json` describes it (JSON Schema 2020-12), `lib/importPresetFile.ts` writes and reads it, `config/import-presets/README.md` says how to contribute one.
+
+The file format groups what the runtime shape keeps flat (`columnMapping`, `unitMapping`, `valueMapping`, `feeInterpretation`) and adds what a shared preset needs to be more than one person's settings: `provider` and `formatVersion` (so several export formats of one provider live side by side), `description`, `headerSignature`, `createdAt` and the format's own `schemaVersion`. `toPresetFile()`/`fromPresetFile()` are the only crossing, so the wizard never learns the file format and presets already stored in portfolio files stay valid — every metadata field is optional on the runtime shape.
+
+**The export carries configuration and nothing else.** These files are shared in public pull requests, and one that quietly contains somebody's on-chain history is the worst kind of leak, because nothing about it looks wrong. So the file is built from an **allowlist** of fields rather than a spread (a field added to the runtime shape cannot travel out unnoticed), and the three places where the user's own data bleeds into a configuration — the header signature, the type values, the row-filter values — are scanned: anything that parses as a bitcoin address, a txid, an amount, an e-mail address or an IBAN is dropped and named in the dialog. The importer **refuses** such a file instead of cleaning it silently, because an incoming file is somebody else's work. The export dialog shows the whole JSON before it is written, and the download is named after the preset, never after the CSV it was built from.
+
+**Recognition is by header row** (`matchPresets()`, `normalizeHeader()`): a preset matches when every column of its `headerSignature` is in the file — compared case-insensitively with whitespace collapsed, order irrelevant, and **extra columns are never a reason to reject** one, since an export gains a column far more often than it loses one. A preset without a signature (anything written before it existed) falls back to its mapped columns. All matches are offered, best first: a signature match beats one made from the mapping alone, more columns beat fewer, then the newer `formatVersion` (compared numerically where it can be, so "10" is newer than "2"). The wizard applies the best one, says which, and puts the rest next to it to switch to — several format versions of one provider can fit the same file, and only the user knows which export this is. Saving a preset in the wizard records the header row of the file it worked on, because that is the only moment it is known for certain.
+
+**Validated in the build** (`npm run presets:validate`, part of `npm run build` and `npm run lint`, and run again from a test): every file under `/config/import-presets/` against the schema, plus what a schema cannot say — ids unique across files, the file name matching the id, no `fixedType` competing with a mapped type column, and no personal data anywhere. The schema is the script's single source of truth, and `lib/importPresetFile.test.ts` holds it and the app's own validator to the same enums, so a file the build accepts can never be one the app refuses.
 
 ```json
 {
@@ -178,6 +188,11 @@ Import configurations for the CSV import wizard (delimiter, encoding, date forma
     {
       "id": "uuid",
       "name": "e.g. My Ledger export",
+      "provider": "optional: e.g. the exchange the export comes from",
+      "formatVersion": "optional: version of that export format",
+      "description": "optional",
+      "headerSignature": ["optional: the header row this preset was built on"],
+      "createdAt": "optional: ISO-8601",
       "delimiter": ", | ;",
       "decimalSeparator": ". | ,",
       "encoding": "utf-8 | iso-8859-1 | iso-8859-15",
@@ -240,7 +255,9 @@ The comparison keys are built **once** as maps (`buildDuplicateIndex`), so a por
 
 **Every import is recorded** (`importBatches` on the file, `importBatchId` on each transaction it wrote, both optional so older files need no migration): when, which file, its hash, the preset, how many transactions, and where they landed. That is what recognises the file next time and what "undo this import" removes by. Undoing is deliberately not a single delete: a transaction an import wrote becomes an ordinary transaction the moment it exists, so `analyzeBatchRemoval()` reports what would break — a lot a later disposal allocates, a transfer leg whose counterpart stays, a disposal of the batch that closed lots which do not belong to it — and those stay while the rest goes. The list and the action live in the settings.
 
-In the wizard's first step, the user picks a preset (system presets first, marked as predefined, then their own) or "manual/no preset"; picking one pre-fills every later step, which the user can still adjust before importing. After a manual or adjusted run, the user can save the resulting configuration as a new user preset.
+In the wizard's first step, the user picks a preset (system presets first, marked as predefined, then their own — both **grouped by provider**, with the format version in the label) or "manual/no preset"; picking one pre-fills every later step, which the user can still adjust before importing. After a manual or adjusted run, the user can save the resulting configuration as a new user preset, and export it as JSON — offered both on the confirmation step and after the import has run, which is the moment the configuration has just been proved to work.
+
+**Managed in the settings** (`components/ImportPresetsView.tsx`, in the import group of §6.3): system and user presets listed separately, the system ones marked read-only and offering "duplicate as my own preset" — a variant of a shipped preset must be the user's own, or the next app update would throw the edit away. User presets can be renamed, duplicated, deleted and exported; a preset somebody else exported comes in through the same view, validated against the schema and refused with a per-field reason rather than half applied. Importing keeps the file's id where it is free, so an updated version of a shared preset replaces the one it updates instead of leaving two entries nothing can tell apart.
 
 ### 3.5 Interface Settings (`uiSettings`)
 

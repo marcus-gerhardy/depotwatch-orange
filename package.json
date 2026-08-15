@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "dev:debug": "NODE_OPTIONS=\"--max-old-space-size=8192 --heapsnapshot-near-heap-limit=1 --heap-prof\" next dev",
-    "build": "next build",
+    "build": "npm run presets:validate && next build",
+    "presets:validate": "node scripts/validate-import-presets.mjs",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "npm run presets:validate && eslint",
     "help:build": "python3 scripts/build-help.py",
     "icons:build": "node scripts/build-icons.mjs",
     "help:screenshots": "npm run build && node scripts/help-screenshots.mjs",

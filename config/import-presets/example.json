@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "example",
+  "name": "Example exchange — trade history",
+  "provider": "Example Exchange",
+  "formatVersion": "1",
+  "description": "Template, not a real provider: this file documents every field of the preset format. Copy it, replace the values with those of a real export, validate with `npm run presets:validate`. See README.md.",
+  "delimiter": ",",
+  "decimalSeparator": ".",
+  "encoding": "utf-8",
+  "dateFormat": "iso",
+  "timeFormat": "datetime",
+  "columnMapping": {
+    "type": "Operation",
+    "date": "Timestamp",
+    "time": "Timestamp",
+    "amountBtc": "Amount BTC",
+    "pricePerBtcEur": "Price EUR",
+    "totalFiatEur": "Total EUR",
+    "feeFiatEur": "Fee EUR",
+    "txid": "Transaction ID",
+    "note": "Reference"
+  },
+  "unitMapping": {
+    "amount": "btc",
+    "fee": "btc"
+  },
+  "valueMapping": {
+    "buy": "buy",
+    "sell": "sell",
+    "deposit": "transfer_in",
+    "withdrawal": "transfer_out"
+  },
+  "feeInterpretation": {
+    "btcIn": "deducted",
+    "btcOut": "notDeducted",
+    "fiat": "net"
+  },
+  "rowFilter": {
+    "combinator": "and",
+    "rules": [
+      {
+        "column": "Asset",
+        "match": "isAnyOf",
+        "values": ["BTC", "XBT"]
+      }
+    ]
+  },
+  "headerSignature": [
+    "Timestamp",
+    "Operation",
+    "Asset",
+    "Amount BTC",
+    "Price EUR",
+    "Total EUR",
+    "Fee EUR",
+    "Transaction ID",
+    "Reference"
+  ],
+  "createdAt": "2026-08-14T00:00:00.000Z"
+}

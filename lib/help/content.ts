@@ -488,9 +488,21 @@ export const HELP_CONTENT: HelpContent = {
             {
               "kind": "p",
               "text": "**Eigene Presets** speicherst du am Ende selbst. Sie liegen **in deiner Portfolio-Datei**, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren."
+            },
+            {
+              "kind": "p",
+              "text": "**Erkannt wird eine Datei an ihrer Kopfzeile.** Beim Speichern merkt sich ein Preset die Spaltenüberschriften der Datei, mit der es funktioniert hat. Lädst du später eine Datei mit denselben Spalten, schlägt der Assistent das Preset vor und wendet es an — Groß- und Kleinschreibung, Leerzeichen und die Spaltenreihenfolge spielen dabei keine Rolle, und zusätzliche Spalten stören nicht. Passen mehrere Presets, wird das mit der neuesten Formatversion angewendet und die übrigen stehen zum Wechseln daneben."
+            },
+            {
+              "kind": "p",
+              "text": "**Presets weitergeben.** Unter *Einstellungen → Import → Import-Presets* verwaltest du sie: umbenennen, duplizieren, löschen, als JSON exportieren und ein geteiltes Preset aus JSON übernehmen. Vordefinierte Presets kommen mit der App und sind schreibgeschützt; brauchst du eine abweichende Variante, duplizierst du sie als eigenes Preset."
+            },
+            {
+              "kind": "note",
+              "text": "Ein exportiertes Preset enthält ausschließlich die Konfiguration: keine Transaktionen, Beträge, Adressen oder Dateinamen. Was nach Daten statt nach Einstellung aussieht, wird vor dem Export entfernt und dir aufgezählt."
             }
           ],
-          "text": "Ein Preset hält alles fest, was der Assistent fragt — Trennzeichen, Datumsformat, Spaltenzuordnung, Gebühren-Konventionen. Der nächste Import derselben Export-Art besteht damit nur noch aus Datei auswählen und prüfen. Eigene Presets speicherst du am Ende selbst. Sie liegen in deiner Portfolio-Datei, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren."
+          "text": "Ein Preset hält alles fest, was der Assistent fragt — Trennzeichen, Datumsformat, Spaltenzuordnung, Gebühren-Konventionen. Der nächste Import derselben Export-Art besteht damit nur noch aus Datei auswählen und prüfen. Eigene Presets speicherst du am Ende selbst. Sie liegen in deiner Portfolio-Datei, wandern also mit ihr auf andere Geräte und gehen bei einem Browserwechsel nicht verloren. Erkannt wird eine Datei an ihrer Kopfzeile. Beim Speichern merkt sich ein Preset die Spaltenüberschriften der Datei, mit der es funktioniert hat. Lädst du später eine Datei mit denselben Spalten, schlägt der Assistent das Preset vor und wendet es an — Groß- und Kleinschreibung, Leerzeichen und die Spaltenreihenfolge spielen dabei keine Rolle, und zusätzliche Spalten stören nicht. Passen mehrere Presets, wird das mit der neuesten Formatversion angewendet und die übrigen stehen zum Wechseln daneben. Presets weitergeben. Unter *Einstellungen → Import → Import-Presets* verwaltest du sie: umbenennen, duplizieren, löschen, als JSON exportieren und ein geteiltes Preset aus JSON übernehmen. Vordefinierte Presets kommen mit der App und sind schreibgeschützt; brauchst du eine abweichende Variante, duplizierst du sie als eigenes Preset. Ein exportiertes Preset enthält ausschließlich die Konfiguration: keine Transaktionen, Beträge, Adressen oder Dateinamen. Was nach Daten statt nach Einstellung aussieht, wird vor dem Export entfernt und dir aufgezählt."
         },
         {
           "id": "csv-mapping",
@@ -1839,9 +1851,21 @@ export const HELP_CONTENT: HelpContent = {
             {
               "kind": "p",
               "text": "**Your own presets** are saved at the end. They live **inside your portfolio file**, so they travel with it to other devices and survive a change of browser."
+            },
+            {
+              "kind": "p",
+              "text": "**A file is recognised by its header row.** When you save a preset it remembers the column headers of the file it worked on. Load a file with the same columns later and the wizard suggests that preset and applies it — case, spacing and column order do not matter, and extra columns do no harm. If several presets fit, the one with the newest format version is applied and the others sit next to it to switch to."
+            },
+            {
+              "kind": "p",
+              "text": "**Passing presets on.** *Settings → Import → Import presets* is where you manage them: rename, duplicate, delete, export as JSON, and take a shared preset in from JSON. Predefined presets ship with the app and are read-only; if you need a variant, duplicate one as your own."
+            },
+            {
+              "kind": "note",
+              "text": "An exported preset holds the configuration only: no transactions, amounts, addresses or file names. Anything that looks like data rather than a setting is removed before the export and listed for you."
             }
           ],
-          "text": "A preset holds everything the wizard asks for — delimiter, date format, column mapping, fee conventions. The next import of the same kind of export is then just picking the file and checking it. Your own presets are saved at the end. They live inside your portfolio file, so they travel with it to other devices and survive a change of browser."
+          "text": "A preset holds everything the wizard asks for — delimiter, date format, column mapping, fee conventions. The next import of the same kind of export is then just picking the file and checking it. Your own presets are saved at the end. They live inside your portfolio file, so they travel with it to other devices and survive a change of browser. A file is recognised by its header row. When you save a preset it remembers the column headers of the file it worked on. Load a file with the same columns later and the wizard suggests that preset and applies it — case, spacing and column order do not matter, and extra columns do no harm. If several presets fit, the one with the newest format version is applied and the others sit next to it to switch to. Passing presets on. *Settings → Import → Import presets* is where you manage them: rename, duplicate, delete, export as JSON, and take a shared preset in from JSON. Predefined presets ship with the app and are read-only; if you need a variant, duplicate one as your own. An exported preset holds the configuration only: no transactions, amounts, addresses or file names. Anything that looks like data rather than a setting is removed before the export and listed for you."
         },
         {
           "id": "csv-mapping",
