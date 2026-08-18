@@ -1699,7 +1699,6 @@ const de = {
     blocked: "Nur-Lesen-Modus: Diese Änderung wurde nicht ausgeführt.",
     disabledHint: "Im Nur-Lesen-Modus gesperrt. Oben im Kopf „Bearbeiten aktivieren“ wählen.",
     openLabel: "Nur zum Ansehen öffnen",
-    openHint: "Die Datei wird beim Öffnen und danach nicht angefasst; nützlich für Dateien in einem synchronisierten Ordner.",
     rememberFile: "Diese Datei künftig nur zum Ansehen öffnen",
     settingsTitle: "Nur-Lesen-Modus",
     settingsBody:

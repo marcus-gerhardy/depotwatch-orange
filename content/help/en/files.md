@@ -24,6 +24,15 @@ After a configurable time without input the app locks itself: pending changes ar
 
 > An **unencrypted file cannot be locked**. Without a password there would be nothing to lock it with, and merely hiding the window would be no protection at all. Set a password and the lock takes effect.
 
+## Opening for viewing only {#files-readonly}
+In read-only mode a file can be read, analysed and exported, but not changed. **Nothing** is written: no saving, no autosave, no backup, no milestones. Useful for a file in a synced folder whose timestamp should stay as it is, for a finished year in the archive, or when you are only showing the file to somebody.
+
+You can switch it on before opening (the toggle above "Open portfolio file"), at any time from the eye in the header, and in the settings under security. Going back to editing asks first, so the protection cannot fall away by accident.
+
+The lock is not in the buttons but in the app itself: an action that gets past a disabled button still changes nothing and says so. Backups always open read-only, so an old copy cannot quietly become the file you work in.
+
+What still works: every view and filter, the tax figures including the CSV export, the year in review, the help. Theme, language, display currency, dashboard layout and columns can be changed too — for this session only, and never written into the file.
+
 ## When the file is damaged {#files-damaged}
 Every save writes a checksum into the file, and opening verifies it. If it does not match, the file is **not** opened silently: you get a message saying what is wrong, and a direct route to a backup.
 

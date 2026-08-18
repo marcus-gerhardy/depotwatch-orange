@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore, deserializePortfolio } from "@/lib/store";
@@ -10,8 +11,12 @@ import { pickFileForOpen } from "@/lib/fileStorage";
 import { opensReadOnly, rememberReadOnly } from "@/lib/readOnlyFiles";
 import type { PortfolioFile } from "@/lib/types";
 import { staticPagePath } from "@/lib/routes";
-import { Button, Card, inputCls } from "./ui";
+import { Button, Card, Switch, inputCls } from "./ui";
+import HelpButton from "./help/HelpButton";
 import NewFileWizard from "./NewFileWizard";
+// The help panel lives in the app shell, which is not mounted here — so the
+// start screen brings its own, or its question marks would open nothing.
+const HelpPanel = dynamic(() => import("./help/HelpPanel"), { ssr: false });
 import LanguageSwitch from "./LanguageSwitch";
 import { WarnIcon } from "./icons";
 import BrandMark from "./BrandMark";
@@ -96,26 +101,30 @@ export default function StartScreen() {
     setStage({ kind: "home" });
   }
 
-  /** The read-only choice, shown wherever a file is about to be opened. */
+  /**
+   * The read-only choice, wherever a file is about to be opened (§6.7).
+   *
+   * A quiet line above the button rather than a paragraph beside it: this is
+   * the exception, not the decision most visits make. What it means is behind
+   * the app's own question mark, like every other explanation.
+   */
   function viewOnlyChoice(fileName?: string) {
     return (
-      <label className="flex cursor-pointer items-start gap-2 text-xs text-muted">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={viewOnly}
-          onChange={(e) => {
-            setViewOnly(e.target.checked);
-            // Only where the file is known: remembering it is per file name.
-            if (fileName) rememberReadOnly(fileName, e.target.checked);
-          }}
-        />
-        <span>
-          <span className="text-foreground">{t("readOnly.openLabel")}</span>
-          <br />
-          {t("readOnly.openHint")}
-        </span>
-      </label>
+      <div className="flex items-center justify-end gap-2 text-xs text-muted">
+        <label className="flex cursor-pointer items-center gap-2">
+          <Switch
+            checked={viewOnly}
+            onChange={(on) => {
+              setViewOnly(on);
+              // Only where the file is known: remembering it is per file name.
+              if (fileName) rememberReadOnly(fileName, on);
+            }}
+            label={t("readOnly.openLabel")}
+          />
+          <span>{t("readOnly.openLabel")}</span>
+        </label>
+        <HelpButton anchor="files-readonly" label={t("readOnly.openLabel")} />
+      </div>
     );
   }
 
@@ -226,6 +235,7 @@ export default function StartScreen() {
 
   return (
     <>
+      <HelpPanel />
       {/* Slim header, same as on the static pages: the language choice stays
           visible at the top instead of floating above the centered card. */}
       <header className="sticky top-0 z-40 border-b border-border-c/60 bg-background/90 backdrop-blur">
@@ -272,10 +282,10 @@ export default function StartScreen() {
                 {t("start.localFirst")}
               </p>
               <div className="flex flex-col gap-2">
+                {viewOnlyChoice()}
                 <Button variant="primary" onClick={handleOpen} className="py-2">
                   {t("start.openFile")}
                 </Button>
-                {viewOnlyChoice()}
                 <Button
                   onClick={() => setStage({ kind: "wizard" })}
                   className="py-2"

@@ -1688,7 +1688,6 @@ const en: typeof de = {
     blocked: "Read-only: that change was not applied.",
     disabledHint: "Locked in read-only mode. Choose \u201cEnable editing\u201d in the header.",
     openLabel: "Open for viewing only",
-    openHint: "The file is not touched, on opening or afterwards; useful for a file in a synced folder.",
     rememberFile: "Always open this file for viewing only",
     settingsTitle: "Read-only mode",
     settingsBody:

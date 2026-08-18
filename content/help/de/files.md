@@ -24,6 +24,15 @@ Nach einer einstellbaren Zeit ohne Eingabe sperrt sich die App: Vorher werden un
 
 > Eine **unverschlüsselte Datei kann nicht gesperrt werden**. Ohne Passwort gäbe es nichts, womit sich sperren ließe, und ein bloß ausgeblendetes Fenster wäre kein Schutz. Vergib ein Passwort, dann greift die Sperre.
 
+## Nur zum Ansehen öffnen {#files-readonly}
+Im Nur-Lesen-Modus lässt sich eine Datei lesen, auswerten und exportieren, aber nicht verändern. Es wird **nichts** geschrieben: kein Speichern, kein Autosave, kein Backup, keine Meilensteine. Nützlich für eine Datei in einem synchronisierten Ordner, deren Änderungsdatum unangetastet bleiben soll, für ein abgeschlossenes Jahr im Archiv oder wenn du die Datei nur jemandem zeigst.
+
+Einschalten kannst du ihn vor dem Öffnen (der Schalter über „Portfolio-Datei öffnen"), jederzeit über das Auge oben im Kopf und in den Einstellungen unter Sicherheit. Zurück ins Bearbeiten geht nur mit einer kurzen Rückfrage, damit der Schutz nicht aus Versehen fällt.
+
+Die Sperre sitzt nicht in den Knöpfen, sondern in der App selbst: Auch eine Aktion, die an einem gesperrten Knopf vorbeikommt, ändert nichts, sondern sagt es kurz an. Backups öffnest du grundsätzlich schreibgeschützt, damit eine alte Kopie nicht versehentlich zur Arbeitsdatei wird.
+
+Weiter möglich bleiben alle Ansichten, Filter, die Steuerauswertung samt CSV-Export, der Jahresrückblick und die Hilfe. Auch Farbschema, Sprache, Anzeigewährung, Dashboard-Layout und Spalten kannst du umstellen — das gilt dann nur für diese Sitzung und wird nicht in die Datei geschrieben.
+
 ## Wenn die Datei beschädigt ist {#files-damaged}
 Beim Speichern schreibt die App eine Prüfsumme mit in die Datei, beim Öffnen wird sie geprüft. Passt sie nicht, wird die Datei **nicht** stillschweigend geöffnet: Du bekommst eine Meldung, was nicht stimmt, und den direkten Weg zu einem Backup.
 

@@ -341,7 +341,14 @@ export default function SettingsView({
               {/* First in the group: it decides whether anything below it can
                   be changed at all (§6.7). */}
               <Card className="space-y-3">
-                <SectionTitle level={2}>{t("readOnly.settingsTitle")}</SectionTitle>
+                <div className="flex items-center gap-2">
+                  <SectionTitle level={2}>{t("readOnly.settingsTitle")}</SectionTitle>
+                  <HelpButton
+                    anchor="files-readonly"
+                    label={t("readOnly.settingsTitle")}
+                    className="mb-3"
+                  />
+                </div>
                 <label className="flex cursor-pointer items-start gap-3">
                   <Switch
                     checked={readOnly}

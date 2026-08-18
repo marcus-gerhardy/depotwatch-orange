@@ -168,6 +168,29 @@ export const HELP_CONTENT: HelpContent = {
           "text": "Nach einer einstellbaren Zeit ohne Eingabe sperrt sich die App: Vorher werden ungespeicherte Änderungen geschrieben, danach werden die entschlüsselten Daten und das Passwort aus dem Speicher entfernt. Zum Entsperren wird die Datei neu entschlüsselt, also brauchst du das Passwort erneut. Einstellbar unter Einstellungen → Sicherheit: 1, 5, 15 oder 30 Minuten oder „nie\". Optional zusätzlich: sperren, sobald der Tab in den Hintergrund geht. Sperren von Hand: der Schloss-Knopf im Kopfbereich oder Strg/Cmd + L. 30 Sekunden vorher erscheint ein Hinweis mit Countdown und dem Knopf Entsperrt bleiben. Eine unverschlüsselte Datei kann nicht gesperrt werden. Ohne Passwort gäbe es nichts, womit sich sperren ließe, und ein bloß ausgeblendetes Fenster wäre kein Schutz. Vergib ein Passwort, dann greift die Sperre."
         },
         {
+          "id": "files-readonly",
+          "title": "Nur zum Ansehen öffnen",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Im Nur-Lesen-Modus lässt sich eine Datei lesen, auswerten und exportieren, aber nicht verändern. Es wird **nichts** geschrieben: kein Speichern, kein Autosave, kein Backup, keine Meilensteine. Nützlich für eine Datei in einem synchronisierten Ordner, deren Änderungsdatum unangetastet bleiben soll, für ein abgeschlossenes Jahr im Archiv oder wenn du die Datei nur jemandem zeigst."
+            },
+            {
+              "kind": "p",
+              "text": "Einschalten kannst du ihn vor dem Öffnen (der Schalter über „Portfolio-Datei öffnen\"), jederzeit über das Auge oben im Kopf und in den Einstellungen unter Sicherheit. Zurück ins Bearbeiten geht nur mit einer kurzen Rückfrage, damit der Schutz nicht aus Versehen fällt."
+            },
+            {
+              "kind": "p",
+              "text": "Die Sperre sitzt nicht in den Knöpfen, sondern in der App selbst: Auch eine Aktion, die an einem gesperrten Knopf vorbeikommt, ändert nichts, sondern sagt es kurz an. Backups öffnest du grundsätzlich schreibgeschützt, damit eine alte Kopie nicht versehentlich zur Arbeitsdatei wird."
+            },
+            {
+              "kind": "p",
+              "text": "Weiter möglich bleiben alle Ansichten, Filter, die Steuerauswertung samt CSV-Export, der Jahresrückblick und die Hilfe. Auch Farbschema, Sprache, Anzeigewährung, Dashboard-Layout und Spalten kannst du umstellen — das gilt dann nur für diese Sitzung und wird nicht in die Datei geschrieben."
+            }
+          ],
+          "text": "Im Nur-Lesen-Modus lässt sich eine Datei lesen, auswerten und exportieren, aber nicht verändern. Es wird nichts geschrieben: kein Speichern, kein Autosave, kein Backup, keine Meilensteine. Nützlich für eine Datei in einem synchronisierten Ordner, deren Änderungsdatum unangetastet bleiben soll, für ein abgeschlossenes Jahr im Archiv oder wenn du die Datei nur jemandem zeigst. Einschalten kannst du ihn vor dem Öffnen (der Schalter über „Portfolio-Datei öffnen\"), jederzeit über das Auge oben im Kopf und in den Einstellungen unter Sicherheit. Zurück ins Bearbeiten geht nur mit einer kurzen Rückfrage, damit der Schutz nicht aus Versehen fällt. Die Sperre sitzt nicht in den Knöpfen, sondern in der App selbst: Auch eine Aktion, die an einem gesperrten Knopf vorbeikommt, ändert nichts, sondern sagt es kurz an. Backups öffnest du grundsätzlich schreibgeschützt, damit eine alte Kopie nicht versehentlich zur Arbeitsdatei wird. Weiter möglich bleiben alle Ansichten, Filter, die Steuerauswertung samt CSV-Export, der Jahresrückblick und die Hilfe. Auch Farbschema, Sprache, Anzeigewährung, Dashboard-Layout und Spalten kannst du umstellen — das gilt dann nur für diese Sitzung und wird nicht in die Datei geschrieben."
+        },
+        {
           "id": "files-damaged",
           "title": "Wenn die Datei beschädigt ist",
           "blocks": [
@@ -1544,6 +1567,29 @@ export const HELP_CONTENT: HelpContent = {
             }
           ],
           "text": "After a configurable time without input the app locks itself: pending changes are written first, then the decrypted data and the password are removed from memory. Unlocking decrypts the file again, so the password is needed once more. Configurable under Settings → Security: 1, 5, 15 or 30 minutes, or \"never\". Optionally on top: lock as soon as the tab goes into the background. Locking by hand: the padlock button in the header, or Ctrl/Cmd + L. 30 seconds beforehand a note with a countdown appears, with a Stay unlocked button. An unencrypted file cannot be locked. Without a password there would be nothing to lock it with, and merely hiding the window would be no protection at all. Set a password and the lock takes effect."
+        },
+        {
+          "id": "files-readonly",
+          "title": "Opening for viewing only",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "In read-only mode a file can be read, analysed and exported, but not changed. **Nothing** is written: no saving, no autosave, no backup, no milestones. Useful for a file in a synced folder whose timestamp should stay as it is, for a finished year in the archive, or when you are only showing the file to somebody."
+            },
+            {
+              "kind": "p",
+              "text": "You can switch it on before opening (the toggle above \"Open portfolio file\"), at any time from the eye in the header, and in the settings under security. Going back to editing asks first, so the protection cannot fall away by accident."
+            },
+            {
+              "kind": "p",
+              "text": "The lock is not in the buttons but in the app itself: an action that gets past a disabled button still changes nothing and says so. Backups always open read-only, so an old copy cannot quietly become the file you work in."
+            },
+            {
+              "kind": "p",
+              "text": "What still works: every view and filter, the tax figures including the CSV export, the year in review, the help. Theme, language, display currency, dashboard layout and columns can be changed too — for this session only, and never written into the file."
+            }
+          ],
+          "text": "In read-only mode a file can be read, analysed and exported, but not changed. Nothing is written: no saving, no autosave, no backup, no milestones. Useful for a file in a synced folder whose timestamp should stay as it is, for a finished year in the archive, or when you are only showing the file to somebody. You can switch it on before opening (the toggle above \"Open portfolio file\"), at any time from the eye in the header, and in the settings under security. Going back to editing asks first, so the protection cannot fall away by accident. The lock is not in the buttons but in the app itself: an action that gets past a disabled button still changes nothing and says so. Backups always open read-only, so an old copy cannot quietly become the file you work in. What still works: every view and filter, the tax figures including the CSV export, the year in review, the help. Theme, language, display currency, dashboard layout and columns can be changed too — for this session only, and never written into the file."
         },
         {
           "id": "files-damaged",
