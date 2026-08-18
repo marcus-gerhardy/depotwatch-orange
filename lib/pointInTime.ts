@@ -17,9 +17,17 @@
 //    regularly carry different timestamps, and cutting between them would show
 //    coins in neither account, or in both.
 
-import { computeFifo, isLotTaxFree, type FifoResult, type OpenLot } from "./fifo";
+import {
+  computeFifo,
+  isLotTaxFree,
+  type Disposal,
+  type FifoResult,
+  type GiftOut,
+  type IncomeReceipt,
+  type OpenLot,
+} from "./fifo";
 import { accountBalances, bookingDates, totalBalance, type AccountBalance } from "./portfolio";
-import { Decimal, ZERO } from "./decimal";
+import { Decimal, dec, ZERO } from "./decimal";
 import type { LedgerEntry } from "./types";
 
 export interface PointInTimeResult {
@@ -104,6 +112,91 @@ export function portfolioAsOf(
     unresolvedBtc: unresolved,
     costBasisEur: fifo.openCostBasisEur,
     basisBtc: fifo.openBasisBtc,
+  };
+}
+
+/**
+ * Everything that happened between two dates, with the state on both edges
+ * (§4.3).
+ *
+ * A tax return asks two different questions about the same year: what was held
+ * on 31 December (a moment) and what was realised during it (a span). They are
+ * two views of one calculation here — the closing snapshot's FIFO has already
+ * run over the whole history up to the end date, so its disposals *are* the
+ * period's, filtered by date. Computing them separately would be a second
+ * implementation of the same thing, free to disagree with the first.
+ *
+ * The opening balance is the state at the end of the day *before* `from`, so
+ * the period includes its own first day: "1 January to 31 December" is a whole
+ * year, not 364 days with an off-by-one at each end.
+ */
+export interface PeriodResult {
+  from: Date;
+  to: Date;
+  /** How things stood before the period began. */
+  opening: PointInTimeResult;
+  /** …and at its end. Every table in the view reads from this one. */
+  closing: PointInTimeResult;
+  /** Closing minus opening: what the period added or removed, net. */
+  changeBtc: Decimal;
+  /** Entries booked inside the period, in causal order. */
+  entriesInPeriod: LedgerEntry[];
+  /** Disposals dated inside it, with the gains they realised. */
+  disposals: Disposal[];
+  realizedGainEur: Decimal;
+  realizedTaxableGainEur: Decimal;
+  realizedTaxFreeGainEur: Decimal;
+  /** Coins given away and received as income inside it (§3.2). */
+  giftsOut: GiftOut[];
+  incomeReceipts: IncomeReceipt[];
+  /** BTC bought, and BTC disposed of, inside it. */
+  boughtBtc: Decimal;
+  disposedBtc: Decimal;
+}
+
+export function periodBetween(
+  entries: LedgerEntry[],
+  from: Date,
+  to: Date,
+  holdingPeriodDays: number,
+): PeriodResult {
+  const closing = portfolioAsOf(entries, to, holdingPeriodDays);
+  // The day before the period starts: its end is the moment the period begins.
+  const dayBefore = new Date(from);
+  dayBefore.setDate(dayBefore.getDate() - 1);
+  const opening = portfolioAsOf(entries, dayBefore, holdingPeriodDays);
+
+  const start = opening.asOf.getTime();
+  const end = closing.asOf.getTime();
+  const inPeriod = (iso: string): boolean => {
+    const t = new Date(iso).getTime();
+    return !Number.isNaN(t) && t > start && t <= end;
+  };
+
+  const openIds = new Set(opening.entries.map((e) => e.id));
+  const entriesInPeriod = closing.entries.filter((e) => !openIds.has(e.id));
+
+  const disposals = closing.fifo.disposals.filter((d) => inPeriod(d.date));
+  const sum = (list: Disposal[], pick: (d: Disposal) => Decimal) =>
+    list.reduce((acc, d) => acc.plus(pick(d)), ZERO);
+
+  return {
+    from: new Date(from),
+    to: closing.asOf,
+    opening,
+    closing,
+    changeBtc: closing.balanceBtc.minus(opening.balanceBtc),
+    entriesInPeriod,
+    disposals,
+    realizedGainEur: sum(disposals, (d) => d.gainEur),
+    realizedTaxableGainEur: sum(disposals, (d) => d.taxableGainEur),
+    realizedTaxFreeGainEur: sum(disposals, (d) => d.taxFreeGainEur),
+    giftsOut: closing.fifo.giftsOut.filter((g) => inPeriod(g.date)),
+    incomeReceipts: closing.fifo.incomeReceipts.filter((r) => inPeriod(r.date)),
+    boughtBtc: entriesInPeriod
+      .filter((e) => e.type === "buy")
+      .reduce((acc, e) => acc.plus(dec(e.amountBtc)).minus(dec(e.feeBtc)), ZERO),
+    disposedBtc: disposals.reduce((acc, d) => acc.plus(d.amountBtc), ZERO),
   };
 }
 

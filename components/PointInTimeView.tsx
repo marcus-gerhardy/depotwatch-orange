@@ -18,14 +18,14 @@ import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
-import { portfolioAsOf, yearEndOptions } from "@/lib/pointInTime";
+import { periodBetween, portfolioAsOf, yearEndOptions } from "@/lib/pointInTime";
 import { isLotTaxFree } from "@/lib/fifo";
 import { formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
 import { downloadAsFile } from "@/lib/fileStorage";
 import { loadDailyCloses, peekDailyCloses } from "@/lib/marketData";
 import { useNowDate } from "@/lib/clock";
-import { Amount, Button, Card, SectionTitle, inputCls } from "./ui";
+import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
 import { DownloadIcon, WarnIcon } from "./icons";
 
 /** yyyy-mm-dd for a date input, in local time. */
@@ -49,18 +49,44 @@ export default function PointInTimeView() {
   const [date, setDate] = useState<string>(() =>
     inputValue(yearEndOptions(entries)[0] ?? new Date()),
   );
+  /**
+   * Optional start of a period (§4.3).
+   *
+   * Empty is the normal case and the simpler question: "what did I hold on
+   * this day". Filled in, the same day becomes the *end* of a span, and the
+   * view additionally reports what happened in it — which is the other half of
+   * what a tax return asks about a year.
+   */
+  const [fromDate, setFromDate] = useState<string>("");
 
   const chosen = useMemo(() => {
     const parsed = new Date(`${date}T00:00:00`);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }, [date]);
 
+  const start = useMemo(() => {
+    if (fromDate === "") return null;
+    const parsed = new Date(`${fromDate}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, [fromDate]);
+
+  /** Set only while a period is asked for *and* it runs the right way round. */
+  const period = useMemo(
+    () =>
+      chosen && start && start.getTime() <= chosen.getTime()
+        ? periodBetween(entries, start, chosen, portfolio.settings.holdingPeriodDays)
+        : null,
+    [entries, start, chosen, portfolio.settings.holdingPeriodDays],
+  );
+
   const at = useMemo(
     () =>
-      chosen
-        ? portfolioAsOf(entries, chosen, portfolio.settings.holdingPeriodDays)
-        : null,
-    [entries, chosen, portfolio.settings.holdingPeriodDays],
+      period
+        ? period.closing
+        : chosen
+          ? portfolioAsOf(entries, chosen, portfolio.settings.holdingPeriodDays)
+          : null,
+    [period, entries, chosen, portfolio.settings.holdingPeriodDays],
   );
 
   /**
@@ -92,7 +118,19 @@ export default function PointInTimeView() {
     if (!at || !chosen) return;
     const de = (v: string | number) => String(v).replace(".", ",");
     const rows: string[][] = [
-      [t("pit.exportAsOf"), formatDate(at.asOf, loc)],
+      ...(period
+        ? [
+            [t("pit.from"), formatDate(period.from, loc)],
+            [t("pit.to"), formatDate(period.to, loc)],
+            [t("pit.opening"), de(period.opening.balanceBtc.toFixed(8))],
+            [t("pit.closing"), de(period.closing.balanceBtc.toFixed(8))],
+            [t("pit.change"), de(period.changeBtc.toFixed(8))],
+            [t("pit.realized"), de(period.realizedGainEur.toFixed(2))],
+            [t("tax.taxableGain"), de(period.realizedTaxableGainEur.toFixed(2))],
+            [t("tax.taxFreeGain"), de(period.realizedTaxFreeGainEur.toFixed(2))],
+            [],
+          ]
+        : [[t("pit.exportAsOf"), formatDate(at.asOf, loc)]]),
       [t("pit.holding"), de(at.balanceBtc.toFixed(8))],
       [t("pit.costBasis"), de(at.costBasisEur.toFixed(2))],
       ...(marketValue ? [[t("pit.marketValue"), de(marketValue.toFixed(2))]] : []),
@@ -124,7 +162,11 @@ export default function PointInTimeView() {
     const csv = rows
       .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";"))
       .join("\r\n");
-    downloadAsFile(`${csv}\r\n`, `${t("pit.exportFileName")}-${date}.csv`, "text/csv");
+    downloadAsFile(
+      `${csv}\r\n`,
+      `${t("pit.exportFileName")}-${fromDate ? `${fromDate}_` : ""}${date}.csv`,
+      "text/csv",
+    );
   }
 
   /**
@@ -156,13 +198,32 @@ export default function PointInTimeView() {
 
       {/* Said before any figure is read: everything below is history. */}
       <p className="rounded-lg border border-accent/40 bg-accent/5 p-3 text-sm leading-relaxed text-accent">
-        {t("pit.banner", { date: formatDate(at.asOf, loc) })}
+        {period
+          ? t("pit.bannerPeriod", {
+              from: formatDate(period.from, loc),
+              to: formatDate(period.to, loc),
+            })
+          : t("pit.banner", { date: formatDate(at.asOf, loc) })}
       </p>
 
       <Card className="space-y-3 print:hidden">
         <div className="flex flex-wrap items-end gap-3">
+          {/* Optional, and second: the common question is a single day. With
+              a start date the same field becomes the end of a span. */}
           <label className="block">
-            <span className="mb-1 block text-xs text-muted">{t("pit.date")}</span>
+            <span className="mb-1 block text-xs text-muted">{t("pit.from")}</span>
+            <input
+              type="date"
+              className={inputCls}
+              value={fromDate}
+              max={date}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">
+              {period ? t("pit.to") : t("pit.date")}
+            </span>
             <input
               type="date"
               className={inputCls}
@@ -171,6 +232,11 @@ export default function PointInTimeView() {
               onChange={(e) => setDate(e.target.value)}
             />
           </label>
+          {fromDate !== "" && (
+            <Button className="px-2 py-1 text-xs" onClick={() => setFromDate("")}>
+              {t("pit.clearFrom")}
+            </Button>
+          )}
           {yearEnds.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {/* The 31st of December is what a tax return asks for, so it is
@@ -180,7 +246,13 @@ export default function PointInTimeView() {
                   key={d.getFullYear()}
                   variant={date === inputValue(d) ? "primary" : "default"}
                   className="px-2 py-1 text-xs"
-                  onClick={() => setDate(inputValue(d))}
+                  onClick={() => {
+                    setDate(inputValue(d));
+                    // A year is asked about as a whole far more often than as
+                    // its last instant, so picking one sets both ends — and
+                    // the period cards can still be dropped with one click.
+                    setFromDate(inputValue(new Date(d.getFullYear(), 0, 1)));
+                  }}
                 >
                   {d.getFullYear()}
                 </Button>
@@ -190,13 +262,82 @@ export default function PointInTimeView() {
         </div>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <p className="text-xs text-muted">{t("pit.holding")}</p>
-          <p className="mt-1 text-xl font-bold">
-            <Amount>{amountFmt.formatWithUnit(at.balanceBtc)}</Amount>
+      {/* What the period did, above what it ended at: with a span selected,
+          the movement is the question and the closing state is the context. */}
+      {period && (
+        <Card className="space-y-3">
+          <SectionTitle level={2}>{t("pit.periodTitle")}</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted">{t("pit.opening")}</p>
+              <p className="mt-1 font-mono text-lg">
+                <Amount>{amountFmt.formatWithUnit(period.opening.balanceBtc)}</Amount>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted">{t("pit.closing")}</p>
+              <p className="mt-1 font-mono text-lg">
+                <Amount>{amountFmt.formatWithUnit(period.closing.balanceBtc)}</Amount>
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted">{t("pit.change")}</p>
+              <p className="mt-1 font-mono text-lg">
+                <PnlValue value={period.changeBtc.toNumber()}>
+                  {amountFmt.format(period.changeBtc)}
+                </PnlValue>
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {t("pit.boughtSold", {
+                  bought: amountFmt.format(period.boughtBtc),
+                  sold: amountFmt.format(period.disposedBtc),
+                })}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted">{t("pit.realized")}</p>
+              <p className="mt-1 font-mono text-lg">
+                <PnlValue value={period.realizedGainEur.toNumber()}>
+                  {formatFiat(period.realizedGainEur, "EUR", loc)}
+                </PnlValue>
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {t("pit.realizedSplit", {
+                  taxable: formatFiat(period.realizedTaxableGainEur, "EUR", loc),
+                  free: formatFiat(period.realizedTaxFreeGainEur, "EUR", loc),
+                })}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted">
+            {t("pit.periodCounts", {
+              transactions: period.entriesInPeriod.length,
+              disposals: period.disposals.length,
+            })}
+            {/* Neither is a private disposal (§3.2), so neither is in the
+                realised figure — but leaving them unmentioned in a period
+                report would hide coins that moved. */}
+            {period.giftsOut.length > 0 &&
+              ` · ${t("pit.periodGifts", { count: period.giftsOut.length })}`}
+            {period.incomeReceipts.length > 0 &&
+              ` · ${t("pit.periodIncome", { count: period.incomeReceipts.length })}`}
           </p>
         </Card>
+      )}
+
+      <div
+        className={`grid gap-3 sm:grid-cols-2 ${period ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}
+      >
+        {/* Only without a period: with one, the card above already gives the
+            holding at both ends, and saying it a third time is noise. */}
+        {!period && (
+          <Card>
+            <p className="text-xs text-muted">{t("pit.holding")}</p>
+            <p className="mt-1 text-xl font-bold">
+              <Amount>{amountFmt.formatWithUnit(at.balanceBtc)}</Amount>
+            </p>
+          </Card>
+        )}
         <Card>
           <p className="text-xs text-muted">{t("pit.costBasis")}</p>
           <p className="mt-1 text-xl font-bold">

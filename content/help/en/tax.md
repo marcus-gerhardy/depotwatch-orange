@@ -33,6 +33,8 @@ The as-of view shows how your portfolio stood on any past day: the holding in to
 
 It is computed by the same rules as the live view — same allocations, same origin resolution, same holding periods — over every transaction up to and including that date. The day counts in full: "as of 31 December" means the 31st is over.
 
-Year ends are one click, because that is what a tax return asks for. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess.
+A **from** date is optional. With one, the same day becomes the end of a period and you additionally see what happened in it: the holding at the start and at the end, the change, what was bought and disposed of, and what the period realised, split into taxable and tax-free. That is the other half of what a tax return asks about a year.
+
+Years are one click and set both ends. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess. "Single day only" takes you back to the simpler question.
 
 The view only reads; it changes nothing in your file. You can export it as CSV, or as a PDF through the browser's print dialog. The price for that day is not fetched automatically — one click does it, and it uses the same price data as the dashboard.

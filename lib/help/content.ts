@@ -883,14 +883,18 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
-              "text": "Für die Steuererklärung liegen die Jahresenden als Schnellauswahl bereit. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung."
+              "text": "Optional lässt sich ein **Von**-Datum setzen. Dann wird derselbe Tag zum Ende eines Zeitraums, und zusätzlich siehst du, was darin passiert ist: Bestand zu Beginn und am Ende, die Veränderung, gekaufte und abgegangene Menge und das im Zeitraum Realisierte, getrennt nach steuerpflichtig und steuerfrei. Genau die zweite Hälfte dessen, was eine Steuererklärung über ein Jahr wissen will."
+            },
+            {
+              "kind": "p",
+              "text": "Für die Steuererklärung liegen die Jahre als Schnellauswahl bereit; ein Klick setzt beide Enden. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung. Mit „Nur Stichtag\" bist du wieder bei der einfachen Frage."
             },
             {
               "kind": "p",
               "text": "Die Ansicht ist reines Lesen: Sie ändert nichts an deiner Datei. Exportieren kannst du sie als CSV oder über den Druckdialog als PDF. Der Kurs des Stichtags wird nicht automatisch geladen — ein Klick genügt, und dieselben Kursdaten nutzt auch das Dashboard."
             }
           ],
-          "text": "Die Stichtagsansicht zeigt, wie dein Portfolio an einem beliebigen vergangenen Tag stand: Bestand gesamt und je Konto, Anschaffungskosten, Wert zum damaligen Kurs und die offenen Lots mit ihrem damaligen Haltefrist-Status. Gerechnet wird mit denselben Regeln wie in der Live-Ansicht — dieselbe Zuordnung, dieselbe Herkunftsauflösung, dieselben Haltefristen —, nur mit allen Transaktionen bis einschließlich des Stichtags. Der Tag zählt dabei ganz: „Stand 31.12.\" heißt, dass der 31. vorbei ist. Für die Steuererklärung liegen die Jahresenden als Schnellauswahl bereit. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung. Die Ansicht ist reines Lesen: Sie ändert nichts an deiner Datei. Exportieren kannst du sie als CSV oder über den Druckdialog als PDF. Der Kurs des Stichtags wird nicht automatisch geladen — ein Klick genügt, und dieselben Kursdaten nutzt auch das Dashboard."
+          "text": "Die Stichtagsansicht zeigt, wie dein Portfolio an einem beliebigen vergangenen Tag stand: Bestand gesamt und je Konto, Anschaffungskosten, Wert zum damaligen Kurs und die offenen Lots mit ihrem damaligen Haltefrist-Status. Gerechnet wird mit denselben Regeln wie in der Live-Ansicht — dieselbe Zuordnung, dieselbe Herkunftsauflösung, dieselben Haltefristen —, nur mit allen Transaktionen bis einschließlich des Stichtags. Der Tag zählt dabei ganz: „Stand 31.12.\" heißt, dass der 31. vorbei ist. Optional lässt sich ein Von-Datum setzen. Dann wird derselbe Tag zum Ende eines Zeitraums, und zusätzlich siehst du, was darin passiert ist: Bestand zu Beginn und am Ende, die Veränderung, gekaufte und abgegangene Menge und das im Zeitraum Realisierte, getrennt nach steuerpflichtig und steuerfrei. Genau die zweite Hälfte dessen, was eine Steuererklärung über ein Jahr wissen will. Für die Steuererklärung liegen die Jahre als Schnellauswahl bereit; ein Klick setzt beide Enden. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung. Mit „Nur Stichtag\" bist du wieder bei der einfachen Frage. Die Ansicht ist reines Lesen: Sie ändert nichts an deiner Datei. Exportieren kannst du sie als CSV oder über den Druckdialog als PDF. Der Kurs des Stichtags wird nicht automatisch geladen — ein Klick genügt, und dieselben Kursdaten nutzt auch das Dashboard."
         }
       ]
     },
@@ -2307,14 +2311,18 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
-              "text": "Year ends are one click, because that is what a tax return asks for. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess."
+              "text": "A **from** date is optional. With one, the same day becomes the end of a period and you additionally see what happened in it: the holding at the start and at the end, the change, what was bought and disposed of, and what the period realised, split into taxable and tax-free. That is the other half of what a tax return asks about a year."
+            },
+            {
+              "kind": "p",
+              "text": "Years are one click and set both ends. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess. \"Single day only\" takes you back to the simpler question."
             },
             {
               "kind": "p",
               "text": "The view only reads; it changes nothing in your file. You can export it as CSV, or as a PDF through the browser's print dialog. The price for that day is not fetched automatically — one click does it, and it uses the same price data as the dashboard."
             }
           ],
-          "text": "The as-of view shows how your portfolio stood on any past day: the holding in total and per account, the acquisition cost, the value at that day's price, and the open lots with the holding-period status they had then. It is computed by the same rules as the live view — same allocations, same origin resolution, same holding periods — over every transaction up to and including that date. The day counts in full: \"as of 31 December\" means the 31st is over. Year ends are one click, because that is what a tax return asks for. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess. The view only reads; it changes nothing in your file. You can export it as CSV, or as a PDF through the browser's print dialog. The price for that day is not fetched automatically — one click does it, and it uses the same price data as the dashboard."
+          "text": "The as-of view shows how your portfolio stood on any past day: the holding in total and per account, the acquisition cost, the value at that day's price, and the open lots with the holding-period status they had then. It is computed by the same rules as the live view — same allocations, same origin resolution, same holding periods — over every transaction up to and including that date. The day counts in full: \"as of 31 December\" means the 31st is over. A from date is optional. With one, the same day becomes the end of a period and you additionally see what happened in it: the holding at the start and at the end, the change, what was bought and disposed of, and what the period realised, split into taxable and tax-free. That is the other half of what a tax return asks about a year. Years are one click and set both ends. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess. \"Single day only\" takes you back to the simpler question. The view only reads; it changes nothing in your file. You can export it as CSV, or as a PDF through the browser's print dialog. The price for that day is not fetched automatically — one click does it, and it uses the same price data as the dashboard."
         }
       ]
     },

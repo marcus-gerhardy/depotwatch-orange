@@ -33,6 +33,8 @@ Die Stichtagsansicht zeigt, wie dein Portfolio an einem beliebigen vergangenen T
 
 Gerechnet wird mit denselben Regeln wie in der Live-Ansicht — dieselbe Zuordnung, dieselbe Herkunftsauflösung, dieselben Haltefristen —, nur mit allen Transaktionen bis einschließlich des Stichtags. Der Tag zählt dabei ganz: „Stand 31.12." heißt, dass der 31. vorbei ist.
 
-Für die Steuererklärung liegen die Jahresenden als Schnellauswahl bereit. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung.
+Optional lässt sich ein **Von**-Datum setzen. Dann wird derselbe Tag zum Ende eines Zeitraums, und zusätzlich siehst du, was darin passiert ist: Bestand zu Beginn und am Ende, die Veränderung, gekaufte und abgegangene Menge und das im Zeitraum Realisierte, getrennt nach steuerpflichtig und steuerfrei. Genau die zweite Hälfte dessen, was eine Steuererklärung über ein Jahr wissen will.
+
+Für die Steuererklärung liegen die Jahre als Schnellauswahl bereit; ein Klick setzt beide Enden. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung. Mit „Nur Stichtag" bist du wieder bei der einfachen Frage.
 
 Die Ansicht ist reines Lesen: Sie ändert nichts an deiner Datei. Exportieren kannst du sie als CSV oder über den Druckdialog als PDF. Der Kurs des Stichtags wird nicht automatisch geladen — ein Klick genügt, und dieselben Kursdaten nutzt auch das Dashboard.

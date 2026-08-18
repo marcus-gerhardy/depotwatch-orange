@@ -5,7 +5,7 @@
 // historical view exists for and the easiest to get wrong.
 
 import { describe, expect, it } from "vitest";
-import { portfolioAsOf, yearEndOptions } from "./pointInTime";
+import { periodBetween, portfolioAsOf, yearEndOptions } from "./pointInTime";
 import { flattenLedger, type PortfolioFile, type Transaction } from "./types";
 
 const HOLDING_DAYS = 365;
@@ -124,5 +124,59 @@ describe("the year ends offered", () => {
   it("offers none before the first year is over", () => {
     const entries = entriesOf([tx({ id: "b", type: "buy", date: "2026-01-01T00:00:00.000Z" })]);
     expect(yearEndOptions(entries, new Date(2026, 5, 1))).toEqual([]);
+  });
+});
+
+describe("a period between two dates", () => {
+  // A tax return asks two things about one year: what was held on 31 December,
+  // and what was realised during it. Both come out of the same calculation
+  // here — the closing snapshot's engine has already seen the whole history,
+  // so the period's disposals are its disposals, filtered.
+  const entries = entriesOf([
+    tx({ id: "b1", type: "buy", date: "2024-03-01T10:00:00.000Z" }),
+    tx({ id: "b2", type: "buy", date: "2025-06-01T10:00:00.000Z" }),
+    tx({
+      id: "s1",
+      type: "sell",
+      date: "2025-09-01T10:00:00.000Z",
+      pricePerBtcEur: "50000",
+      totalFiatEur: "50000",
+      lotAllocations: [{ lotTransactionId: "b1", amountBtc: "1" }],
+    }),
+    tx({ id: "b3", type: "buy", date: "2026-02-01T10:00:00.000Z" }),
+  ]);
+
+  const year2025 = () =>
+    periodBetween(entries, new Date(2025, 0, 1), new Date(2025, 11, 31), HOLDING_DAYS);
+
+  it("includes its own first and last day", () => {
+    // "1 January to 31 December" is a whole year, not 364 days with an
+    // off-by-one at each end.
+    const p = year2025();
+    expect(p.opening.balanceBtc.toString()).toBe("1"); // the 2024 buy
+    expect(p.closing.balanceBtc.toString()).toBe("1"); // +1 bought, −1 sold
+    expect(p.entriesInPeriod.map((e) => e.id).sort()).toEqual(["b2", "s1"]);
+  });
+
+  it("reports what the period realised, and nothing from outside it", () => {
+    const p = year2025();
+    expect(p.disposals.map((d) => d.txId)).toEqual(["s1"]);
+    // Sold a lot held since March 2024: over a year, so tax-free.
+    expect(p.realizedTaxFreeGainEur.toString()).toBe("30000");
+    expect(p.realizedTaxableGainEur.toString()).toBe("0");
+  });
+
+  it("nets the change over the period", () => {
+    const p = year2025();
+    expect(p.changeBtc.toString()).toBe("0"); // one bought, one sold
+    expect(p.boughtBtc.toString()).toBe("1");
+    expect(p.disposedBtc.toString()).toBe("1");
+  });
+
+  it("leaves later transactions out of both edges", () => {
+    const p = year2025();
+    // The 2026 buy is in neither the closing balance nor the entry list.
+    expect(p.entriesInPeriod.map((e) => e.id)).not.toContain("b3");
+    expect(p.closing.balanceBtc.toString()).toBe("1");
   });
 });
