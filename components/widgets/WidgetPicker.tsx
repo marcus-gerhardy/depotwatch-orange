@@ -5,7 +5,13 @@
 
 import { useI18n } from "@/lib/i18n";
 import { Modal } from "../ui";
-import { WIDGETS, type WidgetDataSource, type WidgetDefinition } from "./registry";
+import { useAppStore } from "@/lib/store";
+import {
+  isWidgetAvailable,
+  WIDGETS,
+  type WidgetDataSource,
+  type WidgetDefinition,
+} from "./registry";
 import WidgetIcon from "./WidgetIcon";
 
 const SOURCE_LABEL: Record<WidgetDataSource, string> = {
@@ -26,12 +32,16 @@ export default function WidgetPicker({
   placedIds: Set<string>;
 }) {
   const { t } = useI18n();
+  const portfolio = useAppStore((s) => s.portfolio)!;
+  // A widget with nothing to show for this file is not offered: a tile that
+  // would only say "no target set" is worse than not being on the list (§4.4).
+  const offered = WIDGETS.filter((w) => isWidgetAvailable(w.id, portfolio));
 
   return (
     <Modal title={t("dashboard.widgets.pickerTitle")} onClose={onClose} wide>
       <p className="mb-3 text-xs text-muted">{t("dashboard.widgets.pickerIntro")}</p>
       <ul className="grid max-h-[60vh] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
-        {WIDGETS.map((w) => (
+        {offered.map((w) => (
           <li key={w.id}>
             <button
               type="button"

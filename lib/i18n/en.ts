@@ -459,6 +459,10 @@ const en: typeof de = {
       halvingBlock: "Halving at block",
       halvingEstimateHint:
         "Estimated from ten minutes per block. The real duration depends on the hash rate.",
+      savingsGoal: {
+        title: "Savings goal",
+        description: "Progress towards your savings target, without a verdict.",
+      },
       yearInReview: {
         title: "Year in review",
         description: "The last completed year in a few figures.",
@@ -1780,6 +1784,25 @@ const en: typeof de = {
     printHint: "Opens the browser's print dialog, where \u201csave as PDF\u201d is available.",
     disclaimer:
       "Computed by the same rules as the live view, over every transaction up to and including that date. This view is read-only and changes nothing in your file. Not tax advice.",
+  },
+  goal: {
+    none: "No savings goal set. Set one in the settings, under \u201cGeneral\u201d.",
+    of: "of {target}",
+    current: "Currently",
+    remaining: "To go",
+    needed: "Needed per month",
+    pace: "So far per month",
+    reached: "Target reached.",
+    by: "Target date: {date}",
+    projected: "At the pace so far, reached around {date}.",
+    datePassed: "The target date was {date}.",
+    settingsTitle: "Savings goal",
+    settingsBody:
+      "A status display and nothing more: progress, what is left and, with a target date, the rate that would need. Without a goal the widget does not appear.",
+    target: "Target amount",
+    targetUnit: "Unit",
+    targetDate: "Target date (optional)",
+    clear: "Remove goal",
   },
   settings: {
     title: "Settings",

@@ -457,6 +457,10 @@ const de = {
       halvingBlock: "Halving bei Block",
       halvingEstimateHint:
         "Schätzung auf Basis von zehn Minuten pro Block. Die tatsächliche Dauer hängt von der Hashrate ab.",
+      savingsGoal: {
+        title: "Sparziel",
+        description: "Fortschritt zu deinem Sparziel, ohne Bewertung.",
+      },
       yearInReview: {
         title: "Jahresrückblick",
         description: "Das letzte abgeschlossene Jahr in wenigen Zahlen.",
@@ -1793,6 +1797,25 @@ const de = {
       "Öffnet den Druckdialog des Browsers; dort lässt sich „Als PDF speichern“ wählen.",
     disclaimer:
       "Berechnet nach denselben Regeln wie die Live-Ansicht, mit allen Transaktionen bis einschließlich des Stichtags. Diese Ansicht ist schreibgeschützt und ändert nichts an deiner Datei. Keine Steuerberatung.",
+  },
+  goal: {
+    none: "Kein Sparziel gesetzt. In den Einstellungen unter „Allgemein“ festlegen.",
+    of: "von {target}",
+    current: "Aktuell",
+    remaining: "Noch",
+    needed: "Nötig pro Monat",
+    pace: "Bisher pro Monat",
+    reached: "Ziel erreicht.",
+    by: "Zieldatum: {date}",
+    projected: "Beim bisherigen Tempo erreicht um {date}.",
+    datePassed: "Das Zieldatum war der {date}.",
+    settingsTitle: "Sparziel",
+    settingsBody:
+      "Eine reine Statusanzeige: Fortschritt, verbleibende Menge und, mit Zieldatum, die dafür nötige Sparrate. Ohne Ziel erscheint das Widget nicht.",
+    target: "Zielmenge",
+    targetUnit: "Einheit",
+    targetDate: "Zieldatum (optional)",
+    clear: "Ziel entfernen",
   },
   settings: {
     title: "Einstellungen",

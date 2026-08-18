@@ -282,6 +282,26 @@ export interface AppSettings {
    * before backups existed falls back to DEFAULT_BACKUP_SETTINGS.
    */
   backup?: BackupSettings;
+  /**
+   * A savings target (§4.4). Optional in every part: without a target amount
+   * there is no goal and the widget does not exist, and a target without a
+   * date is a perfectly good goal — it simply has no rate to compute.
+   */
+  savingsGoal?: SavingsGoal;
+}
+
+/**
+ * What somebody is saving towards (§4.4).
+ *
+ * Deliberately thin: an amount, optionally a date. No streak, no reminder, no
+ * "you are behind" — this is somebody's money, and a target they set is a
+ * measure, not a promise the app gets to hold them to.
+ */
+export interface SavingsGoal {
+  /** Target holding in BTC, as a decimal string like every other amount. */
+  targetBtc: string;
+  /** Optional ISO date the target is meant for. */
+  targetDate?: string;
 }
 
 /** One widget placed on the dashboard grid, in grid units (CLAUDE.md §4.1). */

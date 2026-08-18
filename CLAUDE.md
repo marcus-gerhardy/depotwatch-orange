@@ -398,6 +398,14 @@ Two details decide whether the figures are right. The cut-off is inclusive to th
 
 The view **only reads** — it is strictly historical, says so in a banner above every figure, and holds nothing the store would let it write. The market value uses the **already cached** closes (`peekDailyCloses`, like the year in review, §4.2) and offers a button to fetch them on purpose; merely opening a view must not call an exchange. Export is CSV, or PDF through the browser's own print dialog — a megabyte of PDF library to render what the page already renders, in a theme the app already maintains for print (§5), would be a poor trade.
 
+### 4.4 Savings Goal
+
+An optional target: an amount, and optionally a date (`settings.savingsGoal`, so it travels with the file). Without one the widget does not exist — the registry entry carries an `available` predicate, which keeps it out of the default layout *and* out of the picker, so "not configured" is absence rather than a tile explaining itself. Nothing else in the dashboard learns a widget's name for it (§4.1).
+
+**It reports, it does not urge.** No streak to lose, no "you are behind", no suggestion to buy — the same rule the milestones are written under (§5.2), and for the same reason: this is somebody's money, not a game with a scoreboard, and a target the user set themselves is a measure rather than a promise the app gets to hold them to. Past the date and not there, it says the date has passed, once, in the neutral colour, and stops.
+
+What it says is what is true (`lib/savingsGoal.ts`, pure functions, Decimal throughout): how far along, what is left, the rate the remaining months would need when a date is set, the rate saved so far, and where that rate would arrive. Each of those has a way of being wrong that a plausible-looking number would hide, and each is pinned by a test: an overshot target is *reached*, not 130 % reached; past the date there is **no** required rate, because "save the rest in no time" is a division by zero dressed up as advice; and with nothing saved yet there is no projection, because "never" is not information. The holding it measures is the ledger's (§11), not the engine's open lots.
+
 ## 5. Design
 
 - Minimalist, clean, reduced UI.

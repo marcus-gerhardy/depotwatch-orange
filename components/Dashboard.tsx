@@ -13,7 +13,7 @@
 // encrypted file is re-encrypted once instead of continuously.
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
@@ -33,7 +33,12 @@ import {
   useDashboardData,
   type TxJumpFilter,
 } from "./widgets/context";
-import { WIDGET_IDS, WIDGETS_BY_ID, type WidgetDefinition } from "./widgets/registry";
+import {
+  isWidgetAvailable,
+  WIDGET_IDS,
+  WIDGETS_BY_ID,
+  type WidgetDefinition,
+} from "./widgets/registry";
 import WidgetHost from "./widgets/WidgetHost";
 import WidgetPicker from "./widgets/WidgetPicker";
 import YearInReviewHint from "./YearInReviewHint";
@@ -130,13 +135,21 @@ function WidgetStack({ widgets }: { widgets: WidgetPlacement[] }) {
 function DashboardBody({ openBackups }: { openBackups: () => void }) {
   const { t } = useI18n();
   const wide = useIsWideViewport();
-  const storedLayout = useAppStore((s) => s.portfolio?.uiSettings?.dashboardLayout);
+  const portfolio = useAppStore((s) => s.portfolio)!;
+  const storedLayout = portfolio.uiSettings?.dashboardLayout;
   const saveDashboardLayout = useAppStore((s) => s.saveDashboardLayout);
 
   // The file's layout seeds the state; from there the state is the working
   // copy until it is committed back (see commit below).
   const [widgets, setWidgets] = useState<WidgetPlacement[]>(() =>
     dashboardFor({ dashboardLayout: storedLayout }, WIDGET_IDS),
+  );
+  // A widget whose subject the file does not have (a savings goal that was
+  // removed) is skipped rather than rendered empty — without dropping it from
+  // the stored layout, so putting the goal back brings the tile back too.
+  const visible = useMemo(
+    () => widgets.filter((w) => isWidgetAvailable(w.widgetId, portfolio)),
+    [widgets, portfolio],
   );
   const [editing, setEditing] = useState(false);
   /** Cell the picker will place into; null while the picker is closed. */
@@ -256,14 +269,24 @@ function DashboardBody({ openBackups }: { openBackups: () => void }) {
         </div>
       ) : wide ? (
         <DashboardGrid
-          widgets={widgets}
+          widgets={visible}
           editing={editing}
-          onLayoutChange={setWidgets}
+          // The grid only ever sees the visible ones, so what comes back has
+          // to be merged rather than assigned: a widget hidden for want of a
+          // savings goal must keep its place in the file.
+          onLayoutChange={(next) =>
+            setWidgets((prev) => {
+              const moved = new Map(next.map((w) => [w.i, w]));
+              return prev
+                .filter((w) => moved.has(w.i) || !isWidgetAvailable(w.widgetId, portfolio))
+                .map((w) => moved.get(w.i) ?? w);
+            })
+          }
           onRemove={removeWidget}
           onAddAt={(cell) => setPickerCell(cell)}
         />
       ) : (
-        <WidgetStack widgets={widgets} />
+        <WidgetStack widgets={visible} />
       )}
 
       {pickerCell && (

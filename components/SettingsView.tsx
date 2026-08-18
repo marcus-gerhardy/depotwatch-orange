@@ -27,6 +27,9 @@ import {
 const LIGHT_THEMES = THEME_IDS.filter((id) => THEME_META[id].scheme === "light");
 const DARK_THEMES = THEME_IDS.filter((id) => THEME_META[id].scheme === "dark");
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
+import { btcString, dec } from "@/lib/decimal";
+import { SATS_PER_BTC } from "@/lib/displayUnit";
+import NumberInput from "./NumberInput";
 import { AUTO_LOCK_CHOICES } from "@/lib/autoLock";
 import { DEFAULT_BACKUP_SETTINGS, type BackupTrigger } from "@/lib/backup";
 import { isUndoable, type ChangeLogEntry } from "@/lib/changeLog";
@@ -132,6 +135,33 @@ export default function SettingsView({
   const [pwChanged, setPwChanged] = useState(false);
 
   const s = portfolio.settings;
+  /**
+   * The savings target as it is edited (§4.4). Sats or BTC, because a target
+   * of "one million sats" is how somebody says it — stored as BTC either way,
+   * like every other amount in the file.
+   */
+  const [goalUnit, setGoalUnit] = useState<"btc" | "sats">("btc");
+  const [goalAmount, setGoalAmount] = useState(() => s.savingsGoal?.targetBtc ?? "");
+  const [goalDate, setGoalDate] = useState(
+    () => s.savingsGoal?.targetDate?.slice(0, 10) ?? "",
+  );
+
+  const saveGoal = () => {
+    const amount = dec(goalAmount);
+    const btc = goalUnit === "sats" ? amount.div(SATS_PER_BTC) : amount;
+    if (!btc.gt(0)) {
+      // An empty or zero target is not a goal; removing it is what that means.
+      patchSettings({ savingsGoal: undefined });
+      return;
+    }
+    patchSettings({
+      savingsGoal: {
+        targetBtc: btcString(btc),
+        ...(goalDate ? { targetDate: new Date(`${goalDate}T00:00:00`).toISOString() } : {}),
+      },
+    });
+  };
+
   const patchSettings = (patch: Partial<typeof s>) =>
     update((p) => ({ ...p, settings: { ...p.settings, ...patch } }));
 
@@ -216,7 +246,58 @@ export default function SettingsView({
                   </Field>
                 </div>
               </Card>
+              {/* A target, and nothing that nags about it (§4.4). */}
               <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
+              <Card className="space-y-3">
+                <SectionTitle level={2}>{t("goal.settingsTitle")}</SectionTitle>
+                <p className="text-xs leading-relaxed text-muted">
+                  {t("goal.settingsBody")}
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Field label={t("goal.target")}>
+                    <NumberInput
+                      placeholder={goalUnit === "sats" ? "1000000" : "1,00000000"}
+                      value={goalAmount}
+                      onChange={setGoalAmount}
+                    />
+                  </Field>
+                  <Field label={t("goal.targetUnit")}>
+                    <select
+                      className={inputCls}
+                      value={goalUnit}
+                      onChange={(e) => setGoalUnit(e.target.value as "btc" | "sats")}
+                    >
+                      <option value="btc">BTC</option>
+                      <option value="sats">sats</option>
+                    </select>
+                  </Field>
+                  <Field label={t("goal.targetDate")}>
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={goalDate}
+                      onChange={(e) => setGoalDate(e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="primary" onClick={saveGoal}>
+                    {t("common.save")}
+                  </Button>
+                  {s.savingsGoal && (
+                    <Button
+                      variant="danger"
+                      onClick={() => {
+                        patchSettings({ savingsGoal: undefined });
+                        setGoalAmount("");
+                        setGoalDate("");
+                      }}
+                    >
+                      {t("goal.clear")}
+                    </Button>
+                  )}
+                </div>
+              </Card>
               <Card className="space-y-3">
                 <SectionTitle level={2}>{t("settings.autosave")}</SectionTitle>
                 <Field label={t("settings.autosaveDebounce")}>

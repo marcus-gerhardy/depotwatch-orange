@@ -171,6 +171,15 @@ const DRAWINGS: Record<string, ReactNode> = {
       <path d="M8.5 17.5 11 14l2 1.8 3-4.3" />
     </>
   ),
+  // A flag on a rise: a target one is walking towards. Not a trophy and not a
+  // podium — nothing here is a competition (§4.4).
+  savingsGoal: (
+    <>
+      <path d="M6 21V4" />
+      <path d="M6 4.8h10.5l-2.2 3.2 2.2 3.2H6" />
+      <path d="M3.5 21h7" />
+    </>
+  ),
 };
 
 /** Which ids this module can draw — what the completeness test reads. */

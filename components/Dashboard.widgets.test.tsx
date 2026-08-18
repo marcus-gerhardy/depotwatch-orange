@@ -32,6 +32,10 @@ function load(
     },
   ];
   p.uiSettings = uiSettings;
+  // A widget that only exists once its subject is configured (`available`)
+  // needs that subject here, or it would be filtered out and this test would
+  // assert nothing about it. Rendering it is the whole point.
+  p.settings = { ...p.settings, savingsGoal: { targetBtc: "1" } };
   useAppStore.setState({ portfolio: p, privacyMode: false, dirty: false });
   return p;
 }
@@ -92,9 +96,13 @@ describe("widget registry", () => {
 
   it("places every registered widget in the default layout, exactly once", () => {
     // The default dashboard is meant to show all of them, so a new registry
-    // entry that nobody added to a band fails here rather than going unnoticed.
+    // entry that nobody added to a band fails here rather than going
+    // unnoticed. The exception is a widget that only exists once the user has
+    // configured its subject (`available`): putting a "no target set" tile on
+    // everybody's dashboard is exactly what that flag exists to avoid.
     const placed = defaultDashboard().map((p) => p.widgetId);
-    expect([...placed].sort()).toEqual(WIDGETS.map((w) => w.id).sort());
+    const expected = WIDGETS.filter((w) => !w.available).map((w) => w.id);
+    expect([...placed].sort()).toEqual(expected.sort());
   });
 
   it("has a unique id per entry", () => {

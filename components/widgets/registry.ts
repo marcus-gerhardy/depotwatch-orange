@@ -9,6 +9,7 @@
 // from `useDashboardData()` (see context.tsx).
 
 import type { ComponentType } from "react";
+import type { PortfolioFile } from "@/lib/types";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import {
   AvgCostWidget,
@@ -39,6 +40,7 @@ import { BlockClockWidget, HalvingWidget, NetworkFeesWidget } from "./ChainWidge
 import { ExemptionLimitWidget, TaxFreeProceedsWidget } from "./TaxWidgets";
 import { UtxoOverviewWidget, WatchlistStatusWidget } from "./WatchlistWidgets";
 import { YearInReviewWidget } from "./YearInReviewWidget";
+import SavingsGoalWidget from "./SavingsGoalWidget";
 
 /**
  * What a widget reads. Shown in the picker so it is obvious up front which
@@ -75,6 +77,18 @@ export interface WidgetDefinition {
    * "as tall as the content".
    */
   mobileHeight?: number;
+  /**
+   * Does this widget have anything to show for the open file?
+   *
+   * For the tiles that exist only when the user asked for the thing they are
+   * about — the savings goal is the first — so that "not configured" is
+   * absence rather than an empty tile explaining itself. The grid and the
+   * picker read this; neither knows *which* widget it is, which keeps the
+   * dashboard free of widget names (§4.1).
+   *
+   * Absent means always available, which is every other widget.
+   */
+  available?: (portfolio: PortfolioFile) => boolean;
   dataSources: WidgetDataSource[];
   component: ComponentType;
 }
@@ -300,6 +314,22 @@ const BASE_WIDGETS: WidgetDefinition[] = [
     component: UtxoOverviewWidget,
   },
   {
+    id: "savingsGoal",
+    titleKey: "dashboard.widgets.savingsGoal.title",
+    descriptionKey: "dashboard.widgets.savingsGoal.description",
+    defaultSize: { w: 4, h: 5 },
+    minSize: { w: 3, h: 4 },
+    maxSize: { w: 12, h: 7 },
+    // No target, no tile: it is not in the default layout, cannot be picked,
+    // and is skipped in a file whose goal was removed again (§4.4).
+    available: (p) => {
+      const goal = p.settings.savingsGoal;
+      return !!goal && Number(goal.targetBtc) > 0;
+    },
+    dataSources: ["ledger"],
+    component: SavingsGoalWidget,
+  },
+  {
     id: "milestones",
     titleKey: "dashboard.widgets.milestones.title",
     descriptionKey: "dashboard.widgets.milestones.description",
@@ -368,3 +398,12 @@ export const WIDGETS: WidgetDefinition[] = [
 export const WIDGETS_BY_ID = new Map(WIDGETS.map((w) => [w.id, w]));
 
 export const WIDGET_IDS = new Set(WIDGETS.map((w) => w.id));
+
+/**
+ * Does the open file give this widget anything to show? Unknown ids are
+ * "available" — sanitising the layout is somebody else's job (§3.5).
+ */
+export function isWidgetAvailable(widgetId: string, portfolio: PortfolioFile): boolean {
+  const def = WIDGETS_BY_ID.get(widgetId);
+  return def?.available ? def.available(portfolio) : true;
+}
