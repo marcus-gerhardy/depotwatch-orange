@@ -406,8 +406,17 @@ export function stackSeries(
 export type TradeBucket = "day" | "week" | "month";
 
 export interface TradeMarker {
-  /** Bucket start (UTC), which is where the marker sits on the time axis. */
+  /**
+   * Where the marker sits on the time axis: the volume-weighted middle of the
+   * trades it folds, never the bucket's first instant. A month bucket begins
+   * on the 1st, and a marker drawn there claims trading on a day that often
+   * has none — worse, it lands outside the chart whenever the visible range
+   * starts mid-period, which is what put a lone dot in the empty margin left
+   * of the price line.
+   */
   time: number;
+  /** Start of the bucket the trades were folded into. */
+  bucketTime: number;
   kind: "in" | "out";
   /** Trades folded into this marker. */
   count: number;
@@ -479,7 +488,9 @@ export function tradeMarkers(
   from: number,
   bucket: TradeBucket,
 ): TradeMarkers {
-  const acc = new Map<string, TradeMarker>();
+  // The weighted sum of the timestamps, alongside the marker it belongs to:
+  // an accounting detail of where the dot goes, not something a caller reads.
+  const acc = new Map<string, { marker: TradeMarker; weightedTime: Decimal }>();
   let withoutPrice = 0;
   let tradeCount = 0;
 
@@ -493,36 +504,47 @@ export function tradeMarkers(
       continue;
     }
     const kind: "in" | "out" = e.type === "buy" ? "in" : "out";
-    const time = bucketStart(ts, bucket);
-    const key = `${kind}:${time}`;
+    const bucketTime = bucketStart(ts, bucket);
+    const key = `${kind}:${bucketTime}`;
     const btc = dec(e.amountBtc);
     const hit = acc.get(key);
     if (hit) {
-      hit.count += 1;
-      hit.btc = hit.btc.plus(btc);
-      hit.eur = hit.eur.plus(btc.mul(price));
-      hit.firstTime = Math.min(hit.firstTime, ts);
-      hit.lastTime = Math.max(hit.lastTime, ts);
+      const m = hit.marker;
+      m.count += 1;
+      m.btc = m.btc.plus(btc);
+      m.eur = m.eur.plus(btc.mul(price));
+      m.firstTime = Math.min(m.firstTime, ts);
+      m.lastTime = Math.max(m.lastTime, ts);
+      hit.weightedTime = hit.weightedTime.plus(btc.mul(ts));
     } else {
       acc.set(key, {
-        time,
-        kind,
-        count: 1,
-        btc,
-        eur: btc.mul(price),
-        priceEur: price,
-        firstTime: ts,
-        lastTime: ts,
+        marker: {
+          time: ts,
+          bucketTime,
+          kind,
+          count: 1,
+          btc,
+          eur: btc.mul(price),
+          priceEur: price,
+          firstTime: ts,
+          lastTime: ts,
+        },
+        weightedTime: btc.mul(ts),
       });
     }
     tradeCount += 1;
   }
 
-  const markers = [...acc.values()].map((m) => ({
+  const markers = [...acc.values()].map(({ marker: m, weightedTime }) => ({
     ...m,
     // Volume-weighted, so a big buy pulls the marker towards its own price
-    // instead of every trade in the bucket counting the same.
+    // instead of every trade in the bucket counting the same. The same for
+    // where in the period it sits — a month bought into on two days should
+    // not be drawn at the month's start.
     priceEur: m.btc.gt(0) ? m.eur.div(m.btc) : m.priceEur,
+    time: m.btc.gt(0)
+      ? Math.round(weightedTime.div(m.btc).toNumber())
+      : Math.round((m.firstTime + m.lastTime) / 2),
   }));
   markers.sort((a, b) => a.time - b.time);
 
@@ -550,6 +572,28 @@ export function tradeMarkersFor(entries: LedgerEntry[], from: number): TradeMark
     if (last.buys.length + last.sells.length <= MAX_MARKERS) return last;
   }
   return last;
+}
+
+/**
+ * A price axis with a little air around the data, rounded outward to a round
+ * figure so the ticks stay readable.
+ *
+ * Recharts' "auto" reaches down towards zero, which spends half the tile on
+ * prices the period never saw and flattens the very curve the chart is for. A
+ * bare padded range fixes that but produces ticks like "69.431 €", hence the
+ * rounding to half a power of ten.
+ */
+export function priceAxisDomain(values: number[]): [number, number] {
+  const usable = values.filter((v) => Number.isFinite(v));
+  if (usable.length === 0) return [0, 1];
+  const min = Math.min(...usable);
+  const max = Math.max(...usable);
+  const span = max - min;
+  const pad = span > 0 ? span * 0.08 : Math.abs(max) * 0.04 || 1;
+  const lo = min - pad;
+  const hi = max + pad;
+  const step = Math.pow(10, Math.floor(Math.log10(hi - lo))) / 2;
+  return [Math.max(0, Math.floor(lo / step) * step), Math.ceil(hi / step) * step];
 }
 
 /** Sum helper for a Decimal list, used where a reduce would read worse. */

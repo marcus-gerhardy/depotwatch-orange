@@ -13,6 +13,7 @@ import {
   buyHeatmap,
   feeTotals,
   maxDrawdown,
+  priceAxisDomain,
   realizedInYear,
   taxFreeRealizable,
   timeInMarket,
@@ -302,6 +303,26 @@ describe("tradeMarkers", () => {
     expect(markers.withoutPrice).toBe(1);
   });
 
+  it("places a bucket's marker among its trades, not at the bucket's start", () => {
+    // The bug this replaces: a monthly marker sat on the 1st, which claims
+    // trading on a day that had none — and drops out of the chart whenever
+    // the visible range starts mid-month.
+    const markers = tradeMarkers(
+      [
+        at("2026-03-20T00:00:00.000Z", { amountBtc: "0.1" }),
+        at("2026-03-30T00:00:00.000Z", { amountBtc: "0.3" }),
+      ],
+      0,
+      "month",
+    );
+    const m = markers.buys[0];
+    expect(m.bucketTime).toBe(Date.UTC(2026, 2, 1));
+    expect(m.time).toBeGreaterThanOrEqual(m.firstTime);
+    expect(m.time).toBeLessThanOrEqual(m.lastTime);
+    // Volume-weighted like the price: three quarters of the BTC on the 30th.
+    expect(new Date(m.time).toISOString().slice(0, 10)).toBe("2026-03-27");
+  });
+
   it("buckets weeks from Monday and months from the first", () => {
     // 2026-03-04 is a Wednesday; its week starts on Monday the 2nd.
     expect(bucketStart(Date.parse("2026-03-04T23:00:00.000Z"), "week")).toBe(
@@ -344,6 +365,27 @@ describe("tradeMarkersFor", () => {
       }),
     );
     expect(tradeMarkersFor(few, 0).bucket).toBe("day");
+  });
+});
+
+describe("priceAxisDomain", () => {
+  it("frames the data instead of reaching down to zero", () => {
+    const [lo, hi] = priceAxisDomain([52_000, 68_000]);
+    expect(lo).toBeGreaterThan(40_000);
+    expect(lo).toBeLessThanOrEqual(52_000);
+    expect(hi).toBeGreaterThanOrEqual(68_000);
+  });
+
+  it("rounds outward, so the ticks are round figures", () => {
+    expect(priceAxisDomain([49_249, 69_431])).toEqual([45_000, 75_000]);
+  });
+
+  it("never leaves a value outside the axis", () => {
+    for (const values of [[1], [0.5, 0.5], [100, 100_000]]) {
+      const [lo, hi] = priceAxisDomain(values);
+      expect(lo).toBeLessThanOrEqual(Math.min(...values));
+      expect(hi).toBeGreaterThanOrEqual(Math.max(...values));
+    }
   });
 });
 

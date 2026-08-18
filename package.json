@@ -10,6 +10,8 @@
     "start": "next start",
     "lint": "npm run presets:validate && eslint",
     "help:build": "python3 scripts/build-help.py",
+    "demo:prices": "python3 scripts/fetch-demo-prices.py",
+    "demo:build": "python3 scripts/build-demo-portfolio.py",
     "icons:build": "node scripts/build-icons.mjs",
     "help:screenshots": "npm run build && node scripts/help-screenshots.mjs",
     "test": "vitest run"

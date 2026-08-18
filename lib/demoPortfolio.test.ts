@@ -198,6 +198,38 @@ describe("demo portfolio: every feature has an example", () => {
     expect(resolveProvenance(arrival, indexLedger(entries)).status).toBe("resolved");
   });
 
+  it("quotes the market, never a made-up price", () => {
+    // The demo's charts are drawn against live Binance data, so an invented
+    // price puts this portfolio's own buys and sells somewhere the price line
+    // never was — which is exactly what the price chart looked like while the
+    // generator interpolated anchors somebody had typed out. Every EUR figure
+    // in the file therefore comes from that day's real close, and this holds
+    // it there.
+    const closes = (
+      JSON.parse(readFileSync("scripts/data/btc-eur-daily.json", "utf8")) as {
+        closes: Record<string, string>;
+      }
+    ).closes;
+    const wrong = entries
+      .filter((e) => e.pricePerBtcEur != null)
+      .map((e) => ({ id: e.id, day: e.date.slice(0, 10), price: e.pricePerBtcEur }))
+      .filter((e) => e.price !== closes[e.day]);
+    expect(wrong).toEqual([]);
+
+    // The same for the rows that record only a total, where the rate is what
+    // the total divided by the amount comes to (cents rounded, hence the
+    // tolerance rather than an equality).
+    const offRate = entries
+      .filter((e) => e.pricePerBtcEur == null && e.totalFiatEur != null)
+      .map((e) => {
+        const close = dec(closes[e.date.slice(0, 10)] ?? "0");
+        const rate = dec(e.totalFiatEur!).div(dec(e.amountBtc));
+        return { id: e.id, rate: rate.toString(), close: close.toString() };
+      })
+      .filter(({ rate, close }) => dec(rate).minus(close).abs().div(close).gt("0.005"));
+    expect(offRate).toEqual([]);
+  });
+
   it("has buys settled in another currency, valued from history", () => {
     const foreign = entries.filter((e) => e.originalCurrency);
     expect(foreign.length).toBeGreaterThan(1);

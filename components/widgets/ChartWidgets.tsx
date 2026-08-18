@@ -3,7 +3,7 @@
 // Chart widgets: the portfolio value curve, the BTC price with the user's own
 // entries and exits, and the DCA overview.
 
-import { useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -12,6 +12,7 @@ import {
   Line,
   ResponsiveContainer,
   Scatter,
+  Symbols,
   Tooltip,
   XAxis,
   YAxis,
@@ -27,6 +28,7 @@ import { dailyBalanceSeries } from "@/lib/portfolio";
 import { SATS_PER_BTC } from "@/lib/displayUnit";
 import {
   buyHeatmap,
+  priceAxisDomain,
   stackSeries,
   tradeMarkersFor,
   type HeatmapDay,
@@ -74,13 +76,193 @@ interface PricePoint {
 
 /** One aggregated marker, in the currency the chart is drawn in. */
 interface ChartMarker {
+  /** Identifies the marker across renders, for the hover state. */
+  id: string;
   time: number;
   price: number;
+  /** What the bucket's trades moved, converted like the price. */
+  value: number;
   btc: number;
   count: number;
   kind: "in" | "out";
   firstTime: number;
   lastTime: number;
+}
+
+/** What Recharts hands a Scatter's custom shape, of the parts used here. */
+interface MarkerShapeProps {
+  cx?: number;
+  cy?: number;
+  /** Not a radius: the area the ZAxis mapped this point's volume to. */
+  size?: number;
+  payload?: ChartMarker;
+}
+
+/** A marker under the pointer, with where in the chart it was drawn. */
+interface HoveredMarker {
+  marker: ChartMarker;
+  x: number;
+  y: number;
+  /** Which way the card opens, so it never leaves the tile. */
+  placeLeft: boolean;
+  placeAbove: boolean;
+}
+
+/**
+ * One marker, drawn so it can be pointed at.
+ *
+ * The ZAxis sizes a dot by the BTC it stands for, which leaves the smallest
+ * ones a couple of pixels across — a target nobody hits. The invisible circle
+ * underneath is what makes hovering work at all; the highlight is what makes
+ * it obvious which of several dots is being read.
+ */
+function Marker({
+  cx,
+  cy,
+  size = 24,
+  payload,
+  symbol,
+  color,
+  onHover,
+}: MarkerShapeProps & {
+  symbol: "circle" | "triangle";
+  color: string;
+  onHover: (marker: ChartMarker | null, cx: number, cy: number) => void;
+}) {
+  // Recharts leaves the coordinates undefined for a point outside the domain.
+  if (cx == null || cy == null || !payload) return <g />;
+  const hitRadius = Math.max(Math.sqrt(size / Math.PI) + 4, 9);
+  return (
+    <g
+      className="group"
+      onMouseEnter={() => onHover(payload, cx, cy)}
+      onMouseLeave={() => onHover(null, cx, cy)}
+      style={{ cursor: "pointer" }}
+    >
+      <Symbols
+        type={symbol}
+        cx={cx}
+        cy={cy}
+        size={size}
+        fill={color}
+        stroke={color}
+        // The highlight is CSS rather than state on purpose: re-rendering
+        // several hundred markers on every pointer move is work for nothing,
+        // and it churns the very nodes the pointer is sitting on.
+        className="[fill-opacity:0.75] [stroke-width:1] group-hover:[fill-opacity:1] group-hover:[stroke-width:2]"
+      />
+      <circle cx={cx} cy={cy} r={hitRadius} fill="transparent" />
+    </g>
+  );
+}
+
+/** Label/value rows, shared by both tooltips. */
+function TipRows({ items }: { items: [string, string][] }) {
+  return (
+    <dl className="mt-1 grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 whitespace-nowrap">
+      {items.map(([label, value]) => (
+        <Fragment key={label}>
+          <dt className="text-muted">{label}</dt>
+          <dd className="text-right font-mono">{value}</dd>
+        </Fragment>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * What a marker is made of.
+ *
+ * Deliberately *not* Recharts' tooltip: that one is tied to the axis and hides
+ * itself wherever it finds no active tick — near the left edge of the chart,
+ * for one — which left dots that were plainly hovered answering nothing. This
+ * card follows the dot's own coordinates, so a marker that can be pointed at
+ * can be read.
+ */
+function MarkerTip({
+  hovered,
+  style,
+  t,
+  loc,
+  color,
+  fmtAmount,
+  fmtPrecise,
+}: {
+  hovered: HoveredMarker;
+  style: React.CSSProperties;
+  t: ReturnType<typeof useDashboardData>["t"];
+  loc: string;
+  color: string;
+  fmtAmount: (btc: string) => string;
+  fmtPrecise: (v: number) => string;
+}) {
+  const { marker, x, y, placeLeft, placeAbove } = hovered;
+  const from = formatDate(marker.firstTime, loc);
+  const to = formatDate(marker.lastTime, loc);
+  return (
+    <div
+      className="pointer-events-none absolute z-10 px-2.5 py-2 text-xs"
+      style={{
+        ...style,
+        left: x,
+        top: y,
+        transform: `translate(${placeLeft ? "calc(-100% - 12px)" : "12px"}, ${
+          placeAbove ? "calc(-100% - 8px)" : "8px"
+        })`,
+      }}
+    >
+      <p className="font-semibold" style={{ color }}>
+        {marker.kind === "in"
+          ? t("dashboard.widgets.entries")
+          : t("dashboard.widgets.exits")}
+      </p>
+      <p className="text-muted">
+        {from === to ? from : t("dashboard.widgets.markerTipPeriod", { from, to })}
+      </p>
+      <TipRows
+        items={[
+          [t("dashboard.widgets.markerTipTrades"), formatInt(marker.count, loc)],
+          [t("dashboard.widgets.markerTipAmount"), fmtAmount(String(marker.btc))],
+          [t("dashboard.widgets.markerTipValue"), fmtPrecise(marker.value)],
+          [t("dashboard.widgets.markerTipAvgPrice"), fmtPrecise(marker.price)],
+        ]}
+      />
+    </div>
+  );
+}
+
+/** The day's close, for the line — Recharts' own axis tooltip. */
+function PriceTip({
+  active,
+  payload,
+  style,
+  t,
+  loc,
+  fmtPrecise,
+}: {
+  active?: boolean;
+  payload?: readonly { value?: unknown; payload?: unknown }[];
+  style: React.CSSProperties;
+  t: ReturnType<typeof useDashboardData>["t"];
+  loc: string;
+  fmtPrecise: (v: number) => string;
+}) {
+  if (!active) return null;
+  // The line's point, told apart from a marker's by what it carries: markers
+  // count trades, a daily close does not.
+  const point = payload?.find(
+    (p) => (p.payload as { count?: number } | undefined)?.count === undefined,
+  );
+  const time = (point?.payload as PricePoint | undefined)?.time;
+  if (point == null || typeof point.value !== "number" || time === undefined) {
+    return null;
+  }
+  return (
+    <div style={style} className="px-2.5 py-2 text-xs">
+      <p className="text-muted">{formatDate(time, loc)}</p>
+      <TipRows items={[[t("dashboard.chartBtcPrice"), fmtPrecise(point.value)]]} />
+    </div>
+  );
 }
 
 /**
@@ -99,6 +281,11 @@ interface ChartMarker {
  * a band rather than information. So trades are folded into buckets — day,
  * week or month, the finest that stays readable — each marker sitting at the
  * volume-weighted average price of its bucket and sized by the BTC it covers.
+ *
+ * A dot standing for a whole month of buying has to be readable as such, so
+ * hovering one says what it is made of (period, trades, amount, value, average
+ * price) instead of the market's close, which is the one number a marker is
+ * explicitly *not* placed at.
  */
 export function PriceEntriesWidget() {
   // The BTC price only means something in fiat, so this chart stays in the
@@ -108,6 +295,33 @@ export function PriceEntriesWidget() {
   const c = useThemeColors();
   const tooltipStyle = useTooltipStyle();
   const [range, setRange] = useState<Range>(365);
+  // Which marker the pointer is on. Recharts' own tooltip is axis-based and
+  // therefore always answers with the line's close, whatever the pointer is
+  // actually over; the markers say what they are made of through this.
+  const [hovered, setHovered] = useState<HoveredMarker | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  /** Where the card opens is decided here, where the tile can be measured. */
+  const hoverMarker = useCallback((marker: ChartMarker | null, x: number, y: number) => {
+    if (marker === null) {
+      setHovered(null);
+      return;
+    }
+    const box = plotRef.current?.getBoundingClientRect();
+    const next: HoveredMarker = {
+      marker,
+      x,
+      y,
+      placeLeft: box ? x > box.width * 0.55 : false,
+      placeAbove: box ? y > box.height * 0.55 : false,
+    };
+    // Same dot, same card: a fresh object would re-render the chart for
+    // nothing every time the pointer twitches inside a marker.
+    setHovered((prev) =>
+      prev && prev.marker.id === next.marker.id && prev.x === next.x && prev.y === next.y
+        ? prev
+        : next,
+    );
+  }, []);
 
   const startTime = entries.length > 0 ? Date.parse(entries[0].date) : null;
   const closes = useDailyCloses(currency, startTime);
@@ -117,7 +331,16 @@ export function PriceEntriesWidget() {
   // convert and nothing to fetch.
   const eurCloses = useDailyCloses("EUR", currency === "EUR" ? null : startTime);
 
-  const { line, buys, sells, bucket, withoutPrice, tradeCount } = useMemo(() => {
+  const {
+    line,
+    buys,
+    sells,
+    yDomain,
+    bucket,
+    withoutPrice,
+    outsideHistory,
+    tradeCount,
+  } = useMemo(() => {
     const all: PricePoint[] = (closes.data ?? []).map((c) => ({
       time: c.time,
       price: c.close,
@@ -127,6 +350,11 @@ export function PriceEntriesWidget() {
     const newest = all.length > 0 ? all[all.length - 1].time : 0;
     const cutoff = range === 0 ? 0 : newest - range * DAY;
     const line = all.filter((p) => p.time >= cutoff);
+    // What the line actually covers. A marker outside it would be drawn into
+    // the empty margin beside the curve, where it says nothing except that
+    // something is wrong with the chart.
+    const from = line.length > 0 ? line[0].time : 0;
+    const until = line.length > 0 ? line[line.length - 1].time + DAY : 0;
 
     // EUR → axis currency, per day, carried forward over days the source has
     // no candle for (the same rule dailyValueSeries uses).
@@ -161,12 +389,23 @@ export function PriceEntriesWidget() {
     };
 
     const markers = tradeMarkersFor(entries, cutoff);
+    // Trades older than the price source reaches back are left out, and said
+    // out loud below — they are not missing, they are unplaceable.
+    const covered = (m: TradeMarker) => m.time >= from && m.time <= until;
+    const outsideHistory = [...markers.buys, ...markers.sells]
+      .filter((m) => !covered(m))
+      .reduce((sum, m) => sum + m.count, 0);
+
     const toChart = (m: TradeMarker): ChartMarker | null => {
+      // No cross rate yet (the EUR series is still loading on a USD axis) —
+      // a transient state, not something to report.
       const rate = rateAt(m.time);
       if (rate === null) return null;
       return {
+        id: `${m.kind}:${m.bucketTime}`,
         time: m.time,
         price: m.priceEur.toNumber() * rate,
+        value: m.eur.toNumber() * rate,
         btc: m.btc.toNumber(),
         count: m.count,
         kind: m.kind,
@@ -175,14 +414,24 @@ export function PriceEntriesWidget() {
       };
     };
     const convert = (list: TradeMarker[]) =>
-      list.map(toChart).filter((m): m is ChartMarker => m !== null);
+      list.filter(covered).map(toChart).filter((m): m is ChartMarker => m !== null);
+    const buys = convert(markers.buys);
+    const sells = convert(markers.sells);
 
     return {
       line,
-      buys: convert(markers.buys),
-      sells: convert(markers.sells),
+      buys,
+      sells,
+      // Over the markers as well as the line: a trade must never sit outside
+      // the axis it is drawn on.
+      yDomain: priceAxisDomain([
+        ...line.map((p) => p.price),
+        ...buys.map((m) => m.price),
+        ...sells.map((m) => m.price),
+      ]),
       bucket: markers.bucket,
       withoutPrice: markers.withoutPrice,
+      outsideHistory,
       tradeCount: markers.tradeCount,
     };
   }, [closes.data, eurCloses.data, currency, entries, range]);
@@ -245,7 +494,13 @@ export function PriceEntriesWidget() {
       {/* overflow-hidden against the one-frame tooltip overshoot, see
           PortfolioChart. */}
       <div
-        className={`min-h-0 flex-1 overflow-hidden ${privacyMode ? "privacy-blur" : ""}`}
+        ref={plotRef}
+        className={`relative min-h-0 flex-1 overflow-hidden ${
+          privacyMode ? "privacy-blur" : ""
+        }`}
+        // A pointer that leaves the chart quickly can outrun a marker's own
+        // mouseleave; without this the highlight would stay behind.
+        onMouseLeave={() => setHovered(null)}
       >
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
@@ -253,12 +508,19 @@ export function PriceEntriesWidget() {
             <XAxis
               dataKey="time"
               type="number"
-              domain={["dataMin", "dataMax"]}
+              // The line's own span, not "dataMin/dataMax" over everything the
+              // chart holds: an axis stretched by a marker draws a stretch of
+              // time the price line has nothing to say about.
+              domain={[line[0].time, line[line.length - 1].time]}
               tickFormatter={(ms: number) =>
-                new Date(ms).toLocaleDateString(loc, {
-                  month: "short",
-                  year: "2-digit",
-                })
+                new Date(ms).toLocaleDateString(
+                  loc,
+                  // Three months of "Juli 26, Juli 26" says nothing; over a
+                  // year or more the day does not.
+                  range === 90
+                    ? { day: "2-digit", month: "short" }
+                    : { month: "short", year: "2-digit" },
+                )
               }
               stroke={c.muted}
               fontSize={11}
@@ -272,32 +534,27 @@ export function PriceEntriesWidget() {
               fontSize={11}
               tickLine={false}
               width={70}
-              domain={["auto", "auto"]}
+              domain={yDomain}
             />
             {/* Volume gives a marker its size: one big buy should not look like
                 one small one. */}
             <ZAxis dataKey="btc" range={markerRange} />
             <Tooltip
-              contentStyle={tooltipStyle}
-              cursor={{ stroke: c.border }}
-              labelFormatter={(ms) => formatDate(Number(ms), loc)}
-              formatter={(v, _name, item) => {
-                const p = item?.payload as Partial<ChartMarker> | undefined;
-                const value = typeof v === "number" ? fmtPrecise(v) : String(v ?? "");
-                if (!p || p.count === undefined) {
-                  return [value, t("dashboard.chartBtcPrice")];
-                }
-                return [
-                  t("dashboard.widgets.markerSummary", {
-                    price: value,
-                    amount: fmtAmount(String(p.btc ?? 0)),
-                    count: p.count,
-                  }),
-                  p.kind === "in"
-                    ? t("dashboard.widgets.entries")
-                    : t("dashboard.widgets.exits"),
-                ];
-              }}
+              // While a marker is being read, the axis tooltip and its cursor
+              // would both point at a day the marker deliberately does not
+              // stand for.
+              active={hovered ? false : undefined}
+              cursor={hovered ? false : { stroke: c.border }}
+              content={(props) => (
+                <PriceTip
+                  active={props.active}
+                  payload={props.payload}
+                  style={tooltipStyle}
+                  t={t}
+                  loc={loc}
+                  fmtPrecise={fmtPrecise}
+                />
+              )}
             />
             <Line
               data={line}
@@ -306,38 +563,67 @@ export function PriceEntriesWidget() {
               stroke={c.accent}
               strokeWidth={1.5}
               dot={false}
+              // The line's own highlight would sit on top of the marker being
+              // read, and point at the close — the number this chart takes
+              // care not to place a trade at.
+              activeDot={!hovered}
               isAnimationActive={false}
             />
             <Scatter
               data={buys}
               dataKey="price"
-              fill={c.gain}
-              fillOpacity={0.75}
-              stroke={c.gain}
-              shape="circle"
+              shape={(props: object) => (
+                <Marker
+                  {...(props as MarkerShapeProps)}
+                  symbol="circle"
+                  color={c.gain}
+                  onHover={hoverMarker}
+                />
+              )}
               isAnimationActive={false}
             />
             <Scatter
               data={sells}
               dataKey="price"
-              fill={c.loss}
-              fillOpacity={0.75}
-              stroke={c.loss}
-              shape="triangle"
+              shape={(props: object) => (
+                <Marker
+                  {...(props as MarkerShapeProps)}
+                  symbol="triangle"
+                  color={c.loss}
+                  onHover={hoverMarker}
+                />
+              )}
               isAnimationActive={false}
             />
           </ComposedChart>
         </ResponsiveContainer>
+        {hovered && (
+          <MarkerTip
+            hovered={hovered}
+            style={tooltipStyle}
+            t={t}
+            loc={loc}
+            color={hovered.marker.kind === "in" ? c.gain : c.loss}
+            fmtAmount={fmtAmount}
+            fmtPrecise={fmtPrecise}
+          />
+        )}
       </div>
       {/* Said out loud: a dot that stands for 30 buys must not be read as one
-          trade, and a trade with no price recorded is missing from the chart. */}
-      {(bucket !== "day" || withoutPrice > 0) && (
+          trade, and a trade the chart cannot place is missing from it — with
+          no price recorded, or from before the price source reaches back. */}
+      {(bucket !== "day" || withoutPrice > 0 || outsideHistory > 0) && (
         <p className="mt-1 text-[0.65rem] leading-snug text-muted">
-          {bucket !== "day" &&
-            t(`dashboard.widgets.markerBucket.${bucket}`, { count: tradeCount })}
-          {bucket !== "day" && withoutPrice > 0 && " · "}
-          {withoutPrice > 0 &&
-            t("dashboard.widgets.markerWithoutPrice", { count: withoutPrice })}
+          {[
+            bucket !== "day" &&
+              t(`dashboard.widgets.markerBucket.${bucket}`, { count: tradeCount }),
+            withoutPrice > 0 &&
+              t("dashboard.widgets.markerWithoutPrice", { count: withoutPrice }),
+            outsideHistory > 0 &&
+              t("dashboard.widgets.markerOutsideHistory", { count: outsideHistory }),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </p>
       )}
     </div>

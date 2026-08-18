@@ -16,9 +16,14 @@ It also has to have *volume*. A heatmap, a DCA overview, a fee balance or the
 price chart's marker aggregation say nothing about five transactions, so the
 file carries three years of a weekly savings plan and a year of a daily one
 (several hundred buys), swept into cold storage in batches of dozens of lots at
-a time. Prices come from `price_at`, which interpolates monthly anchors and
-adds a deterministic wobble — deterministic because the generated files have to
-be reproducible.
+a time.
+
+Every price in here comes from `price_at`, i.e. from the day's actual BTC/EUR
+close (scripts/data/btc-eur-daily.json, refreshed by scripts/fetch-demo-prices.py
+— the very source the app charts). Nothing is invented: a demo that buys at
+made-up prices draws its own buys and sells far away from the price line the
+dashboard fetches from Binance, and every euro figure it shows is wrong in the
+same way. The table is committed, so generating stays reproducible and offline.
 
 What comes out is checked by lib/demoPortfolio.test.ts — balances, assignments,
 the feature coverage and the volume — so run the tests after changing anything
@@ -27,6 +32,7 @@ here.
 import json
 from collections import defaultdict
 from decimal import Decimal as D
+from pathlib import Path
 
 TXID = {
     "t1": "9f2c4a1d0b7e5638a4c1f0d92b6e83571c4a0d9e2f8b7361a5c0e4d29f7b6183",
@@ -54,50 +60,62 @@ def d(x):
 
 
 # ------------------------------------------------------------ price model
-# A demo that is meant to exercise the charts needs prices that move like a
-# market rather than a straight line: monthly anchors, linearly interpolated,
-# plus a deterministic wobble so two days in a row differ. Deterministic is the
-# point — the generated files have to be reproducible, so nothing here is
-# random.
-PRICE_ANCHORS = [
-    ("2023-01", 17000), ("2023-06", 24000), ("2023-09", 26500), ("2023-11", 35000),
-    ("2024-01", 40000), ("2024-03", 62000), ("2024-04", 58000), ("2024-07", 54000),
-    ("2024-09", 56000), ("2024-11", 72000), ("2025-01", 92000), ("2025-03", 82000),
-    ("2025-05", 90000), ("2025-06", 95000), ("2025-08", 99000), ("2025-09", 105000),
-    ("2025-11", 96000), ("2025-12", 88000), ("2026-02", 98000), ("2026-04", 112000),
-    ("2026-06", 118000), ("2026-08", 124000), ("2026-10", 126000),
-]
-
-
-def _month_index(ym):
-    y, m = ym.split("-")
-    return int(y) * 12 + int(m) - 1
-
-
-_ANCHORS = [(_month_index(ym), D(v)) for ym, v in PRICE_ANCHORS]
+# The market, not a model of one: the committed table of daily BTC/EUR closes
+# (scripts/fetch-demo-prices.py). Every euro figure in the demo is derived from
+# it, so a demo trade sits on the price line the dashboard draws instead of
+# somewhere above it.
+_PRICE_FILE = Path(__file__).resolve().parent / "data" / "btc-eur-daily.json"
+try:
+    _CLOSES = {k: D(v) for k, v in json.loads(
+        _PRICE_FILE.read_text(encoding="utf-8"))["closes"].items()}
+except FileNotFoundError:  # pragma: no cover - a checkout without the table
+    raise SystemExit(
+        f"missing {_PRICE_FILE}\nRun: npm run demo:prices"
+    )
+_FIRST_DAY, _LAST_DAY = min(_CLOSES), max(_CLOSES)
 
 
 def price_at(iso):
-    """BTC/EUR on a day, interpolated between the anchors above."""
-    y, m, day = int(iso[0:4]), int(iso[5:7]), int(iso[8:10])
-    pos = D(y * 12 + m - 1) + D(day - 1) / D(31)
-    lo, hi = _ANCHORS[0], _ANCHORS[-1]
-    for i in range(len(_ANCHORS) - 1):
-        if _ANCHORS[i][0] <= pos <= _ANCHORS[i + 1][0]:
-            lo, hi = _ANCHORS[i], _ANCHORS[i + 1]
-            break
-    span = D(hi[0] - lo[0])
-    t = (pos - D(lo[0])) / span if span else D(0)
-    base = lo[1] + (hi[1] - lo[1]) * t
-    # A repeatable wobble of a few per cent, derived from the date itself.
-    seed = (y * 10000 + m * 100 + day) * 2654435761 % 1000
-    wobble = (D(seed) / D(1000) - D("0.5")) * D("0.06")
-    return (base * (D(1) + wobble)).quantize(D("1"))
+    """BTC/EUR close of that day, from the committed history.
+
+    Refuses a day the table does not cover rather than guessing: an invented
+    price is exactly what this file is here to stop, and the fix ("refresh the
+    table") belongs in front of whoever is generating, not in the output.
+    """
+    day = iso[:10]
+    if day in _CLOSES:
+        return _CLOSES[day]
+    if not (_FIRST_DAY <= day <= _LAST_DAY):
+        raise SystemExit(
+            f"no BTC/EUR close for {day} (history covers {_FIRST_DAY} … {_LAST_DAY}).\n"
+            "Run: npm run demo:prices"
+        )
+    # Inside the covered span, so this is a day Binance has no candle for: the
+    # last close before it is what the market last traded at.
+    before = max(k for k in _CLOSES if k <= day)
+    return _CLOSES[before]
+
+
+# What a euro figure is quoted as when a transaction was settled in dollars.
+# Documentation only (§3.2) — the ledger values everything in EUR — so one
+# rounded rate is honest enough and keeps the demo free of a second history.
+USD_PER_EUR = D("1.08")
+
+
+def usd(amount_eur):
+    """A EUR figure as the dollars it stood for, to the cent."""
+    return (d(amount_eur) * USD_PER_EUR).quantize(D("0.01"))
 
 
 def eur(amount_btc, price):
     """What an amount costs at a price, to the cent."""
     return (d(amount_btc) * d(price)).quantize(D("0.01"))
+
+
+def priced(day, amount_btc):
+    """That day's close and what the amount was worth at it."""
+    price = price_at(day)
+    return price, eur(amount_btc, price)
 
 
 def _weekday(iso):
@@ -224,25 +242,29 @@ L.wallet("w-hardware2", "Hardware-Wallet 2", "Hardware wallet 2", "hardware", [
 ])
 
 # ------------------------------------------------------- Börse / Spot
+_price, _total = priced("2023-06-15", "0.25")
 L.add("a-exchange-spot", tx(
-    "k-buy-1", "buy", "2023-06-15T10:15:00.000Z", "0.25", price="24000", total="6000",
+    "k-buy-1", "buy", "2023-06-15T10:15:00.000Z", "0.25", price=_price, total=_total,
     fee_fiat="9.60",
     note_de="Erstkauf per SEPA-Überweisung",
     note_en="First purchase by SEPA transfer"))
 L.add("a-exchange-spot", tx(
-    "k-buy-2", "buy", "2023-11-02T08:40:00.000Z", "0.15", total="5250", fee_fiat="8.40",
+    "k-buy-2", "buy", "2023-11-02T08:40:00.000Z", "0.15",
+    total=priced("2023-11-02", "0.15")[1], fee_fiat="8.40",
     note_de="Nachkauf, nur Gesamtbetrag im Beleg",
     note_en="Follow-up buy, receipt shows only the total"))
 L.add("a-exchange-spot", tx(
-    "k-buy-3", "buy", "2024-04-10T16:05:00.000Z", "0.2", price="58000", fee_btc="0.0002",
+    "k-buy-3", "buy", "2024-04-10T16:05:00.000Z", "0.2", price=price_at("2024-04-10"),
+    fee_btc="0.0002",
     note_de="Kauf kurz nach dem Halving, Gebühr in BTC abgezogen",
     note_en="Bought shortly after the halving, fee charged in BTC"))
 L.add("a-exchange-spot", tx(
     "k-buy-old", "buy", "2023-02-01T12:00:00.000Z", "0.01",
     note_de="Beispiel: alter Kauf ohne EUR-Beleg — die Datenqualität meldet ihn, der Kurs lässt sich im Dialog aus der Historie ermitteln",
     note_en="Example: an old buy with no EUR figure — reported by the data quality check; the dialog can derive the rate from history"))
+_price, _total = priced("2024-09-20", "0.1")
 L.add("a-exchange-spot", tx(
-    "k-sell-1", "sell", "2024-09-20T11:30:00.000Z", "0.1", price="52000", total="5200",
+    "k-sell-1", "sell", "2024-09-20T11:30:00.000Z", "0.1", price=_price, total=_total,
     fee_fiat="7.80", lots=[("k-buy-1", "0.1")],
     note_de="Teilverkauf, Haltefrist über einem Jahr → steuerfrei",
     note_en="Partial sale, held for more than a year → tax-free"))
@@ -252,17 +274,22 @@ L.add("a-exchange-spot", tx(
     counterparty="a-hardware-cold", group="g-cold-1",
     note_de="Sammel-Auszahlung von drei Käufen auf die Hardware-Wallet",
     note_en="Batched withdrawal of three buys to the hardware wallet"))
+# Sold well above what that lot cost, and more than a year after it — the
+# dates are picked so the note stays true against the real price history.
 L.add("a-exchange-spot", tx(
-    "k-sell-2", "sell", "2026-03-05T15:45:00.000Z", "0.05", total="5900", fee_fiat="8.85",
+    "k-sell-2", "sell", "2025-07-14T15:45:00.000Z", "0.05",
+    total=priced("2025-07-14", "0.05")[1], fee_fiat="8.85",
     lots=[("k-buy-3", "0.05")],
     note_de="Gewinnmitnahme, Haltefrist über einem Jahr",
     note_en="Taking profit, held for more than a year"))
 L.add("a-exchange-spot", tx(
-    "k-buy-4", "buy", "2026-07-20T07:55:00.000Z", "0.03", total="3450",
+    "k-buy-4", "buy", "2026-02-10T07:55:00.000Z", "0.03",
+    total=priced("2026-02-10", "0.03")[1],
     note_de="Nachkauf; Haltefrist läuft noch",
     note_en="Follow-up buy; holding period still running"))
+_price, _total = priced("2026-05-04", "0.01")
 L.add("a-exchange-spot", tx(
-    "k-sell-3", "sell", "2026-07-30T13:05:00.000Z", "0.01", price="121000", total="1210",
+    "k-sell-3", "sell", "2026-05-04T13:05:00.000Z", "0.01", price=_price, total=_total,
     fee_fiat="1.82", lots=[("k-buy-4", "0.01")],
     note_de="Kurzfristiger Verkauf innerhalb der Haltefrist → steuerpflichtiger Gewinn",
     note_en="Sold inside the holding period → taxable gain"))
@@ -274,18 +301,20 @@ L.add("a-exchange-spot", tx(
     note_en="Example: not assigned yet — which buys leave here is decided solely by the manual assignment in the dialog"))
 
 # -------------------------------------------------- Börse / Sparplan (DCA)
-dca_prices = ["92000", "88000", "95000", "101000", "99000", "104000",
-              "112000", "108000", "115000", "121000", "118000", "124000"]
+# Twelve monthly executions; every other one records only the total, the way
+# half the exchange exports do.
 dca_ids = []
-for i, price in enumerate(dca_prices):
+for i in range(12):
     year = 2025 + (7 + i) // 12
     month = (7 + i) % 12 + 1
+    day = f"{year}-{month:02d}-01"
+    price, total = priced(day, "0.006")
     tid = f"k-dca-{i + 1}"
     dca_ids.append(tid)
     L.add("a-exchange-dca", tx(
-        tid, "buy", f"{year}-{month:02d}-01T06:30:00.000Z", "0.006",
+        tid, "buy", f"{day}T06:30:00.000Z", "0.006",
         price=price if i % 2 == 0 else None,
-        total=None if i % 2 == 0 else str(D(price) * d("0.006")),
+        total=None if i % 2 == 0 else total,
         fee_fiat="0.99",
         note_de="Sparplan-Ausführung",
         note_en="Savings plan execution"))
@@ -299,14 +328,16 @@ L.add("a-exchange-dca", tx(
     note_en="Savings-plan holdings to the hardware wallet — nine buys in one transaction (example without a recorded txid)"))
 
 # ------------------------------------------------------ Börse 2 (USDT)
+_price, _total = priced("2025-02-10", "0.04")
 L.add("a-exchange2-spot", tx(
-    "b-buy-1", "buy", "2025-02-10T13:20:00.000Z", "0.04", price="84500", total="3380",
-    orig=("USDT", "3600", "90000"), eur_source="binance-klines",
+    "b-buy-1", "buy", "2025-02-10T13:20:00.000Z", "0.04", price=_price, total=_total,
+    orig=("USDT", usd(_total), usd(_price)), eur_source="binance-klines",
     note_de="Kauf gegen USDT; EUR-Wert aus dem historischen Kurs ermittelt",
     note_en="Bought against USDT; EUR value derived from the historical rate"))
+_price, _total = priced("2025-08-15", "0.025")
 L.add("a-exchange2-spot", tx(
-    "b-buy-2", "buy", "2025-08-15T17:05:00.000Z", "0.025", price="95000", total="2375",
-    orig=("USDT", "2750", "110000"), eur_source="binance-klines",
+    "b-buy-2", "buy", "2025-08-15T17:05:00.000Z", "0.025", price=_price, total=_total,
+    orig=("USDT", usd(_total), usd(_price)), eur_source="binance-klines",
     note_de="Kauf gegen USDT",
     note_en="Bought against USDT"))
 L.add("a-exchange2-spot", tx(
@@ -357,7 +388,8 @@ L.add("a-software-hot", tx(
     note_de="Eingang von Börse 2",
     note_en="Received from exchange 2"))
 L.add("a-software-hot", tx(
-    "sp-in-invoice", "transfer_in", "2026-01-20T09:05:00.000Z", "0.005", price="104000",
+    "sp-in-invoice", "transfer_in", "2026-01-20T09:05:00.000Z", "0.005",
+    price=price_at("2026-01-20"),
     txid=TXID["ext"], address=ADDR["software"],
     note_de="Bezahlung eines Auftrags in BTC — externer Zugang mit bekanntem Gegenwert",
     note_en="An invoice paid in BTC — external receive with a known value"))
@@ -378,7 +410,8 @@ L.add("a-software-hot", tx(
     note_de="Externer Versand an eine fremde Adresse",
     note_en="External send to somebody else's address"))
 L.add("a-software-hot", tx(
-    "sp-spend", "spend", "2026-06-10T12:35:00.000Z", "0.0008", price="119000",
+    "sp-spend", "spend", "2026-06-10T12:35:00.000Z", "0.0008",
+    price=price_at("2026-06-10"),
     lots=[("sp-in-exchange2", "0.0008")],
     note_de="Mit BTC bezahlt (Hardware gekauft)",
     note_en="Paid with BTC (bought hardware)"))
@@ -446,8 +479,11 @@ def reserve(lots, day, count):
     return picked[:count]
 
 
-reserved_taxable = reserve(weekly, "2025-09-01", 2)   # sold in Nov 2025
-reserved_taxfree = reserve(weekly, "2025-04-01", 2)   # sold in June 2026
+# Bought where the market later rose, so "taxable gain" and "tax-free gain"
+# are what the disposals below actually are — against the real price history,
+# not against a story about it.
+reserved_taxable = reserve(weekly, "2025-04-07", 2)   # sold in July 2025
+reserved_taxfree = reserve(weekly, "2024-10-01", 2)   # sold in May 2026
 
 
 def sweep(out_id, in_id, account, target_account, lots, day, fee_btc, group,
@@ -530,12 +566,12 @@ def dispose(tid, kind, account, day, lots, *, fee_fiat=None, note_de="", note_en
 # Realised gains in two more tax years, so the exemption tracker and the
 # realised/unrealised split have something to report.
 dispose(
-    "r-sell-2025", "sell", "a-broker-weekly", "2025-11-14", reserved_taxable,
+    "r-sell-2025", "sell", "a-broker-weekly", "2025-07-14", reserved_taxable,
     fee_fiat="0.85",
     note_de="Verkauf innerhalb der Haltefrist — steuerpflichtiger Gewinn im Steuerjahr 2025",
     note_en="Sold inside the holding period — a taxable gain in the 2025 tax year")
 dispose(
-    "r-sell-2026", "sell", "a-broker-weekly", "2026-06-02", reserved_taxfree,
+    "r-sell-2026", "sell", "a-broker-weekly", "2026-05-04", reserved_taxfree,
     fee_fiat="0.90",
     note_de="Verkauf nach über einem Jahr Haltedauer — steuerfrei",
     note_en="Sold after more than a year — tax-free")
@@ -553,18 +589,20 @@ dispose(
 # ------------------------------------------- remaining documented cases
 # A buy settled in US dollars rather than USDT, so the "settled in another
 # currency" fields have an example of each shape (§3.2).
+_price, _total = priced("2026-02-11", "0.012")
 L.add("a-exchange2-spot", tx(
-    "b-buy-usd", "buy", "2026-01-08T11:12:00.000Z", "0.012",
-    price=price_at("2026-01-08"), total=eur("0.012", price_at("2026-01-08")),
-    orig=("USD", "1180", "98500"), eur_source="binance-klines",
+    "b-buy-usd", "buy", "2026-02-11T11:12:00.000Z", "0.012",
+    price=_price, total=_total,
+    orig=("USD", usd(_total), usd(_price)), eur_source="binance-klines",
     note_de="Kauf gegen USD; der EUR-Wert stammt aus dem Tageskurs, die Originalwährung ist nur Dokumentation",
     note_en="Bought against USD; the EUR value comes from that day's rate, the original currency is documentation only"))
 # …and a sale settled in a foreign currency, which the ledger books in EUR too.
+_price, _total = priced("2026-04-22", "0.012")
 L.add("a-exchange2-spot", tx(
     "b-sell-usd", "sell", "2026-04-22T09:30:00.000Z", "0.012",
-    price=price_at("2026-04-22"), total=eur("0.012", price_at("2026-04-22")),
+    price=_price, total=_total,
     fee_fiat="1.10", lots=[("b-buy-usd", "0.012")],
-    orig=("USDT", "1420", "118000"), eur_source="binance-klines",
+    orig=("USDT", usd(_total), usd(_price)), eur_source="binance-klines",
     note_de="Verkauf gegen USDT innerhalb der Haltefrist — steuerpflichtig, Bewertung in EUR",
     note_en="Sold against USDT inside the holding period — taxable, valued in EUR"))
 
