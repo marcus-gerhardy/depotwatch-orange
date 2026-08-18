@@ -5,6 +5,7 @@ import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
+import { useLeaveReadOnly } from "@/lib/readOnly";
 import dynamic from "next/dynamic";
 import AutoLock from "./AutoLock";
 import Celebration from "./Celebration";
@@ -22,8 +23,9 @@ import SettingsView, { type SettingsSection } from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
-import { DownloadIcon, FlaskIcon, LockIcon, MenuIcon, UnlockIcon } from "./icons";
+import { DownloadIcon, EyeIcon, FlaskIcon, LockIcon, MenuIcon, UnlockIcon } from "./icons";
 import BrandMark from "./BrandMark";
+import ReadOnlyToast from "./ReadOnlyToast";
 
 /**
  * The help carries its whole content (both languages, ~170 kB) and is opened
@@ -119,6 +121,48 @@ function HelpHeaderButton() {
 }
 
 /**
+ * Read-only (§6.7): the badge that says so, and the way back to editing.
+ *
+ * Deliberately loud. A locked app that looks like a normal one reads as a
+ * broken one — every button doing nothing is exactly what a defect looks
+ * like — so the state is named where the file is named, in the accent colour,
+ * and the way out sits in it. Going *into* the mode is one click; coming out
+ * asks, because it is the click that puts the file at risk again.
+ */
+function ReadOnlyControl() {
+  const { t } = useI18n();
+  const readOnly = useAppStore((s) => s.readOnly);
+  const setReadOnly = useAppStore((s) => s.setReadOnly);
+  const leave = useLeaveReadOnly();
+
+  if (!readOnly) {
+    return (
+      <button
+        onClick={() => setReadOnly(true)}
+        title={t("readOnly.enableTitle")}
+        aria-label={t("readOnly.enable")}
+        aria-pressed={false}
+        className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:text-foreground"
+      >
+        <EyeIcon />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={leave}
+      title={`${t("readOnly.badgeTitle")}\n${t("readOnly.disable")}`}
+      aria-pressed
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-warning/50 bg-warning/10 px-2 py-1.5 text-xs font-semibold text-warning transition-colors hover:bg-warning/20"
+    >
+      <LockIcon />
+      <span className="hidden sm:inline">{t("readOnly.badge")}</span>
+    </button>
+  );
+}
+
+/**
  * Lock now (§6.4). Disabled on an unencrypted file, where it says why: there
  * is no password to lock it with, and a button that pretended otherwise would
  * be worse than one that is honestly out of order.
@@ -174,6 +218,7 @@ export default function AppShell() {
   const saveNow = useAppStore((s) => s.saveNow);
   const closePortfolio = useAppStore((s) => s.closePortfolio);
   const needsFileSetup = useAppStore((s) => s.needsFileSetup);
+  const readOnly = useAppStore((s) => s.readOnly);
   const portfolio = useAppStore((s) => s.portfolio);
   const fileName = useAppStore((s) => s.fileName);
 
@@ -247,6 +292,7 @@ export default function AppShell() {
       <AutoLock />
       <HelpPanel />
       <Toast message={toast} onDone={() => setToast(null)} />
+      <ReadOnlyToast />
       <MilestoneToast />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-3 sm:px-4">
@@ -293,6 +339,7 @@ export default function AppShell() {
                 <HelpHeaderButton />
               </span>
               <LockButton onLock={lockManually} />
+              <ReadOnlyControl />
               {/* Drawn, not an emoji: at this size the emoji eye rendered as a
                   few grey pixels, and its look depended on the platform's
                   emoji font rather than on the theme. */}
@@ -326,7 +373,7 @@ export default function AppShell() {
                   wrapped lines it made the header twice as tall and pushed the
                   file indicator off the edge. The icon carries it, and the
                   accessible name stays whatever the label said. */}
-              {needsFileSetup && (
+              {needsFileSetup && !readOnly && (
                 <Button
                   variant="primary"
                   onClick={() => setFileSetupOpenedManually(true)}
@@ -337,7 +384,7 @@ export default function AppShell() {
                   <FlaskIcon /> <span className="hidden md:inline">{t("nav.setUpFile")}</span>
                 </Button>
               )}
-              {!needsFileSetup && fileMode === "fallback" && (
+              {!needsFileSetup && !readOnly && fileMode === "fallback" && (
                 <Button
                   variant={dirty ? "primary" : "default"}
                   onClick={() => saveNow()}

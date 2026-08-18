@@ -499,6 +499,7 @@ The **BTC display unit** (§6.3) is deliberately *not* one of these: it is a rea
 - Autosave behavior (interval/debounce in File System Access API mode)
 - Backups: folder, trigger, retention and the reminder span (§6.5); plus the change history with its undo (§6.6)
 - Auto-lock on inactivity (§6.4): after 1, 5, 15 or 30 minutes, or never; plus "lock as soon as the tab is hidden" and whether the lock screen may show the file name
+- Read-only mode (§6.7): open a file to look at rather than to work in, switchable while it is open
 
 ### 6.4 Auto-Lock
 
@@ -552,6 +553,22 @@ Separate from the backups and deliberately not a disaster measure: the file keep
 
 **Bounded in three directions**, so the file cannot grow without limit: 50 entries; an entry keeps its undo payload only while that payload is small (`MAX_UNDO_TRANSACTIONS`, 100); and only the **10 newest** entries keep a payload at all (`UNDOABLE_ENTRIES`) — fifty entries each carrying a hundred transactions would be megabytes inside the file, and nobody reaches for an undo of the fortieth-last action. Older entries stay in the log as a record without their payload. A bulk action over hundreds of rows is *recorded* so it can be understood, but not *reversible*, and the settings say which is which. An import needs no payload at all — it already carries `importBatchId` on every row it wrote and has its own undo (§3.4). Applying an undo is idempotent about what it cannot find: a transaction deleted by hand since is not removed twice, an account that no longer exists drops its restores and is reported as skipped rather than invented.
 
+
+### 6.7 Read-Only Mode
+
+A portfolio can be opened to be looked at rather than worked in: read, filtered, analysed, exported — and not changed. It exists for the cases where an edit is not merely unwanted but harmful: a file in a synced folder that must come out of a visit with its timestamp untouched, an archived year, somebody else's file over their shoulder, a backup one wants to compare against.
+
+**The lock is in the store, not in the buttons** (`refuseWrite()` in `lib/store.ts`). Every change to the portfolio goes through `mutate` and every write to disk through `persist`, so shutting those two doors covers the whole app — including the paths no button leads to: a keyboard shortcut, a dialog that was already open when the mode went on, code written next year that forgets there is a mode. Disabled controls are the *second* layer, for understanding rather than for safety, and a refused write that got past them says so in a toast that carries the way out ("enable editing"). A mode that only hid controls would not be a mode, it would be a suggestion.
+
+**Nothing is written, and that includes the autosave.** `scheduleAutosave()` never even arms its timer, so a file in a synced folder is not re-uploaded because somebody looked at it. Backups are writes too and are refused with a reason of their own (`readOnly`), as is a password change.
+
+**What still works** is everything that only reads: views, filters, sorting, search, the origin expander, the tax view and its CSV export (an export writes a *new* file), the year in review and its image, milestones, the help. Milestone *evaluation* also still runs — it is the result that is not written; an event milestone raised here goes into the waiting queue of §5.2 instead and lands in the next file opened for editing.
+
+**How the app is arranged is not a change to the file** (`mutateDisplay`): theme, language, display currency, the dashboard layout and the table columns still take effect for the session. Read-only stops the file from being touched, not the app from being used. They are applied in memory, never marked dirty and never saved — and leaving the mode does not save them retroactively either, because nothing was kept as pending.
+
+**Getting in and out.** The open dialog offers "open for viewing only" before the file is picked; the header carries an eye that switches into the mode and, in it, a "read-only" badge in the warning colour that switches back. Going in is one click, coming out asks — it is the click that puts the file at risk again. A backup opened from the backups view (§6.5) is *always* read-only: it is a copy of a past state being looked at, and it must not be able to become the working file by accident. The mode is **session state** and is never written into the portfolio; what *is* remembered, per file name and in `localStorage` (`lib/readOnlyFiles.ts`), is whether a file should open this way by default — a property of this device's habits, not of the portfolio.
+
+Everything else keeps working unchanged: the auto-lock (§6.4) still counts down and still locks, and unlocking returns to the same read-only session.
 
 ## 7. Tech Stack
 

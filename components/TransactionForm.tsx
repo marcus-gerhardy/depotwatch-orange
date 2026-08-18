@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n, intlLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useReadOnly } from "@/lib/readOnly";
 import {
   btcString,
   dec,
@@ -93,6 +94,7 @@ export default function TransactionForm({
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
+  const locked = useReadOnly();
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
 
@@ -1110,14 +1112,17 @@ export default function TransactionForm({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border-c pt-3">
-          <Button type="submit" variant="primary">
+          {/* The store refuses the save either way (§6.7); this is what makes
+              the dialog honest about it — a transaction can still be read here
+              in read-only mode, which is the point. */}
+          <Button type="submit" variant="primary" {...locked.props}>
             {t("common.save")}
           </Button>
           <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>
           {existing && onDelete && (
-            <Button variant="danger" className="ml-auto" onClick={onDelete}>
+            <Button variant="danger" className="ml-auto" {...locked.props} onClick={onDelete}>
               {t("common.delete")}
             </Button>
           )}

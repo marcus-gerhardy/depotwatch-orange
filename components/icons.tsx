@@ -282,6 +282,16 @@ export function UploadIcon({ className = "" }: { className?: string }) {
   return <InlineIcon className={className}>{OUTBOX}</InlineIcon>;
 }
 
+/** Looking, not touching: the read-only mode (§6.7). */
+export function EyeIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.6" />
+    </InlineIcon>
+  );
+}
+
 /** The file is encrypted, or the preset cannot be changed. */
 export function LockIcon({ className = "" }: { className?: string }) {
   return <InlineIcon className={className}>{PADLOCK}</InlineIcon>;

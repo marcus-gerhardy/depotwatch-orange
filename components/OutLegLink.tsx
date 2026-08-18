@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useI18n, intlLocale, formatDate, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useReadOnly } from "@/lib/readOnly";
 import { dec, formatBtc } from "@/lib/decimal";
 import {
   amountDifference,
@@ -45,6 +46,7 @@ export default function OutLegLink({
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
   const update = useAppStore((s) => s.update);
+  const locked = useReadOnly();
   const [picking, setPicking] = useState(false);
 
   const linked = useMemo(
@@ -84,7 +86,7 @@ export default function OutLegLink({
             </div>
           </dl>
           <div className="flex flex-wrap gap-2">
-            <Button variant="danger" onClick={() => update((p) => unlinkTransferLeg(p, entry.id))}>
+            <Button variant="danger" {...locked.props} onClick={() => update((p) => unlinkTransferLeg(p, entry.id))}>
               {t("tx.outLeg.unlink")}
             </Button>
             {onJump && (
@@ -97,7 +99,7 @@ export default function OutLegLink({
       ) : (
         <>
           <p className="text-xs text-muted">{t("tx.outLeg.none")}</p>
-          <Button variant="primary" onClick={() => setPicking(true)}>
+          <Button variant="primary" {...locked.props} onClick={() => setPicking(true)}>
             {t("tx.outLeg.assign")}
           </Button>
         </>
@@ -197,6 +199,7 @@ export function OutLegPicker({
   const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
   const update = useAppStore((s) => s.update);
+  const locked = useReadOnly();
 
   const [filter, setFilter] = useState<CandidateFilter>({});
   const [query, setQuery] = useState("");
@@ -510,7 +513,7 @@ export function OutLegPicker({
           <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" disabled={!selected} onClick={assign}>
+          <Button variant="primary" title={locked.props.title} disabled={locked.readOnly || !selected} onClick={assign}>
             {t("tx.outLeg.confirm")}
           </Button>
         </div>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useLeaveReadOnly, useReadOnly } from "@/lib/readOnly";
+import { opensReadOnly, rememberReadOnly } from "@/lib/readOnlyFiles";
 import ImportBatches from "./ImportBatches";
 import ImportPresetsView from "./ImportPresetsView";
 import BackupsView from "./BackupsView";
@@ -59,6 +61,28 @@ const SECTIONS: { id: SettingsSection; taxOnly?: boolean }[] = [
   { id: "explorer" },
 ];
 
+/**
+ * Everything inside is a change to the file, so in read-only mode it is
+ * disabled wholesale: a disabled `fieldset` disables every control in it,
+ * which is what makes covering a whole group of settings affordable. The lock
+ * itself is in the store (§6.7); this only makes it legible.
+ */
+function Locked({
+  children,
+  disabled,
+  reason,
+}: {
+  children: React.ReactNode;
+  disabled: boolean;
+  reason: string;
+}) {
+  return (
+    <fieldset className="contents" disabled={disabled} title={disabled ? reason : undefined}>
+      {children}
+    </fieldset>
+  );
+}
+
 export default function SettingsView({
   initialSection,
 }: {
@@ -72,6 +96,14 @@ export default function SettingsView({
   const sections = SECTIONS.filter((s) => !s.taxOnly || TAX_FEATURES_ENABLED);
   const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
+  const fileName = useAppStore((s) => s.fileName);
+  const readOnly = useAppStore((s) => s.readOnly);
+  const setReadOnly = useAppStore((s) => s.setReadOnly);
+  const leaveReadOnly = useLeaveReadOnly();
+  const locked = useReadOnly();
+  // Read once: the switch below is what changes it, and re-reading storage on
+  // every render would fight the click that just wrote it.
+  const [rememberThisFile, setRememberThisFile] = useState(() => opensReadOnly(fileName));
   const update = useAppStore((s) => s.update);
   const setPassword = useAppStore((s) => s.setPassword);
   const setUiLocale = useAppStore((s) => s.setUiLocale);
@@ -184,6 +216,7 @@ export default function SettingsView({
                   </Field>
                 </div>
               </Card>
+              <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
               <Card className="space-y-3">
                 <SectionTitle level={2}>{t("settings.autosave")}</SectionTitle>
                 <Field label={t("settings.autosaveDebounce")}>
@@ -200,6 +233,7 @@ export default function SettingsView({
                 </Field>
                 <p className="text-xs text-muted">{t("settings.autosaveNote")}</p>
               </Card>
+              </Locked>
             </>
           )}
 
@@ -304,6 +338,42 @@ export default function SettingsView({
 
           {section === "security" && (
             <>
+              {/* First in the group: it decides whether anything below it can
+                  be changed at all (§6.7). */}
+              <Card className="space-y-3">
+                <SectionTitle level={2}>{t("readOnly.settingsTitle")}</SectionTitle>
+                <label className="flex cursor-pointer items-start gap-3">
+                  <Switch
+                    checked={readOnly}
+                    onChange={(on) => (on ? setReadOnly(true) : leaveReadOnly())}
+                    label={t("readOnly.settingsTitle")}
+                  />
+                  <span className="text-sm">
+                    {t("readOnly.settingsState")}:{" "}
+                    <span className={readOnly ? "text-warning" : "text-gain"}>
+                      {readOnly ? t("readOnly.stateOn") : t("readOnly.stateOff")}
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted">
+                      {t("readOnly.settingsBody")}
+                    </span>
+                  </span>
+                </label>
+                {/* A device preference, per file name — it never travels with
+                    the portfolio (lib/readOnlyFiles.ts). */}
+                {fileName && (
+                  <label className="flex cursor-pointer items-center gap-3 text-sm">
+                    <Switch
+                      checked={rememberThisFile}
+                      onChange={(on) => {
+                        rememberReadOnly(fileName, on);
+                        setRememberThisFile(on);
+                      }}
+                      label={t("readOnly.rememberFile")}
+                    />
+                    <span>{t("readOnly.rememberFile")}</span>
+                  </label>
+                )}
+              </Card>
               <Card className="space-y-3">
                 <SectionTitle level={2}>{t("settings.security")}</SectionTitle>
                 <p className="text-sm">
@@ -325,7 +395,8 @@ export default function SettingsView({
                     </p>
                     <Button
                       variant="primary"
-                      disabled={backupBusy || backupDirStatus !== "granted"}
+                      title={locked.props.title}
+                      disabled={locked.readOnly || backupBusy || backupDirStatus !== "granted"}
                       onClick={() => void runBackup({ manual: true }).then(() => setPwChanged(false))}
                     >
                       {t("settings.backupWithNewPassword")}
@@ -333,7 +404,7 @@ export default function SettingsView({
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={() => setPwModal(true)}>
+                  <Button {...locked.props} onClick={() => setPwModal(true)}>
                     {encryptionEnabled
                       ? t("settings.changePassword")
                       : t("settings.enableEncryption")}
@@ -341,6 +412,7 @@ export default function SettingsView({
                   {encryptionEnabled && (
                     <Button
                       variant="danger"
+                      {...locked.props}
                       onClick={() => {
                         if (confirm(t("settings.disableEncryptionConfirm"))) {
                           setPassword(null);
@@ -359,6 +431,7 @@ export default function SettingsView({
                     : t("settings.fileModeFallback")}
                 </p>
               </Card>
+              <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
               <Card className="space-y-3">
                 <SectionTitle level={2}>{t("settings.lock")}</SectionTitle>
                 {/* Said before anything can be configured: without a password there is
@@ -412,6 +485,7 @@ export default function SettingsView({
                 </label>
                 <p className="text-xs leading-relaxed text-muted">{t("settings.lockHint")}</p>
               </Card>
+              </Locked>
             </>
           )}
 
@@ -514,7 +588,7 @@ export default function SettingsView({
           )}
 
           {section === "history" && (
-            <>
+            <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
               <Card className="space-y-3">
                 <SectionTitle level={2}>{t("settings.changeLog")}</SectionTitle>
                 <p className="text-xs leading-relaxed text-muted">{t("settings.changeLogHint")}</p>
@@ -545,11 +619,11 @@ export default function SettingsView({
                   </ul>
                 )}
               </Card>
-            </>
+            </Locked>
           )}
 
           {section === "import" && (
-            <>
+            <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
               <Card className="space-y-3">
                 <SectionTitle level={2}>{t("settings.importSettings")}</SectionTitle>
                 <Field label={t("settings.duplicateTolerance")}>
@@ -574,11 +648,11 @@ export default function SettingsView({
               </Card>
               <ImportPresetsView />
               <ImportBatches />
-            </>
+            </Locked>
           )}
 
           {section === "tax" && (
-            <>
+            <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
               {TAX_FEATURES_ENABLED && (
                 <Card className="space-y-3">
                   <SectionTitle level={2}>{t("settings.taxSettings")}</SectionTitle>
@@ -624,11 +698,11 @@ export default function SettingsView({
                   </p>
                 </Card>
               )}
-            </>
+            </Locked>
           )}
 
           {section === "explorer" && (
-            <>
+            <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
               <Card className="space-y-3">
                 <SectionTitle level={2}>{t("settings.explorer")}</SectionTitle>
                 <Field label={t("settings.explorer")}>
@@ -676,7 +750,7 @@ export default function SettingsView({
                   {t("settings.explorerPrivacyNote")}
                 </p>
               </Card>
-            </>
+            </Locked>
           )}
         </div>
       </div>

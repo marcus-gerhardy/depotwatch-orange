@@ -168,6 +168,30 @@ interface AppState {
    */
   milestoneQueue: MilestoneRecord[];
 
+  /**
+   * Read-only: the portfolio can be looked at but not changed (§6.7).
+   *
+   * Session state on purpose — it is a property of *this* visit, not of the
+   * portfolio, so it is never written into the file. It is enforced in the
+   * store rather than by hiding buttons: `mutate` and `persist` are the two
+   * doors every change goes through, and both are shut here.
+   */
+  readOnly: boolean;
+  /**
+   * When a write was last refused, so the UI can say so. A timestamp rather
+   * than a flag: two refusals in a row are two things to say, and a flag would
+   * already be true for the second.
+   */
+  readOnlyBlockedAt: number | null;
+  /** Enter or leave read-only mode (the UI asks before leaving it). */
+  setReadOnly: (on: boolean) => void;
+  /**
+   * Open a backup as a portfolio to look at (§6.5/§6.7). Always read-only: a
+   * backup is a copy of a past state, and the app has no destination to write
+   * it back to — editing it would produce a second, competing file.
+   */
+  openBackupForViewing: (fileName: string, password: string) => Promise<boolean>;
+
   // UI state (not persisted)
   privacyMode: boolean;
   /**
@@ -214,6 +238,8 @@ interface AppState {
     isDemo?: boolean;
     /** Opened despite a failed checksum (§6.5) — the app keeps saying so. */
     integrityWarning?: IntegrityResult;
+    /** Open it to look at, not to work in (§6.7). */
+    readOnly?: boolean;
   }) => void;
   closePortfolio: () => void;
   togglePrivacyMode: () => void;
@@ -384,7 +410,9 @@ export interface BackupRunResult {
     | "writeFailed"
     | "verifyFailed"
     | "permission"
-    | "wrongPassword";
+    | "wrongPassword"
+    /** The portfolio is open read-only, so nothing may be written (§6.7). */
+    | "readOnly";
   /** How many old backups the rotation removed. */
   pruned?: number;
   /** The rotation refused to remove anything (nothing verified would remain). */
@@ -612,6 +640,9 @@ export const useAppStore = create<AppState>((set, get) => {
   }
 
   async function persist(): Promise<void> {
+    // Not even a byte, and not even the file's timestamp: a portfolio in a
+    // synced folder must come out of a read-only visit untouched (§6.7).
+    if (get().readOnly) return;
     const { portfolio, password, encryptionEnabled } = get();
     if (!portfolio) return;
     // The backup goes first, so the state it records travels into this same
@@ -659,7 +690,8 @@ export const useAppStore = create<AppState>((set, get) => {
   }
 
   function scheduleAutosave() {
-    const { fileMode, fileHandle, portfolio } = get();
+    const { fileMode, fileHandle, portfolio, readOnly } = get();
+    if (readOnly) return; // no autosave, no timer, nothing pending
     if (fileMode !== "fsa" || !fileHandle || !portfolio) return;
     if (autosaveTimer) clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(() => {
@@ -699,6 +731,9 @@ export const useAppStore = create<AppState>((set, get) => {
     );
     const { milestones, newlyAchieved } = evaluateMilestones(ctx, p.milestones ?? []);
     if (newlyAchieved.length === 0) return { portfolio: p, newly: [] };
+    // The evaluation runs in read-only mode, its result is simply not written:
+    // a milestone is a record in the file, and this visit does not write one.
+    if (get().readOnly) return { portfolio: p, newly: [] };
     return {
       portfolio: {
         ...p,
@@ -743,6 +778,25 @@ export const useAppStore = create<AppState>((set, get) => {
   };
 
   /**
+   * **The one place that says no** (§6.7).
+   *
+   * Read-only is enforced here rather than by disabling buttons: every change
+   * to the portfolio goes through `mutate` and every write to disk through
+   * `persist`, so shutting those two doors covers the whole app — including
+   * the paths no button leads to (a keyboard shortcut, a stale dialog, code
+   * written next year). Disabled controls are the second layer, for
+   * understanding, not the lock itself.
+   *
+   * `quiet` is for the writes the user did not ask for — a dismissed hint, a
+   * celebration flag. Refusing those is right; announcing them is noise.
+   */
+  const refuseWrite = ({ quiet = false }: { quiet?: boolean } = {}): boolean => {
+    if (!get().readOnly) return false;
+    if (!quiet) set({ readOnlyBlockedAt: Date.now() });
+    return true;
+  };
+
+  /**
    * Apply a change. `change` records it in the file's change log (§6.6) — the
    * entry is *derived by diffing* rather than described by the caller, so an
    * undo also reverses what the action did on the side (a deletion drops lot
@@ -751,7 +805,9 @@ export const useAppStore = create<AppState>((set, get) => {
   const mutate = (
     fn: (p: PortfolioFile) => PortfolioFile,
     change?: { kind: ChangeKind; note?: string },
+    { quiet = false }: { quiet?: boolean } = {},
   ) => {
+    if (refuseWrite({ quiet })) return;
     const p = get().portfolio;
     if (!p) return;
     let next = fn(p);
@@ -774,6 +830,28 @@ export const useAppStore = create<AppState>((set, get) => {
     scheduleAutosave();
   };
 
+  /**
+   * A change to how the portfolio is *shown*: theme, language, display
+   * currency, dashboard layout, table columns.
+   *
+   * Read-only stops the file from being touched, not the app from being used,
+   * so these still take effect — but only for this session. They are applied
+   * in memory, never marked dirty and never saved, and leaving the mode does
+   * not save them afterwards either, because nothing was kept as pending
+   * (§6.7).
+   */
+  const mutateDisplay = (fn: (p: PortfolioFile) => PortfolioFile) => {
+    if (!get().readOnly) return mutate(fn);
+    const p = get().portfolio;
+    if (!p) return;
+    const next = fn(p);
+    if (next !== p) set({ portfolio: next });
+  };
+
+  /** A write the user did not ask for (a dismissed hint, a celebration flag). */
+  const mutateQuiet = (fn: (p: PortfolioFile) => PortfolioFile) =>
+    mutate(fn, undefined, { quiet: true });
+
   const mapWallets = (
     p: PortfolioFile,
     fn: (w: Wallet) => Wallet | null,
@@ -795,6 +873,8 @@ export const useAppStore = create<AppState>((set, get) => {
     lastSavedAt: null,
     needsFileSetup: false,
     fileSetupRequested: false,
+    readOnly: false,
+    readOnlyBlockedAt: null,
     locked: false,
     lockedPayload: null,
     lockedFileName: null,
@@ -829,9 +909,10 @@ export const useAppStore = create<AppState>((set, get) => {
       const appearance = { ...get().appearance, ...patch };
       storeAppearance(appearance);
       set({ appearance });
-      // Keep the open file in sync: uiSettings is what travels with it.
+      // Keep the open file in sync: uiSettings is what travels with it. In
+      // read-only mode the appearance still changes, it is just not written.
       if (!get().portfolio) return;
-      mutate((p) => ({
+      mutateDisplay((p) => ({
         ...p,
         uiSettings: {
           ...p.uiSettings,
@@ -850,11 +931,19 @@ export const useAppStore = create<AppState>((set, get) => {
       // Keep the open file in sync: its settings.locale stays the value that
       // travels with the portfolio.
       if (get().portfolio?.settings.locale !== locale) {
-        mutate((p) => ({ ...p, settings: { ...p.settings, locale } }));
+        mutateDisplay((p) => ({ ...p, settings: { ...p.settings, locale } }));
       }
     },
 
-    openPortfolio: ({ portfolio, handle, fileName, password, isDemo, integrityWarning }) => {
+    openPortfolio: ({
+      portfolio,
+      handle,
+      fileName,
+      password,
+      isDemo,
+      integrityWarning,
+      readOnly = false,
+    }) => {
       // The file's own language and appearance win on open and become the
       // device defaults; whatever a file does not say keeps its current value,
       // so an older file simply carries less over.
@@ -866,10 +955,13 @@ export const useAppStore = create<AppState>((set, get) => {
       const lockSettings = lockSettingsOf(portfolio, get().lockSettings);
       storeLockSettings(lockSettings);
       set({
-        // The runtime facts a milestone may read have to be in place first.
+        // The runtime facts a milestone may read have to be in place first —
+        // including whether this visit may write anything at all (§6.7).
         encryptionEnabled: password !== null,
         fileName,
         lastSavedAt: null,
+        readOnly,
+        readOnlyBlockedAt: null,
       });
       // Time-based milestones only ever become true by waiting, so opening a
       // file is the moment to look. A file that carries no history yet is
@@ -879,7 +971,9 @@ export const useAppStore = create<AppState>((set, get) => {
       });
       // What happened before this file was open (the whitepaper, §5.2) — never
       // silent, because it was genuinely reached rather than discovered.
-      const pending = withPendingEvents(evaluated.portfolio, { canPersist: !isDemo });
+      const pending = withPendingEvents(evaluated.portfolio, {
+        canPersist: !isDemo && !readOnly,
+      });
       set({
         portfolio: pending.portfolio,
         milestoneQueue: [...evaluated.newly, ...pending.newly],
@@ -892,6 +986,7 @@ export const useAppStore = create<AppState>((set, get) => {
         dirty: pending.newly.length > 0,
         lastSavedAt: null,
         needsFileSetup: !!isDemo,
+        readOnly,
         integrityWarning: integrityWarning ?? null,
         uiLocale: portfolio.settings.locale,
         appearance,
@@ -917,6 +1012,8 @@ export const useAppStore = create<AppState>((set, get) => {
         encryptionEnabled: true,
         dirty: false,
         needsFileSetup: false,
+        readOnly: false,
+        readOnlyBlockedAt: null,
         privacyMode: false,
         helpTarget: null,
         // Closing from the lock screen has to drop the ciphertext too, or the
@@ -932,10 +1029,37 @@ export const useAppStore = create<AppState>((set, get) => {
 
     togglePrivacyMode: () => set((s) => ({ privacyMode: !s.privacyMode })),
 
+    /**
+     * Read-only is a session state, so this is all there is to it: nothing is
+     * written when it goes on, and nothing is written when it goes off either
+     * — what was changed for the session while it was on (theme, layout,
+     * columns) stays a session change rather than being saved retroactively.
+     */
+    setReadOnly: (on) => set({ readOnly: on, readOnlyBlockedAt: null }),
+
+    openBackupForViewing: async (fileName, password) => {
+      try {
+        const { portfolio } = await get().readBackup(fileName, password);
+        get().openPortfolio({
+          portfolio,
+          // No handle, and no "choose a location" step either: this is a copy
+          // of a past state being looked at, not a file being worked in.
+          handle: null,
+          fileName,
+          password: password === "" ? null : password,
+          readOnly: true,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
     openHelp: (target) => set({ helpTarget: target }),
     closeHelp: () => set({ helpTarget: null }),
 
     setPassword: (password) => {
+      if (refuseWrite()) return;
       set({ password, encryptionEnabled: password !== null, dirty: true });
       scheduleAutosave();
     },
@@ -1126,7 +1250,9 @@ export const useAppStore = create<AppState>((set, get) => {
       // No file open — the whitepaper is read from a page one visits *before*
       // opening one (§5.2). The event waits in localStorage and is written
       // into the next file that is opened, with the time it happened.
-      if (!p) {
+      // No file — or one this visit may not write to (§6.7). Either way the
+      // event waits in localStorage; it is device state, not the file's.
+      if (!p || get().readOnly) {
         queuePendingMilestone(id);
         return;
       }
@@ -1143,7 +1269,8 @@ export const useAppStore = create<AppState>((set, get) => {
     clearMilestoneQueue: () => {
       const p = get().portfolio;
       set({ milestoneQueue: [] });
-      if (!p) return;
+      // Acknowledging is a write; the notification is still dismissed.
+      if (!p || get().readOnly) return;
       const milestones = acknowledgeAll(p.milestones ?? []);
       // Same list back when there was nothing to acknowledge: seeing a toast
       // must not be able to dirty the file on its own.
@@ -1162,35 +1289,35 @@ export const useAppStore = create<AppState>((set, get) => {
       })),
 
     saveDashboardLayout: (layout) =>
-      mutate((p) =>
+      mutateDisplay((p) =>
         sameJson(p.uiSettings?.dashboardLayout, layout)
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, dashboardLayout: layout } },
       ),
 
     saveTransactionColumns: (columns) =>
-      mutate((p) =>
+      mutateDisplay((p) =>
         sameJson(p.uiSettings?.transactionColumns, columns)
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, transactionColumns: columns } },
       ),
 
     setWholecoinerCelebrated: () =>
-      mutate((p) =>
+      mutateQuiet((p) =>
         p.uiSettings?.wholecoinerCelebrated
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, wholecoinerCelebrated: true } },
       ),
 
     setLaserEyes: (on) =>
-      mutate((p) =>
+      mutateQuiet((p) =>
         (p.uiSettings?.laserEyes ?? false) === on
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, laserEyes: on } },
       ),
 
     dismissYearInReview: (year) =>
-      mutate((p) => {
+      mutateQuiet((p) => {
         const seen = p.uiSettings?.yearInReviewDismissed ?? [];
         return seen.includes(year)
           ? p
@@ -1350,6 +1477,7 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     runBackup: async (o = {}) => {
+      if (refuseWrite()) return { ok: false, error: "readOnly" };
       const p = get().portfolio;
       if (!p) return { ok: false, error: "noPortfolio" };
       if (!backupDir) {
@@ -1449,6 +1577,7 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     downloadBackup: async () => {
+      if (refuseWrite()) return;
       const p = get().portfolio;
       if (!p) return;
       const content = await fileContentOf(p, get().password);
@@ -1487,6 +1616,7 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     restoreBackup: async (fileName, password) => {
+      if (refuseWrite()) return { ok: false, error: "readOnly" };
       const current = get().portfolio;
       if (!current) return { ok: false, error: "noPortfolio" };
       let restored: PortfolioFile;

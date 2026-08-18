@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useReadOnly } from "@/lib/readOnly";
 import { formatInt } from "@/lib/decimal";
 import { backupMetaOf, type BackupEntry, type BackupMeta } from "@/lib/backup";
 import { supportsBackupDirectory } from "@/lib/backupStorage";
@@ -59,6 +60,9 @@ export default function BackupsView({
   const listBackups = useAppStore((s) => s.listBackups);
   const readBackup = useAppStore((s) => s.readBackup);
   const restoreBackup = useAppStore((s) => s.restoreBackup);
+  const openBackupForViewing = useAppStore((s) => s.openBackupForViewing);
+  const dirty = useAppStore((s) => s.dirty);
+  const locked = useReadOnly();
   const lastRun = useAppStore((s) => s.lastBackupRun);
 
   const [entries, setEntries] = useState<BackupEntry[] | null>(null);
@@ -98,6 +102,16 @@ export default function BackupsView({
       setRows((r) => ({ ...r, [entry.fileName]: { error: "password" } }));
       return null;
     }
+  }
+
+  /**
+   * Open a backup to look at. Read-only, so the file it came from is not
+   * touched and this copy cannot quietly become the working file.
+   */
+  async function viewBackup(entry: BackupEntry) {
+    if (dirty && !confirm(t("readOnly.viewBackupUnsaved"))) return;
+    const ok = await openBackupForViewing(entry.fileName, password);
+    if (!ok) setRows((r) => ({ ...r, [entry.fileName]: { error: "password" } }));
   }
 
   async function startRestore(entry: BackupEntry) {
@@ -159,10 +173,12 @@ export default function BackupsView({
           <p className="text-sm leading-relaxed">{t("backups.noFolder")}</p>
           <p className="text-xs leading-relaxed text-muted">{t("backups.folderHint")}</p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" onClick={() => void connect()}>
+            <Button variant="primary" {...locked.props} onClick={() => void connect()}>
               {t("backups.chooseFolder")}
             </Button>
-            <Button onClick={() => void downloadBackup()}>{t("backups.download")}</Button>
+            <Button {...locked.props} onClick={() => void downloadBackup()}>
+              {t("backups.download")}
+            </Button>
           </div>
         </Card>
       ) : (
@@ -178,7 +194,8 @@ export default function BackupsView({
                 </Button>
               )}
               <Button
-                disabled={busy || status !== "granted"}
+                title={locked.props.title}
+                disabled={locked.readOnly || busy || status !== "granted"}
                 onClick={() => void runBackup({ manual: true }).then(refresh)}
               >
                 {busy ? t("backups.running") : t("backups.backupNow")}
@@ -298,9 +315,21 @@ export default function BackupsView({
                             </Button>
                           )}
                         </td>
-                        <td className="py-2 text-right">
+                        <td className="py-2 text-right whitespace-nowrap">
+                          {/* Looking at an old state is not restoring it, and
+                              it must not be able to become one by accident: a
+                              backup opens read-only, always (§6.7). */}
                           <Button
+                            variant="ghost"
                             disabled={password === ""}
+                            title={t("readOnly.viewBackupHint")}
+                            onClick={() => void viewBackup(e)}
+                          >
+                            {t("readOnly.viewBackup")}
+                          </Button>
+                          <Button
+                            {...locked.props}
+                            disabled={locked.readOnly || password === ""}
                             onClick={() => void startRestore(e)}
                           >
                             {t("backups.restore")}

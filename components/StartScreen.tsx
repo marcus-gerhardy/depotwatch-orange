@@ -7,6 +7,7 @@ import { useAppStore, deserializePortfolio } from "@/lib/store";
 import { isEncryptedEnvelope, WrongPasswordError } from "@/lib/crypto";
 import { FileIntegrityError, FileUnreadableError } from "@/lib/integrity";
 import { pickFileForOpen } from "@/lib/fileStorage";
+import { opensReadOnly, rememberReadOnly } from "@/lib/readOnlyFiles";
 import type { PortfolioFile } from "@/lib/types";
 import { staticPagePath } from "@/lib/routes";
 import { Button, Card, inputCls } from "./ui";
@@ -78,6 +79,13 @@ export default function StartScreen() {
   }
 
   const [stage, setStage] = useState<Stage>({ kind: "home" });
+  /**
+   * Open the next file to look at rather than to work in (§6.7). Asked
+   * *before* the file is picked, because that is when the decision is made —
+   * and ticked on its own for a file this browser already knows as one to
+   * leave alone (lib/readOnlyFiles.ts).
+   */
+  const [viewOnly, setViewOnly] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,11 +96,38 @@ export default function StartScreen() {
     setStage({ kind: "home" });
   }
 
+  /** The read-only choice, shown wherever a file is about to be opened. */
+  function viewOnlyChoice(fileName?: string) {
+    return (
+      <label className="flex cursor-pointer items-start gap-2 text-xs text-muted">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={viewOnly}
+          onChange={(e) => {
+            setViewOnly(e.target.checked);
+            // Only where the file is known: remembering it is per file name.
+            if (fileName) rememberReadOnly(fileName, e.target.checked);
+          }}
+        />
+        <span>
+          <span className="text-foreground">{t("readOnly.openLabel")}</span>
+          <br />
+          {t("readOnly.openHint")}
+        </span>
+      </label>
+    );
+  }
+
   async function handleOpen() {
     setError(null);
     const picked = await pickFileForOpen().catch(() => null);
     if (!picked) return;
     const text = await picked.file.text();
+    // A file this browser knows as one to leave alone opens that way, whatever
+    // the checkbox said before the name was known.
+    const readOnly = viewOnly || opensReadOnly(picked.file.name);
+    setViewOnly(readOnly);
     if (isEncryptedEnvelope(text)) {
       setPassword("");
       setError(null);
@@ -112,6 +147,7 @@ export default function StartScreen() {
         handle: picked.handle,
         fileName: picked.file.name,
         password: null,
+        readOnly,
       });
     } catch (e) {
       if (!damaged(e, { fileName: picked.file.name, handle: picked.handle, password: null })) {
@@ -156,6 +192,7 @@ export default function StartScreen() {
         handle: stage.handle,
         fileName: stage.fileName,
         password,
+        readOnly: viewOnly,
       });
     } catch (e) {
       if (e instanceof WrongPasswordError) {
@@ -183,6 +220,7 @@ export default function StartScreen() {
       fileName: stage.fileName,
       password: stage.password,
       integrityWarning: "mismatch",
+      readOnly: viewOnly,
     });
   }
 
@@ -237,6 +275,7 @@ export default function StartScreen() {
                 <Button variant="primary" onClick={handleOpen} className="py-2">
                   {t("start.openFile")}
                 </Button>
+                {viewOnlyChoice()}
                 <Button
                   onClick={() => setStage({ kind: "wizard" })}
                   className="py-2"
@@ -278,6 +317,7 @@ export default function StartScreen() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                {viewOnlyChoice(stage.fileName)}
                 {error && <p className="text-sm text-loss">{error}</p>}
                 <div className="flex gap-2">
                   <Button type="submit" variant="primary" disabled={busy}>

@@ -1684,7 +1684,34 @@ const de = {
         "Das Backup wurde geschrieben, ließ sich aber nicht wieder einlesen. Verlasse dich nicht darauf.",
       permission: "Der Zugriff auf den Backup-Ordner muss erneut erlaubt werden.",
       wrongPassword: "Falsches Passwort für dieses Backup.",
+      readOnly: "Die Datei ist nur zum Ansehen geöffnet.",
     },
+  },
+  readOnly: {
+    badge: "Nur Lesen",
+    badgeTitle:
+      "Diese Datei ist nur zum Ansehen geöffnet. Es wird nichts geschrieben: kein Speichern, kein Autosave, kein Backup.",
+    enable: "Nur zum Ansehen",
+    enableTitle: "Nur-Lesen-Modus einschalten: Die Datei wird ab sofort nicht mehr verändert.",
+    disable: "Bearbeiten aktivieren",
+    disableConfirm:
+      "Bearbeiten aktivieren? Ab dann schreibt die App Änderungen wieder in diese Datei.",
+    blocked: "Nur-Lesen-Modus: Diese Änderung wurde nicht ausgeführt.",
+    disabledHint: "Im Nur-Lesen-Modus gesperrt. Oben im Kopf „Bearbeiten aktivieren“ wählen.",
+    openLabel: "Nur zum Ansehen öffnen",
+    openHint: "Die Datei wird beim Öffnen und danach nicht angefasst; nützlich für Dateien in einem synchronisierten Ordner.",
+    rememberFile: "Diese Datei künftig nur zum Ansehen öffnen",
+    settingsTitle: "Nur-Lesen-Modus",
+    settingsBody:
+      "Zum Ansehen geöffnet: Die Datei lässt sich lesen, auswerten und exportieren, aber nicht verändern. Es wird nichts geschrieben, auch kein Autosave. Darstellung, Layout und Spalten kannst du weiterhin umstellen; sie gelten nur für diese Sitzung.",
+    settingsState: "Zustand",
+    stateOn: "Nur Lesen",
+    stateOff: "Bearbeiten",
+    viewBackup: "Zur Ansicht öffnen",
+    viewBackupHint:
+      "Öffnet dieses Backup schreibgeschützt. Die aktuell geöffnete Datei bleibt unverändert.",
+    viewBackupUnsaved:
+      "Es gibt ungespeicherte Änderungen. Backup trotzdem zur Ansicht öffnen? Die Änderungen gehen verloren.",
   },
   settings: {
     title: "Einstellungen",

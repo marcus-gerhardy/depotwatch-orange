@@ -10,6 +10,7 @@ import {
   formatTime,
 } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useReadOnly } from "@/lib/readOnly";
 import HelpButton from "./help/HelpButton";
 import {
   flattenLedger,
@@ -1631,6 +1632,7 @@ export default function TransactionsView({
   const [sellingLot, setSellingLot] = useState<SellLotTarget | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const locked = useReadOnly();
   const [onlyTaxFree, setOnlyTaxFree] = useState(false);
   const [pageSize, setPageSize] = useState<number | "all">(25);
   const [page, setPage] = useState(1);
@@ -2068,12 +2070,18 @@ export default function TransactionsView({
         {/* On a phone these two sit under the heading rather than beside it,
             where the label of each wrapped onto two lines. */}
         <div className="flex w-full gap-2 sm:w-auto">
-          <Button variant="primary" onClick={openAdd} className="flex-1 sm:flex-none">
+          <Button
+            variant="primary"
+            onClick={openAdd}
+            className="flex-1 sm:flex-none"
+            {...locked.props}
+          >
             + {t("tx.add")}
           </Button>
           <Button
             onClick={() => setShowImport(true)}
             className="flex-1 whitespace-nowrap sm:flex-none"
+            {...locked.props}
           >
             <UploadIcon /> {t("csvImport.button")}
           </Button>
@@ -2271,13 +2279,13 @@ export default function TransactionsView({
                   {t("tx.selectedCount", { count: selectedEntries.length })}
                 </span>
                 <div className="ml-auto flex gap-2">
-                  <Button variant="primary" onClick={() => setShowMove(true)}>
+                  <Button variant="primary" {...locked.props} onClick={() => setShowMove(true)}>
                     {t("tx.changeWalletAccount")}
                   </Button>
-                  <Button variant="primary" onClick={() => setShowTransfer(true)}>
+                  <Button variant="primary" {...locked.props} onClick={() => setShowTransfer(true)}>
                     {t("tx.transferAction")}
                   </Button>
-                  <Button variant="dangerSolid" onClick={() => setShowBulkDelete(true)}>
+                  <Button variant="dangerSolid" {...locked.props} onClick={() => setShowBulkDelete(true)}>
                     {t("common.delete")}
                   </Button>
                   <Button variant="ghost" onClick={() => setSelectedIds(new Set())}>
@@ -2602,6 +2610,7 @@ export default function TransactionsView({
                     <td className="py-2 pl-2 text-right whitespace-nowrap">
                       {lot && (
                         <button
+                          disabled={locked.readOnly}
                           className="mr-1 rounded-md p-1.5 text-muted hover:bg-accent/10 hover:text-accent"
                           title={t("tx.sellLotAction")}
                           aria-label={t("tx.sellLotAction")}
@@ -2626,6 +2635,7 @@ export default function TransactionsView({
                         </button>
                       )}
                       <button
+                          disabled={locked.readOnly}
                         className="mr-1 rounded-md p-1.5 text-muted hover:bg-surface-2 hover:text-accent"
                         title={t("common.edit")}
                         aria-label={t("common.edit")}
@@ -2648,6 +2658,7 @@ export default function TransactionsView({
                         </svg>
                       </button>
                       <button
+                          disabled={locked.readOnly}
                         className="rounded-md p-1.5 text-muted hover:bg-loss/10 hover:text-loss"
                         title={t("common.delete")}
                         aria-label={t("common.delete")}

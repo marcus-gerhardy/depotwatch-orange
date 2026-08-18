@@ -4,6 +4,7 @@ import { useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useReadOnly } from "@/lib/readOnly";
 import type { WalletType } from "@/lib/types";
 import { Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
 
@@ -18,6 +19,7 @@ type Dialog =
 export default function WalletsView() {
   const { t } = useI18n();
   const portfolio = useAppStore((s) => s.portfolio)!;
+  const locked = useReadOnly();
   const store = useAppStore();
 
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -66,7 +68,7 @@ export default function WalletsView() {
           <SectionTitle level={1}>{t("wallets.title")}</SectionTitle>
           <HelpButton anchor="wallets-structure" label={t("wallets.title")} className="mb-3" />
         </div>
-        <Button variant="primary" onClick={() => openDialog({ kind: "addWallet" })}>
+        <Button variant="primary" {...locked.props} onClick={() => openDialog({ kind: "addWallet" })}>
           + {t("wallets.addWallet")}
         </Button>
       </div>
@@ -76,7 +78,7 @@ export default function WalletsView() {
           <p className="text-sm text-muted">{t("wallets.empty")}</p>
           {/* An empty state that only states the emptiness leaves the user to
               find the action in the header; it belongs here. */}
-          <Button variant="primary" onClick={() => openDialog({ kind: "addWallet" })}>
+          <Button variant="primary" {...locked.props} onClick={() => openDialog({ kind: "addWallet" })}>
             + {t("wallets.addWallet")}
           </Button>
         </Card>
@@ -97,6 +99,7 @@ export default function WalletsView() {
             <div className="flex gap-1">
               <Button
                 variant="ghost"
+                {...locked.props}
                 onClick={() =>
                   openDialog({ kind: "renameWallet", walletId: w.id, current: w.name })
                 }
@@ -105,6 +108,7 @@ export default function WalletsView() {
               </Button>
               <Button
                 variant="danger"
+                {...locked.props}
                 onClick={() => {
                   if (confirm(t("wallets.deleteWalletConfirm", { name: w.name })))
                     store.deleteWallet(w.id);
@@ -126,6 +130,7 @@ export default function WalletsView() {
                 <span className="flex gap-1">
                   <Button
                     variant="ghost"
+                    {...locked.props}
                     onClick={() =>
                       openDialog({
                         kind: "renameAccount",
@@ -139,6 +144,7 @@ export default function WalletsView() {
                   </Button>
                   <Button
                     variant="ghost"
+                    {...locked.props}
                     onClick={() => {
                       if (confirm(t("wallets.deleteAccountConfirm", { name: a.name })))
                         store.deleteAccount(w.id, a.id);
@@ -152,6 +158,7 @@ export default function WalletsView() {
           </ul>
           <Button
             className="mt-2"
+            {...locked.props}
             onClick={() => openDialog({ kind: "addAccount", walletId: w.id })}
           >
             + {t("wallets.addAccount")}

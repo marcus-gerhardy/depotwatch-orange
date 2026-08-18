@@ -17,6 +17,7 @@
 import { useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useReadOnly } from "@/lib/readOnly";
 import {
   groupByProvider,
   SYSTEM_IMPORT_PRESETS,
@@ -42,6 +43,7 @@ export default function ImportPresetsView() {
   const { t } = useI18n();
   const portfolio = useAppStore((s) => s.portfolio);
   const savePreset = useAppStore((s) => s.saveImportPreset);
+  const locked = useReadOnly();
   const deletePreset = useAppStore((s) => s.deleteImportPreset);
 
   const [editing, setEditing] = useState<string | null>(null);
@@ -83,6 +85,8 @@ export default function ImportPresetsView() {
 
   return (
     <>
+      {/* Presets are stored in the portfolio file, so managing them is a
+          write; exporting one is not, and stays available (§6.7). */}
       <Card className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <SectionTitle level={2}>{t("presets.title")}</SectionTitle>
@@ -129,6 +133,7 @@ export default function ImportPresetsView() {
                           </div>
                           <div className="flex gap-2">
                             <Button
+                              {...locked.props}
                               onClick={() =>
                                 duplicate(preset, t("presets.copySuffix"))
                               }
@@ -191,6 +196,7 @@ export default function ImportPresetsView() {
                         </Field>
                       </div>
                       <Button
+                        {...locked.props}
                         variant="primary"
                         disabled={!editName.trim()}
                         onClick={() => {
@@ -228,6 +234,7 @@ export default function ImportPresetsView() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button
+                          {...locked.props}
                           onClick={() => {
                             setEditing(preset.id);
                             setEditName(preset.name);
@@ -235,7 +242,7 @@ export default function ImportPresetsView() {
                         >
                           {t("presets.rename")}
                         </Button>
-                        <Button onClick={() => duplicate(preset, t("presets.copySuffix"))}>
+                        <Button {...locked.props} onClick={() => duplicate(preset, t("presets.copySuffix"))}>
                           {t("presets.duplicate")}
                         </Button>
                         <Button
@@ -253,6 +260,7 @@ export default function ImportPresetsView() {
                           {t("presets.export.action")}
                         </Button>
                         <Button
+                          {...locked.props}
                           variant="danger"
                           onClick={() => {
                             if (confirm(t("presets.deleteConfirm", { name: preset.name })))
@@ -276,7 +284,7 @@ export default function ImportPresetsView() {
             {t("presets.importTitle")}
           </h3>
           <p className="text-xs leading-relaxed text-muted">{t("presets.importIntro")}</p>
-          <Button onClick={() => fileInput.current?.click()}>
+          <Button {...locked.props} onClick={() => fileInput.current?.click()}>
             {t("presets.importAction")}
           </Button>
           <input

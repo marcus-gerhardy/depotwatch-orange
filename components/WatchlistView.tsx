@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
+import { useReadOnly } from "@/lib/readOnly";
 import type { WatchedAddress, WatchedAddressType } from "@/lib/types";
 import {
   fetchAddressStats,
@@ -51,6 +52,7 @@ export default function WatchlistView({
   const addWatchedAddress = useAppStore((s) => s.addWatchedAddress);
   const deleteWatchedAddress = useAppStore((s) => s.deleteWatchedAddress);
 
+  const locked = useReadOnly();
   const [showAdd, setShowAdd] = useState(initialAdd);
   const [value, setValue] = useState("");
   const [label, setLabel] = useState("");
@@ -89,7 +91,7 @@ export default function WatchlistView({
           <SectionTitle level={1}>{t("watchlist.title")}</SectionTitle>
           <HelpButton anchor="watch-concept" label={t("watchlist.title")} className="mb-3" />
         </div>
-        <Button variant="primary" onClick={() => setShowAdd(true)}>
+        <Button variant="primary" {...locked.props} onClick={() => setShowAdd(true)}>
           + {t("watchlist.add")}
         </Button>
       </div>
@@ -98,7 +100,7 @@ export default function WatchlistView({
       {portfolio.watchedAddresses.length === 0 && (
         <Card className="space-y-3 text-center">
           <p className="text-sm text-muted">{t("watchlist.empty")}</p>
-          <Button variant="primary" onClick={() => setShowAdd(true)}>
+          <Button variant="primary" {...locked.props} onClick={() => setShowAdd(true)}>
             + {t("watchlist.add")}
           </Button>
         </Card>
@@ -186,6 +188,7 @@ function WatchedEntryCard({
   const [utxos, setUtxos] = useState<Utxo[] | null>(null);
   const [analysis, setAnalysis] = useState<AddressAnalysis | null>(null);
   const [economyFee, setEconomyFee] = useState<number | null>(null);
+  const locked = useReadOnly();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingUtxo, setEditingUtxo] = useState<string | null>(null);
@@ -282,7 +285,7 @@ function WatchedEntryCard({
               {loading ? t("common.loading") : t("common.refresh")}
             </Button>
           )}
-          <Button variant="danger" onClick={onDelete}>
+          <Button variant="danger" {...locked.props} onClick={onDelete}>
             {t("common.delete")}
           </Button>
         </div>
