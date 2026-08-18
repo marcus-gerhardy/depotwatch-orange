@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { useLeaveReadOnly } from "@/lib/readOnly";
-import { LockIcon } from "./icons";
+import { NoEditIcon } from "./icons";
 
 const VISIBLE_MS = 6000;
 
@@ -45,7 +45,7 @@ export default function ReadOnlyToast() {
     >
       <div className="motion-safe:animate-[milestone-in_240ms_ease-out] flex flex-wrap items-center gap-2 rounded-xl border border-warning/50 bg-surface/95 p-3 text-sm shadow-2xl">
         <p className="flex min-w-0 items-center gap-2 text-warning">
-          <LockIcon className="shrink-0" />
+          <NoEditIcon className="shrink-0" />
           <span>{t("readOnly.blocked")}</span>
         </p>
         <button

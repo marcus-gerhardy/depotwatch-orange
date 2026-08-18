@@ -272,6 +272,27 @@ export function EditIcon({ className = "" }: { className?: string }) {
   );
 }
 
+/**
+ * Read-only (§6.7): the same pencil, struck through.
+ *
+ * Deliberately *not* an eye — that is what the privacy mode uses, and two
+ * eyes side by side in the header said nothing about which was which. Not a
+ * padlock either: the lock beside it means the auto-lock. A crossed-out
+ * pencil says the one thing this mode is about, which is that nothing gets
+ * written.
+ */
+export function NoEditIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M6.6 17.4v-3.2L15.4 5.4a1.7 1.7 0 0 1 2.4 0l0.8 0.8a1.7 1.7 0 0 1 0 2.4l-8.8 8.8H6.6Z" />
+      <path d="M14.4 6.4 17.6 9.6" />
+      {/* Across the pencil, not along it: a slash on the same diagonal as the
+          pencil's own body reads as a smudge rather than as a "no". */}
+      <path d="M4 4 20 20" />
+    </InlineIcon>
+  );
+}
+
 /** Export: something leaves the app as a file. */
 export function DownloadIcon({ className = "" }: { className?: string }) {
   return <InlineIcon className={className}>{INBOX}</InlineIcon>;
@@ -280,16 +301,6 @@ export function DownloadIcon({ className = "" }: { className?: string }) {
 /** Import: a file comes in. */
 export function UploadIcon({ className = "" }: { className?: string }) {
   return <InlineIcon className={className}>{OUTBOX}</InlineIcon>;
-}
-
-/** Looking, not touching: the read-only mode (§6.7). */
-export function EyeIcon({ className = "" }: { className?: string }) {
-  return (
-    <InlineIcon className={className}>
-      <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z" />
-      <circle cx="12" cy="12" r="2.6" />
-    </InlineIcon>
-  );
 }
 
 /** The file is encrypted, or the preset cannot be changed. */

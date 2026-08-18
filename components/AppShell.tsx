@@ -23,7 +23,14 @@ import SettingsView, { type SettingsSection } from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
-import { DownloadIcon, EyeIcon, FlaskIcon, LockIcon, MenuIcon, UnlockIcon } from "./icons";
+import {
+  DownloadIcon,
+  FlaskIcon,
+  LockIcon,
+  MenuIcon,
+  NoEditIcon,
+  UnlockIcon,
+} from "./icons";
 import BrandMark from "./BrandMark";
 import ReadOnlyToast from "./ReadOnlyToast";
 
@@ -144,7 +151,7 @@ function ReadOnlyControl() {
         aria-pressed={false}
         className="shrink-0 rounded-lg p-2 text-muted transition-colors hover:text-foreground"
       >
-        <EyeIcon />
+        <NoEditIcon />
       </button>
     );
   }
@@ -156,7 +163,7 @@ function ReadOnlyControl() {
       aria-pressed
       className="flex shrink-0 items-center gap-1.5 rounded-lg border border-warning/50 bg-warning/10 px-2 py-1.5 text-xs font-semibold text-warning transition-colors hover:bg-warning/20"
     >
-      <LockIcon />
+      <NoEditIcon />
       <span className="hidden sm:inline">{t("readOnly.badge")}</span>
     </button>
   );
