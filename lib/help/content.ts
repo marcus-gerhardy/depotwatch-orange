@@ -868,6 +868,29 @@ export const HELP_CONTENT: HelpContent = {
             }
           ],
           "text": "Der Steuerbereich zeigt offene Positionen, Veräußerungen des Jahres, steuerpflichtige und steuerfreie Anteile — und exportiert das als CSV für deine Unterlagen oder deine Beraterin. Positionen, deren Herkunft nicht auflösbar ist, werden nicht einfach mitgezählt, sondern getrennt als „Herkunft ungeklärt\" ausgewiesen. Eine Haltefrist, die auf einem geratenen Datum beruht, wäre die eine Angabe, die man hier nicht machen darf."
+        },
+        {
+          "id": "pit-what",
+          "title": "Stichtagsansicht",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Die Stichtagsansicht zeigt, wie dein Portfolio an einem beliebigen vergangenen Tag stand: Bestand gesamt und je Konto, Anschaffungskosten, Wert zum damaligen Kurs und die offenen Lots mit ihrem **damaligen** Haltefrist-Status."
+            },
+            {
+              "kind": "p",
+              "text": "Gerechnet wird mit denselben Regeln wie in der Live-Ansicht — dieselbe Zuordnung, dieselbe Herkunftsauflösung, dieselben Haltefristen —, nur mit allen Transaktionen bis einschließlich des Stichtags. Der Tag zählt dabei ganz: „Stand 31.12.\" heißt, dass der 31. vorbei ist."
+            },
+            {
+              "kind": "p",
+              "text": "Für die Steuererklärung liegen die Jahresenden als Schnellauswahl bereit. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung."
+            },
+            {
+              "kind": "p",
+              "text": "Die Ansicht ist reines Lesen: Sie ändert nichts an deiner Datei. Exportieren kannst du sie als CSV oder über den Druckdialog als PDF. Der Kurs des Stichtags wird nicht automatisch geladen — ein Klick genügt, und dieselben Kursdaten nutzt auch das Dashboard."
+            }
+          ],
+          "text": "Die Stichtagsansicht zeigt, wie dein Portfolio an einem beliebigen vergangenen Tag stand: Bestand gesamt und je Konto, Anschaffungskosten, Wert zum damaligen Kurs und die offenen Lots mit ihrem damaligen Haltefrist-Status. Gerechnet wird mit denselben Regeln wie in der Live-Ansicht — dieselbe Zuordnung, dieselbe Herkunftsauflösung, dieselben Haltefristen —, nur mit allen Transaktionen bis einschließlich des Stichtags. Der Tag zählt dabei ganz: „Stand 31.12.\" heißt, dass der 31. vorbei ist. Für die Steuererklärung liegen die Jahresenden als Schnellauswahl bereit. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung. Die Ansicht ist reines Lesen: Sie ändert nichts an deiner Datei. Exportieren kannst du sie als CSV oder über den Druckdialog als PDF. Der Kurs des Stichtags wird nicht automatisch geladen — ein Klick genügt, und dieselben Kursdaten nutzt auch das Dashboard."
         }
       ]
     },
@@ -2269,6 +2292,29 @@ export const HELP_CONTENT: HelpContent = {
             }
           ],
           "text": "The tax view shows open positions, the year's disposals, taxable and tax-free shares — and exports all of it as CSV for your records or your adviser. Positions whose origin cannot be resolved are not quietly counted, but reported separately as \"origin unresolved\". A holding period resting on a guessed date would be the one figure you must not state here."
+        },
+        {
+          "id": "pit-what",
+          "title": "As-of view",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "The as-of view shows how your portfolio stood on any past day: the holding in total and per account, the acquisition cost, the value at that day's price, and the open lots with the holding-period status they had **then**."
+            },
+            {
+              "kind": "p",
+              "text": "It is computed by the same rules as the live view — same allocations, same origin resolution, same holding periods — over every transaction up to and including that date. The day counts in full: \"as of 31 December\" means the 31st is over."
+            },
+            {
+              "kind": "p",
+              "text": "Year ends are one click, because that is what a tax return asks for. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess."
+            },
+            {
+              "kind": "p",
+              "text": "The view only reads; it changes nothing in your file. You can export it as CSV, or as a PDF through the browser's print dialog. The price for that day is not fetched automatically — one click does it, and it uses the same price data as the dashboard."
+            }
+          ],
+          "text": "The as-of view shows how your portfolio stood on any past day: the holding in total and per account, the acquisition cost, the value at that day's price, and the open lots with the holding-period status they had then. It is computed by the same rules as the live view — same allocations, same origin resolution, same holding periods — over every transaction up to and including that date. The day counts in full: \"as of 31 December\" means the 31st is over. Year ends are one click, because that is what a tax return asks for. Only completed years are offered: a year end that has not happened yet is not a position, it is a guess. The view only reads; it changes nothing in your file. You can export it as CSV, or as a PDF through the browser's print dialog. The price for that day is not fetched automatically — one click does it, and it uses the same price data as the dashboard."
         }
       ]
     },

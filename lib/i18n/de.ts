@@ -207,6 +207,7 @@ const de = {
   nav: {
     dashboard: "Dashboard",
     transactions: "Transaktionen",
+    pointInTime: "Stichtag",
     tax: "Steuer",
     watchlist: "Watchlist",
     milestones: "Meilensteine",
@@ -1762,6 +1763,36 @@ const de = {
     later: "Später entscheiden",
     noticed: "Die Datei wurde außerhalb dieser App geändert.",
     noticedAction: "Prüfen",
+  },
+  pit: {
+    title: "Stichtag",
+    banner:
+      "Historische Ansicht: So stand dein Portfolio am {date}. Alle Zahlen unten beziehen sich auf diesen Tag, nicht auf heute.",
+    date: "Stichtag",
+    holding: "Bestand am Stichtag",
+    costBasis: "Anschaffungskosten",
+    basisPartial:
+      "Für {amount} ist kein Einstand hinterlegt; diese Menge steckt nicht in den Anschaffungskosten.",
+    marketValue: "Wert am Stichtag",
+    atPrice: "Zum Tageskurs von {price}",
+    noPrice: "Kurs für diesen Tag nicht geladen.",
+    loadPrice: "Kurs laden",
+    taxFreeThen: "Steuerfrei am Stichtag",
+    lockedThen: "Innerhalb der Haltefrist: {amount}",
+    unresolvedThen: "{amount} ohne auflösbare Herkunft, daher nicht beurteilbar.",
+    byAccount: "Bestand je Wallet und Konto",
+    openLots: "Offene Lots am Stichtag",
+    stillLocked: "Haltefrist läuft",
+    empty: "An diesem Tag war noch kein Bestand vorhanden.",
+    exportCsv: "Export (CSV)",
+    exportHint: "Stichtagsübersicht als CSV-Datei herunterladen.",
+    exportFileName: "stichtag",
+    exportAsOf: "Stichtag",
+    printPdf: "Als PDF",
+    printHint:
+      "Öffnet den Druckdialog des Browsers; dort lässt sich „Als PDF speichern“ wählen.",
+    disclaimer:
+      "Berechnet nach denselben Regeln wie die Live-Ansicht, mit allen Transaktionen bis einschließlich des Stichtags. Diese Ansicht ist schreibgeschützt und ändert nichts an deiner Datei. Keine Steuerberatung.",
   },
   settings: {
     title: "Einstellungen",

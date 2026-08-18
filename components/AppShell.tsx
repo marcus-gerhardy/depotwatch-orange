@@ -18,6 +18,7 @@ import Dashboard from "./Dashboard";
 import TransactionsView from "./TransactionsView";
 import WalletsView from "./WalletsView";
 import TaxView from "./TaxView";
+import PointInTimeView from "./PointInTimeView";
 import WatchlistView from "./WatchlistView";
 import SettingsView, { type SettingsSection } from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
@@ -50,6 +51,7 @@ type Tab =
   | "transactions"
   | "wallets"
   | "tax"
+  | "pointInTime"
   | "watchlist"
   | "milestones"
   | "yearInReview"
@@ -316,6 +318,7 @@ export default function AppShell() {
     ...(TAX_FEATURES_ENABLED
       ? [{ id: "tax" as const, label: t("nav.tax") }]
       : []),
+    { id: "pointInTime", label: t("nav.pointInTime") },
     { id: "watchlist", label: t("nav.watchlist") },
     { id: "milestones", label: t("nav.milestones") },
     { id: "settings", label: t("nav.settings") },
@@ -533,6 +536,7 @@ export default function AppShell() {
         {tab === "transactions" && <TransactionsView initialFilter={txFilter} />}
         {tab === "wallets" && <WalletsView />}
         {TAX_FEATURES_ENABLED && tab === "tax" && <TaxView />}
+        {tab === "pointInTime" && <PointInTimeView />}
         {tab === "watchlist" && <WatchlistView initialAdd={watchlistAdd} />}
         {/* Reached from the milestones page and from the dashboard, not from
             the navigation: it is one page per year, not a place to work in. */}

@@ -211,6 +211,7 @@ const en: typeof de = {
   nav: {
     dashboard: "Dashboard",
     transactions: "Transactions",
+    pointInTime: "As of date",
     tax: "Tax",
     watchlist: "Watchlist",
     milestones: "Milestones",
@@ -1750,6 +1751,35 @@ const en: typeof de = {
     later: "Decide later",
     noticed: "The file has been changed outside this app.",
     noticedAction: "Check",
+  },
+  pit: {
+    title: "As of date",
+    banner:
+      "Historical view: this is how your portfolio stood on {date}. Every figure below refers to that day, not to today.",
+    date: "As of",
+    holding: "Holding on that day",
+    costBasis: "Acquisition cost",
+    basisPartial:
+      "{amount} has no recorded cost; that quantity is not part of the acquisition cost.",
+    marketValue: "Value on that day",
+    atPrice: "At that day's price of {price}",
+    noPrice: "The price for that day has not been loaded.",
+    loadPrice: "Load price",
+    taxFreeThen: "Tax-free on that day",
+    lockedThen: "Inside the holding period: {amount}",
+    unresolvedThen: "{amount} with no traceable origin, so not judgeable.",
+    byAccount: "Holding per wallet and account",
+    openLots: "Open lots on that day",
+    stillLocked: "Holding period running",
+    empty: "There was no holding on that day yet.",
+    exportCsv: "Export (CSV)",
+    exportHint: "Download the as-of overview as a CSV file.",
+    exportFileName: "as-of",
+    exportAsOf: "As of",
+    printPdf: "As PDF",
+    printHint: "Opens the browser's print dialog, where \u201csave as PDF\u201d is available.",
+    disclaimer:
+      "Computed by the same rules as the live view, over every transaction up to and including that date. This view is read-only and changes nothing in your file. Not tax advice.",
   },
   settings: {
     title: "Settings",

@@ -27,3 +27,12 @@ Der Steuerbereich zeigt offene Positionen, Veräußerungen des Jahres, steuerpfl
 ![Der Steuerbereich mit offenen Positionen, Haltefristen und den Veräußerungen des Jahres](/help/screenshots/tax.png)
 
 Positionen, deren Herkunft nicht auflösbar ist, werden **nicht** einfach mitgezählt, sondern getrennt als „Herkunft ungeklärt" ausgewiesen. Eine Haltefrist, die auf einem geratenen Datum beruht, wäre die eine Angabe, die man hier nicht machen darf.
+
+## Stichtagsansicht {#pit-what}
+Die Stichtagsansicht zeigt, wie dein Portfolio an einem beliebigen vergangenen Tag stand: Bestand gesamt und je Konto, Anschaffungskosten, Wert zum damaligen Kurs und die offenen Lots mit ihrem **damaligen** Haltefrist-Status.
+
+Gerechnet wird mit denselben Regeln wie in der Live-Ansicht — dieselbe Zuordnung, dieselbe Herkunftsauflösung, dieselben Haltefristen —, nur mit allen Transaktionen bis einschließlich des Stichtags. Der Tag zählt dabei ganz: „Stand 31.12." heißt, dass der 31. vorbei ist.
+
+Für die Steuererklärung liegen die Jahresenden als Schnellauswahl bereit. Angeboten werden nur abgeschlossene Jahre, denn ein Jahresende, das noch nicht war, ist keine Position, sondern eine Vermutung.
+
+Die Ansicht ist reines Lesen: Sie ändert nichts an deiner Datei. Exportieren kannst du sie als CSV oder über den Druckdialog als PDF. Der Kurs des Stichtags wird nicht automatisch geladen — ein Klick genügt, und dieselben Kursdaten nutzt auch das Dashboard.

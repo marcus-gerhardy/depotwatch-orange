@@ -386,6 +386,18 @@ The cards: net sats stacked and how many buys they took, EUR invested, the volum
 
 **Motion** is one short entrance per card, applied through `motion-safe:` like the milestone toast (§5.2): anyone who asked for less of it gets the same cards, they simply appear. Everything is drawn from theme tokens, so the page works in all nine themes, and every string goes through the DE/EN dictionaries.
 
+### 4.3 As-Of View
+
+"What did I hold on 31 December" is a question the tax return asks every year, and one the live view cannot answer. `lib/pointInTime.ts` answers it the only way that keeps it consistent with everything else the app says: by running the **same engine over the same ledger** with everything after the cut-off left out. No second implementation of holding periods, cost basis or lot tracing — a historical view that disagreed with the live one about a lot would be worse than no view at all.
+
+Two details decide whether the figures are right. The cut-off is inclusive to the **end** of the chosen day, because "as of 31 December" means the day is over rather than about to start. And entries are cut by their **booking date** (`bookingDates`, §11), so a paired arrival counts from the day its out-leg left — the two legs of one transfer regularly carry different timestamps, and cutting between them would put the coins in neither account or in both.
+
+**The holding period is judged against that day**, not against today: a lot bought in March 2024 was taxable on 31 December 2024 and is tax-free now, and a view that answered "is it tax-free today" would be the live view with a date picker on it. A lot whose origin never resolved is counted as neither tax-free nor locked but reported separately, for the same reason it is everywhere else (§3.2).
+
+**Year ends are one click**, since that is what a tax return asks for — and only years that are over: a year end that has not happened is a guess, not a position. Everything else it says is what the live view would say about that day: holding in total and per account, cost basis (with the BTC it does *not* cover named, §4.1), value at that day's close, and the open lots with their status.
+
+The view **only reads** — it is strictly historical, says so in a banner above every figure, and holds nothing the store would let it write. The market value uses the **already cached** closes (`peekDailyCloses`, like the year in review, §4.2) and offers a button to fetch them on purpose; merely opening a view must not call an exchange. Export is CSV, or PDF through the browser's own print dialog — a megabyte of PDF library to render what the page already renders, in a theme the app already maintains for print (§5), would be a poor trade.
+
 ## 5. Design
 
 - Minimalist, clean, reduced UI.
