@@ -6,6 +6,7 @@ import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { LASER_EYES_CLICKS, useEasterEggs, useLaserEyes } from "@/lib/easterEggs";
 import { useLeaveReadOnly } from "@/lib/readOnly";
+import { useOnline, useServiceWorker } from "@/lib/serviceWorker";
 import dynamic from "next/dynamic";
 import AutoLock from "./AutoLock";
 import Celebration from "./Celebration";
@@ -26,6 +27,7 @@ import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
 import {
   DownloadIcon,
+  OfflineIcon,
   WarnIcon,
   FlaskIcon,
   LockIcon,
@@ -128,6 +130,53 @@ function HelpHeaderButton() {
         <path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4" />
         <path d="M12 17.4h.01" />
       </svg>
+    </button>
+  );
+}
+
+/**
+ * No connection (§7.2).
+ *
+ * Said in the header rather than left to each widget, because it explains all
+ * of them at once: prices and chain figures are the only things the app fetches,
+ * and offline they are the only things that change. Everything else — the
+ * ledger, the tax figures, the file — works exactly as before, which is the
+ * point of a local-first app and worth making visible rather than mysterious.
+ */
+function OfflineBadge() {
+  const { t } = useI18n();
+  const online = useOnline();
+  if (online) return null;
+  return (
+    <span
+      title={t("offline.hint")}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border-c bg-surface px-2 py-1.5 text-xs text-muted"
+    >
+      <OfflineIcon />
+      <span className="hidden lg:inline">{t("offline.badge")}</span>
+    </span>
+  );
+}
+
+/**
+ * A new version is ready (§7.2).
+ *
+ * Offered, never applied on its own: reloading somebody mid-transaction to
+ * install an update would lose their work to a cosmetic improvement. The
+ * moment is theirs to pick, and it is the only moment a reload is safe.
+ */
+function UpdateNotice() {
+  const { t } = useI18n();
+  const { available, apply } = useServiceWorker();
+  if (!available) return null;
+  return (
+    <button
+      onClick={apply}
+      title={t("update.hint")}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-accent/50 bg-accent/10 px-2 py-1.5 text-xs text-accent transition-colors hover:bg-accent/20"
+    >
+      <span className="hidden lg:inline">{t("update.action")}</span>
+      <span className="lg:hidden">{t("update.short")}</span>
     </button>
   );
 }
@@ -437,6 +486,8 @@ export default function AppShell() {
                   <span className="hidden md:inline"> {t("nav.saveFile")}</span>
                 </Button>
               )}
+              <UpdateNotice />
+              <OfflineBadge />
               <ExternalChangeHint />
               <FileIndicator />
               <button

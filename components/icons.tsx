@@ -303,6 +303,17 @@ export function UploadIcon({ className = "" }: { className?: string }) {
   return <InlineIcon className={className}>{OUTBOX}</InlineIcon>;
 }
 
+/** No connection: the cloud, struck through (§7.2). */
+export function OfflineIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M6.6 18.5a4 4 0 0 1-.3-8 5.6 5.6 0 0 1 9.7-2.4" />
+      <path d="M18.2 10.4a4 4 0 0 1-.7 8H10" />
+      <path d="M4 4 20 20" />
+    </InlineIcon>
+  );
+}
+
 /** The file is encrypted, or the preset cannot be changed. */
 export function LockIcon({ className = "" }: { className?: string }) {
   return <InlineIcon className={className}>{PADLOCK}</InlineIcon>;

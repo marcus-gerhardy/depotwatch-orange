@@ -1804,6 +1804,17 @@ const en: typeof de = {
     targetDate: "Target date (optional)",
     clear: "Remove goal",
   },
+  offline: {
+    badge: "Offline",
+    hint: "No connection. Your file, every calculation and the tax figures work exactly as before; only prices and on-chain data cannot be refreshed.",
+    priceAsOf: "Offline, as of {time}",
+    unavailable: "Not available offline.",
+  },
+  update: {
+    action: "Load new version",
+    short: "Update",
+    hint: "A new version is ready. It loads when you say so; anything you are typing would be lost.",
+  },
   settings: {
     title: "Settings",
     nav: {

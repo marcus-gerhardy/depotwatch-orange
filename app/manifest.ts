@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
 
-// The web app manifest. Not a claim to be a full PWA — there is no service
-// worker and nothing is cached beyond what the browser does anyway — but it is
-// what an "add to home screen" reads, and without it the phone would take a
-// screenshot of the page as the icon.
+// The web app manifest: what "add to home screen" reads, and — together with
+// public/sw.js — what makes this installable and startable without a network
+// (CLAUDE.md §7.2). Without it the phone would take a screenshot of the page
+// as the icon.
 export const dynamic = "force-static";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -19,6 +19,8 @@ export default function manifest(): MetadataRoute.Manifest {
     // bar are the app's colours rather than the browser's default white.
     background_color: "#050b14",
     theme_color: "#050b14",
+    // Every size a launcher may ask for, from the one drawing
+    // (scripts/build-icons.mjs).
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

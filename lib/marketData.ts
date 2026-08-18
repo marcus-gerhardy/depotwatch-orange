@@ -187,13 +187,65 @@ async function loadSpotPrices(): Promise<SpotPrices> {
   return { eur, usd };
 }
 
+/**
+ * The last spot price this browser saw, with the time it saw it (§7.2).
+ *
+ * Kept in `localStorage` so it survives a reload — which is the only reason it
+ * exists: offline, the app should say "54 830 €, as of yesterday 18:20" rather
+ * than a dash, and after a restart an in-memory cache has nothing to say.
+ *
+ * A price is not somebody's data — it is the same number for everyone, and it
+ * carries no trace of what they hold. Nothing else is persisted this way.
+ */
+const LAST_PRICE_KEY = "depotwatch.lastPrice.v1";
+
+export interface LastKnownPrices extends SpotPrices {
+  /** Epoch ms of the reading, so the UI can say how old it is. */
+  at: number;
+}
+
+function readLastPrices(): LastKnownPrices | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LAST_PRICE_KEY);
+    if (raw === null) return null;
+    const p = JSON.parse(raw) as Partial<LastKnownPrices>;
+    return typeof p.eur === "number" && typeof p.usd === "number" && typeof p.at === "number"
+      ? { eur: p.eur, usd: p.usd, at: p.at }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLastPrices(prices: SpotPrices): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      LAST_PRICE_KEY,
+      JSON.stringify({ ...prices, at: Date.now() } satisfies LastKnownPrices),
+    );
+  } catch {
+    // Storage full or unavailable: a stale price is a nicety, not a feature
+    // worth an error message.
+  }
+}
+
+/** What was last seen, for the UI to fall back to while offline. */
+export function lastKnownPrices(): LastKnownPrices | null {
+  return readLastPrices();
+}
+
 export function useSpotPrices(): Resource<SpotPrices> {
-  return useResource<SpotPrices>(
-    "binance:spot",
-    PRICE_TTL_MS,
-    loadSpotPrices,
-    PRICE_TTL_MS,
+  const load = useCallback(
+    () =>
+      loadSpotPrices().then((prices) => {
+        writeLastPrices(prices);
+        return prices;
+      }),
+    [],
   );
+  return useResource<SpotPrices>("binance:spot", PRICE_TTL_MS, load, PRICE_TTL_MS);
 }
 
 /**

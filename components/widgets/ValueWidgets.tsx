@@ -12,6 +12,7 @@ import {
   formatPercent,
   parseNumberInput,
 } from "@/lib/decimal";
+import { formatDateTime } from "@/lib/i18n";
 import { whatIf } from "@/lib/dashboardStats";
 import { dailyValueSeries } from "@/lib/portfolio";
 import { useDailyCloses } from "@/lib/marketData";
@@ -254,8 +255,18 @@ export function PnlWidget() {
 
 /** The BTC spot price card the dashboard has always shown. */
 export function BtcPriceWidget() {
-  const { t, loc, currency, displayPrice, priceEur, priceUsd, priceError, priceLoading, fmtValue } =
-    useDashboardData();
+  const {
+    t,
+    loc,
+    currency,
+    displayPrice,
+    priceEur,
+    priceUsd,
+    priceError,
+    priceLoading,
+    priceStaleAt,
+    fmtValue,
+  } = useDashboardData();
   // Moscow time is a dollar figure by convention — sats per US dollar, wherever
   // one reads it — so it stays on the USD price no matter what the file
   // displays. A "moscow time" that meant something else per user would not be
@@ -305,7 +316,13 @@ export function BtcPriceWidget() {
             </div>
           ))}
         </div>
-        <StatLabel>{t("dashboard.widgets.spotPriceSource")}</StatLabel>
+        <StatLabel>
+          {/* A price that could not be refreshed is shown with the time it was
+              read, never as if it were current (§7.2). */}
+          {priceStaleAt === null
+            ? t("dashboard.widgets.spotPriceSource")
+            : t("offline.priceAsOf", { time: formatDateTime(priceStaleAt, loc) })}
+        </StatLabel>
       </div>
       <div
         className="mt-auto flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/5 px-2.5 py-1.5"

@@ -1817,6 +1817,17 @@ const de = {
     targetDate: "Zieldatum (optional)",
     clear: "Ziel entfernen",
   },
+  offline: {
+    badge: "Offline",
+    hint: "Keine Verbindung. Deine Datei, alle Auswertungen und die Steuerzahlen funktionieren unverändert; nur Kurse und On-Chain-Daten lassen sich nicht aktualisieren.",
+    priceAsOf: "Offline, Stand vom {time}",
+    unavailable: "Offline nicht verfügbar.",
+  },
+  update: {
+    action: "Neue Version laden",
+    short: "Update",
+    hint: "Eine neue Version steht bereit. Sie wird erst geladen, wenn du es sagst; laufende Eingaben gehen dabei verloren.",
+  },
   settings: {
     title: "Einstellungen",
     nav: {

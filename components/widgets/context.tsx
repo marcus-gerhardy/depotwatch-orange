@@ -28,7 +28,7 @@ import {
   type AccountBalance,
   type BalanceBreakdown,
 } from "@/lib/portfolio";
-import { useSpotPrices } from "@/lib/marketData";
+import { lastKnownPrices, useSpotPrices } from "@/lib/marketData";
 import { Decimal, formatBtc, formatFiat, formatInt } from "@/lib/decimal";
 import type { DataIssue } from "@/lib/dataQuality";
 
@@ -64,6 +64,14 @@ export interface DashboardData {
   displayPrice: number | null;
   priceLoading: boolean;
   priceError: boolean;
+  /**
+   * The price is the last one this browser saw rather than a fresh one, and
+   * when that was (§7.2). Set only when the live request failed — offline, a
+   * blocked request, an unreachable exchange — so a widget can say "as of …"
+   * instead of a dash. Never a substitute for a fresh price: it is labelled
+   * wherever it is shown.
+   */
+  priceStaleAt: number | null;
   /** EUR → display-currency factor via the BTC cross rate; null if unknown. */
   eurToDisplay: number | null;
   /**
@@ -120,8 +128,14 @@ export function DashboardDataProvider({
   const currency = portfolio.settings.currencyDisplay;
 
   const prices = useSpotPrices();
-  const priceEur = prices.data?.eur ?? null;
-  const priceUsd = prices.data?.usd ?? null;
+  // Offline, the last known price beats a dash: the holding is still worth
+  // roughly that, and the timestamp says how much to trust it (§7.2).
+  const stale = useMemo(
+    () => (prices.error && !prices.data ? lastKnownPrices() : null),
+    [prices.error, prices.data],
+  );
+  const priceEur = prices.data?.eur ?? stale?.eur ?? null;
+  const priceUsd = prices.data?.usd ?? stale?.usd ?? null;
 
   const entries = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
   const fifo = useMemo(
@@ -172,7 +186,10 @@ export function DashboardDataProvider({
       priceUsd,
       displayPrice,
       priceLoading: prices.loading,
-      priceError: prices.error,
+      // A stale price is not an error state: something *is* shown, it is just
+      // labelled as old.
+      priceError: prices.error && stale === null,
+      priceStaleAt: stale?.at ?? null,
       eurToDisplay,
       fmtValue,
       fmtDisplay: (eur, signed = false) =>
@@ -203,6 +220,7 @@ export function DashboardDataProvider({
     priceUsd,
     prices.loading,
     prices.error,
+    stale,
     openTransactions,
     openWatchlist,
     openMilestones,

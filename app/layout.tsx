@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import Footer from "@/components/Footer";
 import ThemeEffect from "@/components/ThemeEffect";
+import ServiceWorkerHost from "@/components/ServiceWorkerHost";
 import { THEME_BOOT_SCRIPT } from "@/lib/themeBoot";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -92,6 +93,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeEffect />
+        <ServiceWorkerHost />
         {children}
         <Footer />
       </body>

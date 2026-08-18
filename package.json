@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:debug": "NODE_OPTIONS=\"--max-old-space-size=8192 --heapsnapshot-near-heap-limit=1 --heap-prof\" next dev",
-    "build": "npm run presets:validate && next build",
+    "build": "npm run presets:validate && next build && npm run sw:build",
     "presets:validate": "node scripts/validate-import-presets.mjs",
     "start": "next start",
     "lint": "npm run presets:validate && eslint",
@@ -14,7 +14,8 @@
     "demo:build": "python3 scripts/build-demo-portfolio.py",
     "icons:build": "node scripts/build-icons.mjs",
     "help:screenshots": "npm run build && node scripts/help-screenshots.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sw:build": "node scripts/build-sw.mjs"
   },
   "dependencies": {
     "decimal.js": "^10.6.0",

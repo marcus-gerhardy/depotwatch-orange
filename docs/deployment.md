@@ -15,6 +15,7 @@ Framework preset **Next.js**; build command `npm run build`, output directory `o
   - `frame-ancestors 'none'` blocks framing outright — clickjacking a portfolio app is worth ruling out, and nothing legitimate embeds it.
   - `font-src 'self'`: the three typefaces ship with the app (§5), so a CDN font request would be a bug, and this makes it a blocked bug.
   - `img-src 'self' data: blob:`: `data:` for the drawn icons, `blob:` for the year-in-review image the browser builds locally.
+  - **`worker-src 'self'`** is spelled out rather than left to the `default-src` fallback: the service worker (§7.2) is the one script the app registers by URL, and a policy that is explicit about it does not depend on which fallback a given browser applies.
   - **`connect-src 'self' https:`** is deliberately not narrower. The app lets the user configure **their own Electrum/Esplora server** for on-chain queries (§3.3, and it is the privacy-preserving option), so an allowlist of the two public explorers would break exactly the setup that leaks least. `https:` still rules out plain `http:`, `ws:`, and `data:` as exfiltration channels.
   - `script-src`/`style-src` need `'unsafe-inline'`: Next inlines its bootstrap, and the theme is applied by an inline script before the first paint so nothing flashes in the wrong colours. A nonce needs a server to mint it, which a static export does not have. The trade is accepted knowingly: with no user input rendered as markup anywhere (the help renders parsed structures, never HTML) and no third-party script, the realistic injection surface is small.
 - **`Strict-Transport-Security`** with `preload`: two years, subdomains included. Only set this once the domain is definitely staying on HTTPS — it is not quickly reversible.
@@ -37,3 +38,12 @@ Copy `out/` to the document root. Two things the host has to do:
 - serve the headers above (nginx `add_header`, Caddy `header`, or the host's equivalent).
 
 Clean URLs work either way: the export writes both `/hilfe.html` and `/hilfe/index.html`-style paths for the localized routes.
+
+## `/sw.js` is never cached by the edge
+
+`Cache-Control: max-age=0, must-revalidate` on the service worker itself. The
+worker is what decides how long everything *else* is held, so a stale copy of
+it pins a stale copy of the whole app — and the update notice (§7.2) would
+never appear, because the browser would keep being handed the version it
+already has. `Service-Worker-Allowed: /` states the scope explicitly for the
+same reason: it should not depend on where the file happens to be served from.
