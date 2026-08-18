@@ -104,13 +104,14 @@ export default function StartScreen() {
   /**
    * The read-only choice, wherever a file is about to be opened (§6.7).
    *
-   * A quiet line above the button rather than a paragraph beside it: this is
-   * the exception, not the decision most visits make. What it means is behind
-   * the app's own question mark, like every other explanation.
+   * A quiet line under the button it belongs to, rather than a paragraph
+   * beside it: this is the exception, not the decision most visits make. What
+   * it means is behind the app's own question mark, like every other
+   * explanation.
    */
   function viewOnlyChoice(fileName?: string) {
     return (
-      <div className="flex items-center justify-end gap-2 text-xs text-muted">
+      <div className="flex items-center gap-2 text-xs text-muted">
         <label className="flex cursor-pointer items-center gap-2">
           <Switch
             checked={viewOnly}
@@ -282,10 +283,10 @@ export default function StartScreen() {
                 {t("start.localFirst")}
               </p>
               <div className="flex flex-col gap-2">
-                {viewOnlyChoice()}
                 <Button variant="primary" onClick={handleOpen} className="py-2">
                   {t("start.openFile")}
                 </Button>
+                {viewOnlyChoice()}
                 <Button
                   onClick={() => setStage({ kind: "wizard" })}
                   className="py-2"
