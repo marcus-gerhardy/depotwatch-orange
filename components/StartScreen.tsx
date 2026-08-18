@@ -287,6 +287,9 @@ export default function StartScreen() {
                   {t("start.openFile")}
                 </Button>
                 {viewOnlyChoice()}
+                {/* Opening an existing file, and its one option, are one
+                    thing; starting from nothing is another. */}
+                <hr className="my-1 border-border-c/60" />
                 <Button
                   onClick={() => setStage({ kind: "wizard" })}
                   className="py-2"
