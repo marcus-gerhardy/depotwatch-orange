@@ -146,17 +146,14 @@ export default function TaxView() {
               <thead>
                 <tr className="border-b border-border-c text-left text-xs text-muted">
                   <th className="py-2 pr-4 font-normal">{t("tax.acquired")}</th>
-                  {/* What a phone shows of a lot: when it was bought, how
-                      much is left, and whether it is out of the holding
-                      period. The rest returns with the width for it. */}
-                  <th className="hidden py-2 pr-4 font-normal md:table-cell">
+                  <th className="py-2 pr-4 font-normal">
                     {t("tx.wallet")} / {t("tx.account")}
                   </th>
                   <th className="py-2 pr-4 text-right font-normal">{t("tax.remaining")}</th>
-                  <th className="hidden py-2 pr-4 text-right font-normal sm:table-cell">{t("tax.costPerBtc")}</th>
-                  <th className="hidden py-2 pr-4 font-normal md:table-cell">{t("tax.taxFreeFrom")}</th>
+                  <th className="py-2 pr-4 text-right font-normal">{t("tax.costPerBtc")}</th>
+                  <th className="py-2 pr-4 font-normal">{t("tax.taxFreeFrom")}</th>
                   <th className="py-2 pr-4 font-normal">Status</th>
-                  <th className="hidden py-2 font-normal lg:table-cell">{t("tx.note")}</th>
+                  <th className="py-2 font-normal">{t("tx.note")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -168,13 +165,15 @@ export default function TaxView() {
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {formatDate(lot.acquiredDate, loc)}
                       </td>
-                      <td className="hidden py-2 pr-4 text-muted md:table-cell">
+                      {/* Not wrapped into three lines to save width the row
+                          does not have to save: the table scrolls sideways. */}
+                      <td className="py-2 pr-4 whitespace-nowrap text-muted">
                         {lot.walletName} / {lot.accountName}
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{amountFmt.format(lot.remainingBtc)}</Amount>
                       </td>
-                      <td className="hidden py-2 pr-4 text-right font-mono sm:table-cell">
+                      <td className="py-2 pr-4 text-right font-mono">
                         {lot.costPerBtcEur ? (
                           <Amount>{formatFiat(lot.costPerBtcEur, "EUR", loc)}</Amount>
                         ) : (
@@ -186,7 +185,7 @@ export default function TaxView() {
                           </span>
                         )}
                       </td>
-                      <td className="hidden py-2 pr-4 whitespace-nowrap md:table-cell">
+                      <td className="py-2 pr-4 whitespace-nowrap">
                         {/* An unresolved origin leaves the arrival date as the
                             only date there is, and that one says nothing about
                             a holding period (CLAUDE.md §3.2). */}
@@ -211,7 +210,7 @@ export default function TaxView() {
                         )}
                       </td>
                       <td
-                        className="hidden max-w-40 truncate py-2 text-xs text-muted lg:table-cell"
+                        className="max-w-40 truncate py-2 text-xs text-muted"
                         title={lot.note || undefined}
                       >
                         {lot.note || "—"}
@@ -274,13 +273,13 @@ export default function TaxView() {
                 <thead>
                   <tr className="border-b border-border-c text-left text-xs text-muted">
                     <th className="py-2 pr-4 font-normal">{t("tx.date")}</th>
-                    <th className="hidden py-2 pr-4 font-normal sm:table-cell">{t("tx.type")}</th>
+                    <th className="py-2 pr-4 font-normal">{t("tx.type")}</th>
                     <th className="py-2 pr-4 text-right font-normal">{t("tax.amount")}</th>
-                    <th className="hidden py-2 pr-4 text-right font-normal md:table-cell">{t("tax.proceeds")}</th>
-                    <th className="hidden py-2 pr-4 text-right font-normal md:table-cell">{t("tax.cost")}</th>
+                    <th className="py-2 pr-4 text-right font-normal">{t("tax.proceeds")}</th>
+                    <th className="py-2 pr-4 text-right font-normal">{t("tax.cost")}</th>
                     <th className="py-2 pr-4 text-right font-normal">{t("tax.gain")}</th>
-                    <th className="hidden py-2 pr-4 text-right font-normal lg:table-cell">{t("tax.taxableGain")}</th>
-                    <th className="hidden py-2 font-normal lg:table-cell">{t("tx.note")}</th>
+                    <th className="py-2 pr-4 text-right font-normal">{t("tax.taxableGain")}</th>
+                    <th className="py-2 font-normal">{t("tx.note")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -289,7 +288,7 @@ export default function TaxView() {
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {formatDate(d.date, loc)}
                       </td>
-                      <td className="hidden py-2 pr-4 sm:table-cell">
+                      <td className="py-2 pr-4">
                         <span className="flex items-center gap-1.5">
                           {t(`tx.types.${d.type}`)}
                           {/* Part of this disposal came from lots whose origin
@@ -311,10 +310,10 @@ export default function TaxView() {
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{amountFmt.format(d.amountBtc)}</Amount>
                       </td>
-                      <td className="hidden py-2 pr-4 text-right font-mono md:table-cell">
+                      <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatFiat(d.proceedsEur, "EUR", loc)}</Amount>
                       </td>
-                      <td className="hidden py-2 pr-4 text-right font-mono md:table-cell">
+                      <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatFiat(d.costBasisEur, "EUR", loc)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
@@ -322,11 +321,11 @@ export default function TaxView() {
                           {formatFiat(d.gainEur, "EUR", loc)}
                         </PnlValue>
                       </td>
-                      <td className="hidden py-2 pr-4 text-right font-mono lg:table-cell">
+                      <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{formatFiat(d.taxableGainEur, "EUR", loc)}</Amount>
                       </td>
                       <td
-                        className="hidden max-w-40 truncate py-2 text-xs text-muted lg:table-cell"
+                        className="max-w-40 truncate py-2 text-xs text-muted"
                         title={d.note || undefined}
                       >
                         {d.note || "—"}
