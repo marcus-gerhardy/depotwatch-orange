@@ -937,6 +937,14 @@ const en: typeof de = {
     date: "Date",
     time: "Time",
     type: "Type",
+    typeGroupNoTrade: "Not a trade",
+    inheritedDate: "Giver's acquisition",
+    inheritedCost: "Giver's acquisition cost (EUR)",
+    inheritedIntro:
+      "With a gift you step into the giver's shoes: the holding period counts from their acquisition, not from the day the coins reached you, and their acquisition cost becomes yours.",
+    inheritedUnknown:
+      "Without the giver's acquisition date the holding period cannot be determined. The app does not fall back to the date of receipt: the position is reported as unresolved.",
+    inheritedUnknownShort: "Acquisition unknown",
     types: {
       buy: "Buy",
       sell: "Sell",
@@ -944,6 +952,9 @@ const en: typeof de = {
       transfer_out: "Transfer (out)",
       transfer: "Transfer",
       spend: "Spend",
+      gift_in: "Gift received",
+      gift_out: "Gift given",
+      income: "Income (received)",
     },
     wallet: "Wallet",
     account: "Account",
@@ -1090,6 +1101,7 @@ const en: typeof de = {
     transferredAmount: "Amount",
     transferredJump: "Go to transaction",
     section: {
+      inherited: "Where the gift came from",
       fees: "Fees",
       origin: "Origin & assignment",
     },
@@ -1447,6 +1459,14 @@ const en: typeof de = {
     taxFreeGain: "Tax-free",
     uncoveredWarning:
       "{amount} BTC disposed without a matching lot. Check for missing buys/transfers.",
+    giftsOut: "Given away",
+    giftsOutHint:
+      "Giving coins away is not a private disposal under §23 EStG: there are no proceeds and therefore no taxable gain. Gift tax may apply instead, which this app does not calculate. What is listed is the acquisition cost of the coins given away, because that is where a gift tax return starts. Not tax advice.",
+    income: "Income (coins received)",
+    incomeHint:
+      "Coins received as payment or reward are taxed at their market value on the day they arrive, and outside private disposals (depending on the case, e.g. as business income or as other income). That is why they are not in the table above. The holding period for a later sale starts on receipt. Not tax advice.",
+    incomeValue: "Value on receipt",
+    incomeTotal: "Total received: {amount}",
     unknownBasis: "Cost basis unknown (external transfer)",
     unresolvedOriginHint:
       "{amount} BTC of this disposal come from lots without a traceable origin. Their holding period rests on an arrival date, not a purchase date.",

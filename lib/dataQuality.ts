@@ -14,6 +14,7 @@ import {
   pairedGroupIds,
   type GroupOnChain,
 } from "./transferLink";
+import { isOutflow, isPriced } from "./types";
 import type { LedgerEntry, Transaction } from "./types";
 
 export type DataIssue =
@@ -95,8 +96,10 @@ export function hasIssue(
     case "unresolvedOrigin":
       return ctx?.unresolvedOrigin.has(tx.id) ?? false;
     case "incompleteAllocation":
+      // Every outgoing type has to say which lots it closes — a gift as much
+      // as a sale, since it decides what the given coins had cost.
       return (
-        (tx.type === "transfer_out" || tx.type === "sell" || tx.type === "spend") &&
+        isOutflow(tx.type) &&
         !allocationSumBtc(tx.lotAllocations).eq(allocationTargetBtc(tx))
       );
     case "missingTxid":
@@ -109,8 +112,10 @@ export function hasIssue(
           : effectiveOnChain(tx, ctx.onChainByGroup).txid)
       );
     case "missingEurValue":
+      // Income needs a EUR value as much as a trade does: it *is* taxed at
+      // that value, and it becomes the cost basis of the coins.
       return (
-        (tx.type === "buy" || tx.type === "sell" || tx.type === "spend") &&
+        isPriced(tx.type) &&
         (tx.totalFiatEur === null || tx.totalFiatEur === undefined) &&
         (tx.pricePerBtcEur === null || tx.pricePerBtcEur === undefined)
       );

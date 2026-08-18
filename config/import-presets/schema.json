@@ -170,7 +170,16 @@
       "maxLength": 120
     },
     "transactionType": {
-      "enum": ["buy", "sell", "transfer_in", "transfer_out", "spend"]
+      "enum": [
+        "buy",
+        "sell",
+        "transfer_in",
+        "transfer_out",
+        "spend",
+        "gift_in",
+        "gift_out",
+        "income"
+      ]
     }
   }
 }

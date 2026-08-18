@@ -38,7 +38,11 @@ export function allocationSumBtc(allocations: LotAllocation[] | undefined): Deci
 
 /** BTC a lot-creating transaction credited to its account (§3.2). */
 export function lotCreditedBtc(e: Pick<Transaction, "type" | "amountBtc" | "feeBtc">): Decimal {
-  if (e.type === "buy") return dec(e.amountBtc).minus(dec(e.feeBtc));
+  // A BTC fee comes off what a buy or an income receipt credits; a gift and a
+  // transfer arrive as recorded (§3.2).
+  if (e.type === "buy" || e.type === "income") {
+    return dec(e.amountBtc).minus(dec(e.feeBtc));
+  }
   return dec(e.amountBtc);
 }
 

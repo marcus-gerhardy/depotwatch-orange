@@ -117,7 +117,9 @@ export function indexLedger(entries: LedgerEntry[]): LedgerIndex {
 
 /** Is this entry an acquisition in its own right, i.e. the end of the walk? */
 function isOriginEntry(e: LedgerEntry): boolean {
-  if (e.type === "buy") return true;
+  // A gift and an income receipt are acquisitions too: the coins entered the
+  // ledger there, and there is nothing further back to follow.
+  if (e.type === "buy" || e.type === "gift_in" || e.type === "income") return true;
   // An external receive starts a lot at its own date: the coins came from
   // outside the ledger, so there is nothing further back to follow.
   return e.type === "transfer_in" && !e.counterpartyAccountId && !e.transferGroupId;
@@ -125,7 +127,15 @@ function isOriginEntry(e: LedgerEntry): boolean {
 
 /** Cost per BTC of an entry that is itself an origin lot (fees included). */
 function originPricePerBtc(e: LedgerEntry): Decimal | null {
-  if (e.type === "buy") return buyLotBasis(e).costPerBtcEur;
+  // Income is valued like a buy: the market value on receipt *is* the cost.
+  if (e.type === "buy" || e.type === "income") return buyLotBasis(e).costPerBtcEur;
+  // A gift carries the giver's cost basis, or none at all.
+  if (e.type === "gift_in") {
+    const amount = dec(e.amountBtc);
+    return e.inheritedCostBasisEur != null && e.inheritedCostBasisEur !== "" && amount.gt(0)
+      ? dec(e.inheritedCostBasisEur).div(amount)
+      : null;
+  }
   return e.pricePerBtcEur === null || e.pricePerBtcEur === undefined
     ? null
     : dec(e.pricePerBtcEur);
@@ -172,7 +182,13 @@ function originOf(
   const price = originPricePerBtc(e);
   return {
     lotTxId: e.id,
-    acquiredDate: e.date,
+    // A gift's acquisition is the *giver's*, not the day it arrived
+    // ("Fußstapfentheorie", §3.2) — the same date the FIFO engine dates its
+    // lot from, so both tell the same story about the holding period.
+    acquiredDate:
+      e.type === "gift_in" && e.inheritedAcquisitionDate
+        ? e.inheritedAcquisitionDate
+        : e.date,
     amountBtc: share,
     pricePerBtcEur: price,
     costEur: price === null ? null : price.mul(share),

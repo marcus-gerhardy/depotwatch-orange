@@ -16,7 +16,43 @@ export const TRANSACTION_TYPES = [
   "transfer_in",
   "transfer_out",
   "spend",
+  // Coins that arrived without being bought, and coins given away (§3.2).
+  // They are separate types rather than a flag on a buy because they are
+  // taxed differently: a gift carries the giver's acquisition date, income is
+  // taxed on receipt and outside private disposals altogether.
+  "gift_in",
+  "gift_out",
+  "income",
 ] as const;
+
+/** Types that bring coins in and therefore create a lot. */
+export const INFLOW_TYPES = ["buy", "transfer_in", "gift_in", "income"] as const;
+
+/**
+ * Types that take coins out and therefore consume lots — every one of them
+ * needs `lotAllocations` to say which (§3.2).
+ */
+export const OUTFLOW_TYPES = ["sell", "spend", "transfer_out", "gift_out"] as const;
+
+/**
+ * Types the app values in EUR: they have a price and a total. A transfer has
+ * neither of its own, and a gift has no price *paid* — what a gift_in carries
+ * instead is the giver's cost basis (see `inheritedCostBasisEur`).
+ */
+export const PRICED_TYPES = ["buy", "sell", "spend", "income"] as const;
+
+export function isInflow(type: TransactionType): boolean {
+  return (INFLOW_TYPES as readonly string[]).includes(type);
+}
+
+export function isOutflow(type: TransactionType): boolean {
+  return (OUTFLOW_TYPES as readonly string[]).includes(type);
+}
+
+/** Does this type carry a EUR price and total of its own? */
+export function isPriced(type: TransactionType): boolean {
+  return (PRICED_TYPES as readonly string[]).includes(type);
+}
 
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
@@ -99,6 +135,21 @@ export interface Transaction {
   originalCurrency?: string;
   originalAmount?: string;
   originalPricePerBtc?: string;
+  /**
+   * gift_in only: what the *giver* paid, and when they acquired the coins.
+   *
+   * German tax law has the recipient step into the giver's shoes
+   * ("Fußstapfentheorie", §23 EStG): the holding period keeps running from the
+   * giver's acquisition, it does not restart on the day the gift arrives. So
+   * this date — not `date` — is what the holding period is measured from.
+   *
+   * Both are optional because a recipient often does not know them. Unknown is
+   * then reported as unknown: the engine marks such a lot `originUnresolved`
+   * rather than quietly using the arrival date, which would invent a holding
+   * period that happens to be the most favourable reading.
+   */
+  inheritedAcquisitionDate?: string;
+  inheritedCostBasisEur?: string;
   /**
    * Where the EUR valuation came from: entered by hand or derived from the
    * historical Binance BTC/EUR close of the transaction day. Absent means
@@ -407,7 +458,8 @@ function causalOrder(entries: LedgerEntry[]): {
 
   /** What an entry takes its lots from. */
   function sources(e: LedgerEntry): LedgerEntry[] {
-    if (e.type === "buy") return [];
+    // Lot-creating types take from nothing; the rest name their sources.
+    if (isInflow(e.type) && e.type !== "transfer_in") return [];
     if (e.type === "transfer_in") {
       const out = e.transferGroupId ? outByGroup.get(e.transferGroupId) : undefined;
       return out ? [out] : [];
@@ -426,7 +478,7 @@ function causalOrder(entries: LedgerEntry[]): {
     date.set(e.id, e.date);
     depth.set(e.id, 0);
     let effective = e.date;
-    let d = e.type === "buy" || e.type === "transfer_in" ? 0 : 1;
+    let d = isInflow(e.type) ? 0 : 1;
     for (const src of sources(e)) {
       visit(src);
       const srcDate = date.get(src.id)!;

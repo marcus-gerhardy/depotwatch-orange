@@ -14,6 +14,8 @@ import { useReadOnly } from "@/lib/readOnly";
 import HelpButton from "./help/HelpButton";
 import {
   flattenLedger,
+  isOutflow,
+  TRANSACTION_TYPES,
   type LedgerEntry,
   type LotAllocation,
   type PortfolioFile,
@@ -147,9 +149,12 @@ function initialVisibleColumns(
 const TYPE_COLORS: Record<TransactionType, string> = {
   buy: "text-gain",
   transfer_in: "text-gain",
+  gift_in: "text-gain",
+  income: "text-gain",
   sell: "text-loss",
   transfer_out: "text-loss",
   spend: "text-loss",
+  gift_out: "text-loss",
 };
 
 /** Compact per-type glyph for the transaction table's "Typ" column. */
@@ -196,6 +201,32 @@ function TypeIcon({ type }: { type: TransactionType }) {
         <svg {...svgProps}>
           <rect x="1.5" y="4.5" width="7" height="7" rx="1.2" />
           <path d="M8.5 8h5M11 5.5 13.5 8 11 10.5" />
+        </svg>
+      );
+    // A parcel: coins that arrived as a present, and the same parcel leaving.
+    case "gift_in":
+      return (
+        <svg {...svgProps}>
+          <rect x="2" y="6.5" width="12" height="7" rx="1" />
+          <path d="M1.5 6.5h13M8 6.5v7" />
+          <path d="M8 6.5C6 6.5 5 5.6 5 4.6S6.5 2.5 8 6.5Zm0 0c2 0 3-.9 3-1.9S9.5 2.5 8 6.5Z" />
+        </svg>
+      );
+    case "gift_out":
+      return (
+        <svg {...svgProps}>
+          <rect x="1.5" y="7" width="9" height="6.5" rx="1" />
+          <path d="M1 7h10M6 7v6.5" />
+          <path d="M11.5 4h3.5M13.5 2 15.5 4 13.5 6" />
+        </svg>
+      );
+    // A coin dropping into a hand: received as payment.
+    case "income":
+      return (
+        <svg {...svgProps}>
+          <circle cx="8" cy="4.75" r="2.75" />
+          <path d="M8 8.5v2.5M5.5 9.5 8 11.5l2.5-2" />
+          <path d="M2.5 13.5h11" />
         </svg>
       );
   }
@@ -2141,7 +2172,7 @@ export default function TransactionsView({
             <option value="">
               {t("tx.type")}: {t("tx.filterAll")}
             </option>
-            {(["buy", "sell", "transfer_in", "transfer_out", "spend"] as const).map(
+            {TRANSACTION_TYPES.map(
               (ty) => (
                 <option key={ty} value={ty}>
                   {t(`tx.types.${ty}`)}
@@ -2367,11 +2398,9 @@ export default function TransactionsView({
                 // Every transaction that draws on lots unfolds into them: a
                 // sale and a spend are assigned the same way a transfer is
                 // (§3.2), so they get the same expander and the same hint.
-                const expandable =
-                  r.type === "transfer_in" ||
-                  r.type === "transfer_out" ||
-                  r.type === "sell" ||
-                  r.type === "spend";
+                // Anything that draws on lots unfolds into them, and an
+                // arrival unfolds into what it came from.
+                const expandable = r.type === "transfer_in" || isOutflow(r.type);
                 const expanded = expandedOrigins.has(r.id);
                 const originUnresolved = hasIssue(r, "unresolvedOrigin", issueCtx);
                 const incompleteAllocation = hasIssue(r, "incompleteAllocation", issueCtx);

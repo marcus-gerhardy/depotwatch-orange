@@ -939,6 +939,14 @@ const de = {
     date: "Datum",
     time: "Uhrzeit",
     type: "Typ",
+    typeGroupNoTrade: "Ohne Kauf/Verkauf",
+    inheritedDate: "Anschaffung durch Schenker",
+    inheritedCost: "Anschaffungskosten Schenker (EUR)",
+    inheritedIntro:
+      "Bei einer Schenkung trittst du in die Fußstapfen des Schenkers: Für die Haltefrist zählt dessen Anschaffungsdatum, nicht der Tag, an dem du die Coins bekommen hast. Ebenso gelten dessen Anschaffungskosten als deine.",
+    inheritedUnknown:
+      "Ohne Anschaffungsdatum des Schenkers lässt sich die Haltefrist nicht bestimmen. Die App verwendet dann nicht das Empfangsdatum: Die Position wird als ungeklärt ausgewiesen.",
+    inheritedUnknownShort: "Anschaffung unbekannt",
     types: {
       buy: "Kauf",
       sell: "Verkauf",
@@ -946,6 +954,9 @@ const de = {
       transfer_out: "Transfer (Ausgang)",
       transfer: "Transfer",
       spend: "Ausgabe",
+      gift_in: "Schenkung erhalten",
+      gift_out: "Verschenkt",
+      income: "Einkünfte (erhalten)",
     },
     wallet: "Wallet",
     account: "Konto",
@@ -1094,6 +1105,7 @@ const de = {
     transferredAmount: "Menge",
     transferredJump: "Zur Transaktion",
     section: {
+      inherited: "Herkunft der Schenkung",
       fees: "Gebühren",
       origin: "Herkunft & Zuordnung",
     },
@@ -1455,6 +1467,14 @@ const de = {
     taxFreeGain: "Steuerfrei",
     uncoveredWarning:
       "{amount} BTC ohne zugeordnetes Lot veräußert. Prüfe fehlende Käufe/Transfers.",
+    giftsOut: "Verschenkt",
+    giftsOutHint:
+      "Verschenken ist kein privates Veräußerungsgeschäft nach §23 EStG: Es gibt keinen Erlös und damit keinen steuerpflichtigen Gewinn. Stattdessen kann Schenkungsteuer anfallen, die diese App nicht berechnet. Aufgeführt sind die Anschaffungskosten der verschenkten Coins, weil eine Schenkungsteuererklärung dort ansetzt. Keine Steuerberatung.",
+    income: "Einkünfte (erhaltene Coins)",
+    incomeHint:
+      "Coins, die als Bezahlung oder Vergütung zugeflossen sind, sind im Zuflusszeitpunkt zum Marktwert zu versteuern, und zwar außerhalb der privaten Veräußerungsgeschäfte (je nach Sachverhalt z. B. als Einkünfte aus Gewerbebetrieb oder als sonstige Einkünfte). Sie tauchen deshalb nicht in der Tabelle oben auf. Die Haltefrist für einen späteren Verkauf beginnt mit dem Zufluss. Keine Steuerberatung.",
+    incomeValue: "Wert bei Zufluss",
+    incomeTotal: "Summe der Zuflüsse: {amount}",
     unknownBasis: "Einstand unbekannt (externer Transfer)",
     unresolvedOriginHint:
       "{amount} BTC dieser Veräußerung stammen aus Lots ohne auflösbare Herkunft. Die Haltefrist stützt sich hier auf ein Eingangsdatum, nicht auf ein Kaufdatum.",

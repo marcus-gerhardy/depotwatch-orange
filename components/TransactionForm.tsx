@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useI18n, intlLocale } from "@/lib/i18n";
+import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { useReadOnly } from "@/lib/readOnly";
 import {
@@ -22,6 +22,8 @@ import {
 } from "@/lib/bitcoin";
 import {
   flattenLedger,
+  isOutflow,
+  isPriced,
   type LedgerEntry,
   type LotAllocation,
   type EurValuationSource,
@@ -48,11 +50,18 @@ import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import ProvenanceList from "./ProvenanceList";
 import LotAllocationEditor from "./LotAllocationEditor";
 import OutLegLink, { LinkedInLegs } from "./OutLegLink";
-import { CheckIcon } from "./icons";
+import { CheckIcon, WarnIcon } from "./icons";
 
 const EXTERNAL = "__external__";
 
-type FormType = "buy" | "sell" | "transfer" | "spend";
+type FormType =
+  | "buy"
+  | "sell"
+  | "transfer"
+  | "spend"
+  | "gift_in"
+  | "gift_out"
+  | "income";
 
 /** Targeted sale of one specific lot (opened from a ledger row). */
 export interface SellLotTarget {
@@ -188,9 +197,8 @@ export default function TransactionForm({
   );
   const [allocationsEdited, setAllocationsEdited] = useState(false);
 
-  /** Sell, spend and outgoing transfer all close lots and all need an assignment. */
-  const isDisposal =
-    current?.type === "sell" || current?.type === "spend" || current?.type === "transfer_out";
+  /** Everything outgoing closes lots and needs an assignment (§3.2). */
+  const isDisposal = current !== null && isOutflow(current.type);
 
   /** The origin list as it would read with the currently edited allocations. */
   const allocationPreview = useMemo(() => {
@@ -223,6 +231,15 @@ export default function TransactionForm({
   const [feeBtc, setFeeBtc] = useState(existing?.feeBtc ?? "");
   const [feeFiat, setFeeFiat] = useState(existing?.feeFiatEur ?? "");
   const [note, setNote] = useState(existing?.note ?? "");
+  // A gift carries the giver's acquisition, not its own (§3.2).
+  const [inheritedDate, setInheritedDate] = useState(
+    existing?.inheritedAcquisitionDate
+      ? toLocalInput(existing.inheritedAcquisitionDate)
+      : "",
+  );
+  const [inheritedCost, setInheritedCost] = useState(
+    existing?.inheritedCostBasisEur ?? "",
+  );
   // Settled in another currency/asset — documentation only (CLAUDE.md §3.2).
   const [origCurrency, setOrigCurrency] = useState(existing?.originalCurrency ?? "");
   const [origAmount, setOrigAmount] = useState(existing?.originalAmount ?? "");
@@ -279,7 +296,10 @@ export default function TransactionForm({
   const [counterpartyOverride, setCounterpartyOverride] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const needsPrice = formType === "buy" || formType === "sell" || formType === "spend";
+  // What has a EUR price of its own. A gift has none — what a gift_in carries
+  // instead is the giver's cost basis, in its own section below.
+  const needsPrice = formType !== "transfer" && isPriced(formType);
+  const isGiftIn = formType === "gift_in";
 
   // On-chain fields exist for transfers only; they are stored normalized
   // (trimmed, txid lower case, all-uppercase bech32 folded to lower case).
@@ -289,6 +309,22 @@ export default function TransactionForm({
   const txidInvalid = normalizedTxid !== "" && !isValidTxid(normalizedTxid);
   const addressInvalid =
     normalizedAddress !== "" && !isValidBitcoinAddress(normalizedAddress);
+  /**
+   * What the *giver* paid and when they bought (gift_in only, §3.2).
+   *
+   * German law has the recipient step into the giver's shoes, so the holding
+   * period runs from their acquisition. Left empty it stays empty: an unknown
+   * acquisition date is reported as unknown rather than filled in with the
+   * arrival, which would invent the most favourable holding period there is.
+   */
+  const inheritedFields = {
+    ...(inheritedDate.trim() !== ""
+      ? { inheritedAcquisitionDate: new Date(inheritedDate).toISOString() }
+      : {}),
+    ...(inheritedCost.trim() !== ""
+      ? { inheritedCostBasisEur: fiatString(inheritedCost) }
+      : {}),
+  };
   const originalFields = needsPrice
     ? {
         ...(normalizedOrigCurrency !== ""
@@ -418,7 +454,7 @@ export default function TransactionForm({
       // keeps what is assigned, and anything else is left unassigned for the
       // user to fill in — flagged as a data-quality issue until they do.
       let lotAllocations: LotAllocation[] | undefined;
-      if (formType === "sell" || formType === "spend") {
+      if (formType !== "buy" && formType !== "income" && formType !== "gift_in") {
         if (allocationsEdited) {
           lotAllocations = allocations.filter((x) => dec(x.amountBtc).gt(0));
         } else if (sellLot) {
@@ -433,8 +469,11 @@ export default function TransactionForm({
         ...base,
         id: existing?.id ?? crypto.randomUUID(),
         type: formType as TransactionType,
-        pricePerBtcEur: fiatString(priceD),
-        totalFiatEur: fiatString(totalD),
+        // A gift has no price paid: the giver's cost basis travels in its own
+        // fields instead, and inventing a price here would make it look bought.
+        pricePerBtcEur: needsPrice ? fiatString(priceD) : null,
+        totalFiatEur: needsPrice ? fiatString(totalD) : null,
+        ...(isGiftIn ? inheritedFields : {}),
         // "manual" is the default, so only a derived value is recorded.
         ...(eurSource === "binance-klines"
           ? { eurValuationSource: eurSource as EurValuationSource }
@@ -555,7 +594,9 @@ export default function TransactionForm({
   const disposalEntry: LedgerEntry | null = useMemo(() => {
     if (current) return isDisposal ? current : null;
     const sourceAccountId = formType === "transfer" ? fromAccount : accountId;
-    if (formType === "buy" || sourceAccountId === EXTERNAL || !sourceAccountId) return null;
+    // Only what *takes* coins out closes lots; an arrival creates one.
+    const outgoing = formType === "transfer" || isOutflow(formType);
+    if (!outgoing || sourceAccountId === EXTERNAL || !sourceAccountId) return null;
     return {
       id: "",
       type: formType === "transfer" ? "transfer_out" : formType,
@@ -686,6 +727,13 @@ export default function TransactionForm({
                 <option value="sell">{t("tx.types.sell")}</option>
                 <option value="transfer">{t("tx.types.transfer")}</option>
                 <option value="spend">{t("tx.types.spend")}</option>
+                {/* Coins that arrived without being bought, and coins given
+                    away — grouped apart because they are taxed differently. */}
+                <optgroup label={t("tx.typeGroupNoTrade")}>
+                  <option value="gift_in">{t("tx.types.gift_in")}</option>
+                  <option value="gift_out">{t("tx.types.gift_out")}</option>
+                  <option value="income">{t("tx.types.income")}</option>
+                </optgroup>
               </select>
             </Field>
             <Field label={t("tx.date")}>
@@ -816,6 +864,49 @@ export default function TransactionForm({
                 {valuationError && <p className="text-xs text-loss">{valuationError}</p>}
               </div>
             </div>
+          )}
+
+          {/* What the giver paid, and when — the one thing a gift needs and
+              nothing else has (§3.2). Open by default: without it the holding
+              period of these coins cannot be determined at all. */}
+          {isGiftIn && (
+            <Section
+              title={t("tx.section.inherited")}
+              tone={inheritedDate.trim() === "" ? "warning" : "default"}
+              defaultOpen
+              summary={
+                inheritedDate.trim() === ""
+                  ? t("tx.inheritedUnknownShort")
+                  : formatDate(new Date(inheritedDate), loc)
+              }
+            >
+              <p className="text-xs leading-relaxed text-muted">
+                {t("tx.inheritedIntro")}
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label={`${t("tx.inheritedDate")} (${t("common.optional")})`}>
+                  <input
+                    type="datetime-local"
+                    className={inputCls}
+                    value={inheritedDate}
+                    onChange={(e) => setInheritedDate(e.target.value)}
+                  />
+                </Field>
+                <Field label={`${t("tx.inheritedCost")} (${t("common.optional")})`}>
+                  <NumberInput
+                    kind="fiat"
+                    placeholder={decimalPlaceholder(loc, 2)}
+                    value={inheritedCost}
+                    onChange={setInheritedCost}
+                  />
+                </Field>
+              </div>
+              {inheritedDate.trim() === "" && (
+                <p className="text-xs leading-relaxed text-warning">
+                  <WarnIcon /> {t("tx.inheritedUnknown")}
+                </p>
+              )}
+            </Section>
           )}
 
           <Section

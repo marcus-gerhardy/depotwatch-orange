@@ -6,7 +6,7 @@ import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
 import { computeFifo, daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
-import { formatFiat } from "@/lib/decimal";
+import { dec, formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
 import { downloadAsFile } from "@/lib/fileStorage";
 import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
@@ -342,6 +342,111 @@ export default function TaxView() {
           </>
         )}
       </Card>
+
+      {/* Neither of these is a private disposal (§23 EStG), so neither belongs
+          in the table above — a gift has no proceeds to tax, and income is
+          taxed when it arrives, under a different heading entirely. They are
+          listed apart, with what the app can say and no more. */}
+      {fifo.giftsOut.length > 0 && (
+        <Card>
+          <SectionTitle level={2}>{t("tax.giftsOut")}</SectionTitle>
+          <p className="mb-3 text-xs leading-relaxed text-muted">
+            {t("tax.giftsOutHint")}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border-c text-left text-xs text-muted">
+                  <th className="py-2 pr-4 font-normal">{t("tx.date")}</th>
+                  <th className="py-2 pr-4 text-right font-normal">{t("tax.amount")}</th>
+                  <th className="py-2 pr-4 text-right font-normal">{t("tax.cost")}</th>
+                  <th className="py-2 font-normal">{t("tx.note")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fifo.giftsOut.map((g) => (
+                  <tr key={g.txId} className="border-b border-border-c/50">
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {formatDate(g.date, loc)}
+                    </td>
+                    <td className="py-2 pr-4 text-right font-mono">
+                      <Amount>{amountFmt.format(g.amountBtc)}</Amount>
+                    </td>
+                    <td className="py-2 pr-4 text-right font-mono">
+                      <Amount>{formatFiat(g.costBasisEur, "EUR", loc)}</Amount>
+                      {g.uncoveredBtc.gt(0) && (
+                        <span
+                          className="ml-2 cursor-help rounded bg-warning/15 px-2 py-0.5 text-[10px] whitespace-nowrap text-warning"
+                          title={t("tax.uncoveredWarning", {
+                            amount: amountFmt.formatWithUnit(g.uncoveredBtc),
+                          })}
+                        >
+                          {t("tx.origin.badge")}
+                        </span>
+                      )}
+                    </td>
+                    <td className="max-w-40 truncate py-2 text-xs text-muted" title={g.note || undefined}>
+                      {g.note || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {fifo.incomeReceipts.length > 0 && (
+        <Card>
+          <SectionTitle level={2}>{t("tax.income")}</SectionTitle>
+          <p className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs leading-relaxed text-warning">
+            <WarnIcon /> {t("tax.incomeHint")}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border-c text-left text-xs text-muted">
+                  <th className="py-2 pr-4 font-normal">{t("tx.date")}</th>
+                  <th className="py-2 pr-4 text-right font-normal">{t("tax.amount")}</th>
+                  <th className="py-2 pr-4 text-right font-normal">{t("tax.incomeValue")}</th>
+                  <th className="py-2 font-normal">{t("tx.note")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fifo.incomeReceipts.map((r) => (
+                  <tr key={r.txId} className="border-b border-border-c/50">
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {formatDate(r.date, loc)}
+                    </td>
+                    <td className="py-2 pr-4 text-right font-mono">
+                      <Amount>{amountFmt.format(r.amountBtc)}</Amount>
+                    </td>
+                    <td className="py-2 pr-4 text-right font-mono">
+                      {r.valueEur === null ? (
+                        <span className="cursor-help text-muted" title={t("tax.unknownBasis")}>
+                          ?
+                        </span>
+                      ) : (
+                        <Amount>{formatFiat(r.valueEur, "EUR", loc)}</Amount>
+                      )}
+                    </td>
+                    <td className="max-w-40 truncate py-2 text-xs text-muted" title={r.note || undefined}>
+                      {r.note || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-muted">{t("tax.incomeTotal", {
+            amount: formatFiat(
+              fifo.incomeReceipts.reduce((sum, r) => sum.plus(r.valueEur ?? 0), dec(0)),
+              "EUR",
+              loc,
+            ),
+          })}</p>
+        </Card>
+      )}
     </div>
   );
 }

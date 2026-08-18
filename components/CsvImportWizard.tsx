@@ -13,6 +13,7 @@ import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import {
   DEFAULT_DUPLICATE_TOLERANCE_MINUTES,
+  TRANSACTION_TYPES,
   type ImportBatch,
   type Transaction,
   type TransactionType,
@@ -99,13 +100,9 @@ const HELP_BY_STEP: Record<StepKey, string> = {
   confirm: "csv-undo",
 };
 const WALLET_TYPES: WalletType[] = ["exchange", "hardware", "software", "paper"];
-const TX_TYPES: TransactionType[] = [
-  "buy",
-  "sell",
-  "transfer_in",
-  "transfer_out",
-  "spend",
-];
+// The value mapping offers every type the ledger has: an export that reports a
+// reward or a gift should be mappable to one, not forced into "buy".
+const TX_TYPES: TransactionType[] = [...TRANSACTION_TYPES];
 
 /** Which preview column an error code highlights. */
 const ERROR_FIELDS: Record<RowErrorCode, MappingField[]> = {

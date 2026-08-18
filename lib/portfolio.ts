@@ -16,13 +16,20 @@ export function balanceDelta(e: LedgerEntry): Decimal {
   const amount = dec(e.amountBtc);
   const fee = dec(e.feeBtc);
   switch (e.type) {
+    // A BTC fee comes off what a buy credits; income is bought with work
+    // rather than money but arrives the same way.
     case "buy":
+    case "income":
       return amount.minus(fee);
+    // Nothing is charged on a gift arriving, and a transfer_in records what
+    // the out-leg sent — its fee was already paid over there.
     case "transfer_in":
+    case "gift_in":
       return amount;
     case "sell":
     case "spend":
     case "transfer_out":
+    case "gift_out":
       return amount.plus(fee).neg();
   }
 }
@@ -48,7 +55,11 @@ export interface BalanceBreakdown {
   sells: Decimal;
   transferOuts: Decimal;
   spends: Decimal;
-  /** BTC fees, already contained in the five sums above. */
+  /** Coins that arrived without being bought, and coins given away (§3.2). */
+  giftsIn: Decimal;
+  giftsOut: Decimal;
+  income: Decimal;
+  /** BTC fees, already contained in the sums above. */
   feeBtc: Decimal;
   /** Entries whose amount or BTC fee is not a number — they count as 0. */
   invalid: LedgerEntry[];
@@ -70,6 +81,9 @@ export function balanceBreakdown(entries: LedgerEntry[]): BalanceBreakdown {
     sells: ZERO,
     transferOuts: ZERO,
     spends: ZERO,
+    giftsIn: ZERO,
+    giftsOut: ZERO,
+    income: ZERO,
     feeBtc: ZERO,
     invalid: [],
     total: ZERO,
@@ -92,9 +106,21 @@ export function balanceBreakdown(entries: LedgerEntry[]): BalanceBreakdown {
       case "spend":
         out.spends = out.spends.plus(delta);
         break;
+      case "gift_in":
+        out.giftsIn = out.giftsIn.plus(delta);
+        break;
+      case "gift_out":
+        out.giftsOut = out.giftsOut.plus(delta);
+        break;
+      case "income":
+        out.income = out.income.plus(delta);
+        break;
     }
-    // A transfer_in's fee stays with the out-leg, so it is not part of any sum.
-    if (e.type !== "transfer_in") out.feeBtc = out.feeBtc.plus(dec(e.feeBtc));
+    // A transfer_in's fee stays with the out-leg, and nothing is charged on a
+    // gift arriving — neither is part of any fee sum.
+    if (e.type !== "transfer_in" && e.type !== "gift_in") {
+      out.feeBtc = out.feeBtc.plus(dec(e.feeBtc));
+    }
     const amountOk = NUMERIC.test(e.amountBtc.trim());
     const feeOk = e.feeBtc === undefined || NUMERIC.test(e.feeBtc.trim());
     if (!amountOk || !feeOk) out.invalid.push(e);

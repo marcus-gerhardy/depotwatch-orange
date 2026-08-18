@@ -11,6 +11,7 @@ import {
   normalizeTxid,
 } from "./bitcoin";
 import type { EurValuationSource, Transaction, TransactionType } from "./types";
+import { isOutflow, isPriced } from "./types";
 
 export type CsvDelimiter = "," | ";";
 export type DecimalSeparator = "." | ",";
@@ -198,6 +199,19 @@ const TYPE_SYNONYMS: Record<string, TransactionType> = {
   ausgabe: "spend",
   payment: "spend",
   zahlung: "spend",
+  gift_in: "gift_in",
+  gift: "gift_in",
+  geschenk: "gift_in",
+  schenkung: "gift_in",
+  gift_out: "gift_out",
+  verschenkt: "gift_out",
+  income: "income",
+  einkommen: "income",
+  einkuenfte: "income",
+  reward: "income",
+  earn: "income",
+  mining: "income",
+  verguetung: "income",
 };
 
 /**
@@ -1278,7 +1292,7 @@ export function btcAmountAdjustment(
   if (type === "buy" && feeBtcModeIn === "deducted") {
     return { fileAmount: btcString(amount.minus(fee)), fee, added: true };
   }
-  const isOutgoing = type === "sell" || type === "spend" || type === "transfer_out";
+  const isOutgoing = type !== null && isOutflow(type);
   if (isOutgoing && feeBtcModeOut === "notDeducted") {
     return { fileAmount: btcString(amount.plus(fee)), fee, added: false };
   }
@@ -1293,7 +1307,7 @@ export function btcAmountAdjustment(
  */
 export function effectiveEurTotal(v: ImportRowValues): string | null {
   const type = normalizeType(v.type);
-  if (type !== "buy" && type !== "sell" && type !== "spend") return null;
+  if (type === null || !isPriced(type)) return null;
   if (v.totalFiatEur === "" || !NUMBER.test(v.totalFiatEur)) return null;
   const total = dec(v.totalFiatEur);
   const fee = NUMBER.test(v.feeFiatEur) ? dec(v.feeFiatEur) : dec("");
@@ -1369,7 +1383,7 @@ export function buildImportRows(
     if (type === "buy" && feeBtcModeIn === "deducted") {
       return btcString(dec(amount).plus(fee));
     }
-    const isOutgoing = type === "sell" || type === "spend" || type === "transfer_out";
+    const isOutgoing = type !== null && isOutflow(type);
     if (isOutgoing && feeBtcModeOut === "notDeducted") {
       return btcString(dec(amount).minus(fee));
     }
@@ -1485,7 +1499,7 @@ export function validateRow(
     errors.push("invalidTime");
   }
   if (!positiveNumber(v.amountBtc)) errors.push("invalidAmount");
-  const needsPrice = type === "buy" || type === "sell" || type === "spend";
+  const needsPrice = type !== null && isPriced(type);
   if (needsPrice) {
     const hasPrice = positiveNumber(v.pricePerBtcEur);
     const hasTotal = positiveNumber(v.totalFiatEur);
@@ -1525,7 +1539,7 @@ export function needsEurValuation(
   formats: DateTimeFormats = {},
 ): boolean {
   const type = normalizeType(v.type);
-  if (type !== "buy" && type !== "sell" && type !== "spend") return false;
+  if (type === null || !isPriced(type)) return false;
   if (v.pricePerBtcEur.trim() !== "" || v.totalFiatEur.trim() !== "") return false;
   if (!positiveNumber(v.amountBtc)) return false;
   return parseImportDateTime(v.date, v.time, formats) !== null;

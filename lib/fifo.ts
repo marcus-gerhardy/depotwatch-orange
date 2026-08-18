@@ -121,6 +121,45 @@ export interface Disposal {
   note: string;
 }
 
+/**
+ * Coins given away (§3.2).
+ *
+ * Deliberately **not** a `Disposal`: in German law a gift is no private
+ * disposal transaction (§23 EStG) — there are no proceeds, so there is no gain
+ * to tax, and booking one at zero proceeds would report the whole cost basis
+ * as a realised loss. It may attract gift tax instead, which is a different
+ * tax with different allowances and not something this app calculates. So it
+ * is listed on its own, with what it cost and what it closed.
+ */
+export interface GiftOut {
+  txId: string;
+  date: string;
+  amountBtc: Decimal;
+  /** What the given coins had cost — the figure a gift tax return starts from. */
+  costBasisEur: Decimal;
+  parts: DisposalPart[];
+  /** BTC given away beyond what open lots covered (a data entry gap). */
+  uncoveredBtc: Decimal;
+  note: string;
+}
+
+/**
+ * Coins received as payment or reward (§3.2).
+ *
+ * Income at the moment of receipt, valued at that day's market price, and
+ * taxed *outside* private disposals — so it is reported on its own rather than
+ * mixed into realised gains. The holding period for the later sale of these
+ * coins starts on the day they arrived.
+ */
+export interface IncomeReceipt {
+  txId: string;
+  date: string;
+  amountBtc: Decimal;
+  /** Market value on receipt; null when no EUR figure was recorded. */
+  valueEur: Decimal | null;
+  note: string;
+}
+
 /** One internal transfer_out leg that moved (part of) a lot to another own account. */
 export interface LotTransferLeg {
   transferOutTxId: string;
@@ -138,6 +177,10 @@ export interface FullyTransferredLot {
 export interface FifoResult {
   openLots: OpenLot[];
   disposals: Disposal[];
+  /** Coins given away — never part of `disposals`, see GiftOut. */
+  giftsOut: GiftOut[];
+  /** Coins received as payment — income, not a disposal. See IncomeReceipt. */
+  incomeReceipts: IncomeReceipt[];
   /**
    * BTC still covered by open lots. This is NOT the portfolio holding: a
    * disposal the engine cannot cover (a sell whose buy is missing, e.g. from a
@@ -193,6 +236,8 @@ export function computeFifo(
   // shifting from the front.
   const lots: OpenLot[] = [];
   const disposals: Disposal[] = [];
+  const giftsOut: GiftOut[] = [];
+  const incomeReceipts: IncomeReceipt[] = [];
   const movedByGroup = new Map<string, MovedPart[]>();
   // Per lot-creating tx id: BTC consumed by an internal transfer (with legs),
   // vs. BTC consumed by anything else (sell/spend/external send/legacy fee).
@@ -352,6 +397,92 @@ export function computeFifo(
           remainingBtc: net,
           costPerBtcEur,
           taxFreeDate: taxFreeDateFor(e.date),
+          note: e.note,
+        });
+        break;
+      }
+      case "gift_in": {
+        // The recipient steps into the giver's shoes: the holding period runs
+        // from *their* acquisition, not from the day the gift arrived
+        // ("Fußstapfentheorie", §23 EStG). Where that date is unknown the lot
+        // is marked rather than dated from the arrival — an invented
+        // acquisition date is an invented holding period, and it would happen
+        // to be the reading most favourable to the recipient.
+        const inherited = e.inheritedAcquisitionDate;
+        const known = inherited !== undefined && !Number.isNaN(Date.parse(inherited));
+        const acquiredDate = known ? inherited : e.date;
+        const cost =
+          e.inheritedCostBasisEur != null && e.inheritedCostBasisEur !== ""
+            ? dec(e.inheritedCostBasisEur)
+            : null;
+        if (amount.lte(0)) break;
+        lots.push({
+          txId: e.id,
+          acquiredDate,
+          accountId: e.accountId,
+          walletName: e.walletName,
+          accountName: e.accountName,
+          originalAmountBtc: amount,
+          remainingBtc: amount,
+          // The giver's cost basis carries over with the coins; without it the
+          // basis is unknown, exactly like an external arrival.
+          costPerBtcEur: cost === null ? null : cost.div(amount),
+          taxFreeDate: taxFreeDateFor(acquiredDate),
+          note: e.note,
+          ...(known ? {} : { originUnresolved: true }),
+        });
+        break;
+      }
+      case "income": {
+        // Received as payment: taxed on receipt at that day's market value,
+        // and *that* value is the cost basis of the coins from then on. The
+        // holding period starts here, because this is the acquisition.
+        const net = amount.minus(feeBtc);
+        if (net.lte(0)) break;
+        const gross =
+          e.totalFiatEur != null
+            ? dec(e.totalFiatEur)
+            : price === null
+              ? null
+              : amount.mul(price);
+        incomeReceipts.push({
+          txId: e.id,
+          date: e.date,
+          amountBtc: net,
+          valueEur: gross,
+          note: e.note,
+        });
+        lots.push({
+          txId: e.id,
+          acquiredDate: e.date,
+          accountId: e.accountId,
+          walletName: e.walletName,
+          accountName: e.accountName,
+          originalAmountBtc: net,
+          remainingBtc: net,
+          costPerBtcEur: gross === null ? null : gross.div(net),
+          taxFreeDate: taxFreeDateFor(e.date),
+          note: e.note,
+        });
+        break;
+      }
+      case "gift_out": {
+        // Consumes lots like a sale and needs the same allocations, but there
+        // are no proceeds and therefore no gain: it is not a disposal (§23
+        // EStG) and must not land among the realised ones. What it leaves
+        // behind is a cost basis, which is where a gift tax return starts.
+        const closed = consumeLeaving(amount.plus(feeBtc), e);
+        addOtherConsumption(closed.parts);
+        giftsOut.push({
+          txId: e.id,
+          date: e.date,
+          amountBtc: amount,
+          costBasisEur: closed.parts.reduce(
+            (sum, p) => sum.plus(p.costBasisEur ?? ZERO),
+            ZERO,
+          ),
+          parts: closed.parts,
+          uncoveredBtc: Decimal.min(amount, closed.uncovered),
           note: e.note,
         });
         break;
@@ -584,6 +715,8 @@ export function computeFifo(
   return {
     openLots,
     disposals,
+    giftsOut,
+    incomeReceipts,
     openLotsBtc,
     openCostBasisEur: openCost,
     openBasisBtc: knownBasisBtc,

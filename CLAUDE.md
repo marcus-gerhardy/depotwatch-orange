@@ -65,7 +65,7 @@ Transaction schema:
 ```json
 {
   "id": "uuid",
-  "type": "buy | sell | transfer_in | transfer_out | spend",
+  "type": "buy | sell | transfer_in | transfer_out | spend | gift_in | gift_out | income",
   "date": "ISO-8601",
   "amountBtc": "decimal string",
   "pricePerBtcEur": "decimal | null (price per BTC; for transfers optional: the traced average cost of the moved lots, for display only)",
@@ -106,6 +106,14 @@ On-chain fields (`txid`, `address`): both optional and only meaningful for `tran
 Fee convention (`feeBtc`): `amountBtc` is always what reaches the other side — the coins received on a buy/transfer_in, the coins sold, spent or sent on the outgoing types. A BTC fee is **on top of** that: a buy credits `amountBtc − feeBtc`, and sell/spend/transfer_out (internal *and* external) debit `amountBtc + feeBtc`. For a transfer_out that sum is exactly what its `lotAllocations` add up to, and the in-leg of an internal transfer records the out-leg's `amountBtc` unchanged — so a transfer pair costs the portfolio precisely the network fee. `balanceDelta()` in `lib/portfolio.ts` is the single implementation of this rule; the FIFO engine consumes lots the same way, and a test asserts both stay equal. Files written before this was unified (out-leg amount incl. fee, allocations summing to it, in-leg net) are converted on load by `migrateTransferFeeConvention()` in `lib/store.ts`.
 
 **Deleting a transaction** releases what pointed at it (`lib/deletion.ts`, used by both delete actions in the store): `lotAllocations` entries referencing a deleted transaction are dropped — an amount no lot could ever cover — which leaves that disposal unassigned until the user assigns it again (nothing re-assigns it automatically, see the lot concept); and a transfer leg whose counterpart is gone loses `transferGroupId`/`counterpartyAccountId`, i.e. it becomes a plain external send/receive, so its coins stay accounted for in both the balance and the FIFO engine. A group with several in-legs stays intact as long as one out-leg and one in-leg remain. The confirm dialog names how many transactions this affects.
+
+**Coins that arrived without being bought** (`gift_in`, `income`) **and coins given away** (`gift_out`): three types rather than a flag on a buy, because each is taxed differently and the difference is not cosmetic.
+
+- A **gift received** carries the *giver's* acquisition, not its own: German law has the recipient step into their shoes ("Fußstapfentheorie"), so the holding period keeps running from the giver's purchase and their cost becomes the recipient's. Those two figures live in `inheritedAcquisitionDate`/`inheritedCostBasisEur`, both optional because a recipient often does not know them — and unknown is then **reported as unknown**: the lot is marked `originUnresolved` rather than dated from the arrival, which would invent a holding period and invent the most favourable one there is.
+- **Income** (received as payment or reward) is an acquisition at the day's market value: the holding period starts on receipt and that value is the cost basis from then on. It is taxed *when it arrives*, outside private disposals, so it is reported as its own figure (`FifoResult.incomeReceipts`) and never as a realised gain — mixing it in would tax it a second time under the wrong heading.
+- **Giving coins away** consumes lots and needs the same `lotAllocations` as a sale, but it is **not a disposal** (§23 EStG): there are no proceeds, so there is no gain. It is listed separately (`FifoResult.giftsOut`) with the cost basis it closed, which is where a gift tax return starts — booking it as a sale at zero proceeds would report that whole cost basis as a realised loss. Gift tax itself is a different tax and is not calculated here.
+
+`isInflow()`/`isOutflow()`/`isPriced()` in `lib/types.ts` are the single answer to "does this type create a lot, consume lots, carry a price" — the switches that used to spell out `buy || sell || spend` read those instead, so a future type cannot be forgotten in half of them. Every tax surface repeats that the app is no substitute for tax advice.
 
 **Lot concept:** A "lot" is not a separate entity but any buy/transfer_in transaction with a remaining balance (amount − amount already sold via `lotAllocations`). The assignment of a disposal to one or more lots is stored permanently in `lotAllocations` and is never retroactively recomputed when other transactions are added or edited later.
 
