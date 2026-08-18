@@ -5,6 +5,7 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAppStore } from "./store";
+import { PENDING_TTL_MS, pendingMilestones, queuePendingMilestone } from "./milestoneEvents";
 import { emptyPortfolio, type PortfolioFile, type Transaction } from "./types";
 
 const tx = (o: Partial<Transaction> & Pick<Transaction, "id">): Transaction => ({
@@ -30,12 +31,17 @@ function portfolio(transactions: Transaction[] = []): PortfolioFile {
   return p;
 }
 
-const open = (p: PortfolioFile, password: string | null = null) =>
+const open = (
+  p: PortfolioFile,
+  password: string | null = null,
+  opts: { isDemo?: boolean } = {},
+) =>
   useAppStore.getState().openPortfolio({
     portfolio: p,
     handle: null,
     fileName: "test.dwp",
     password,
+    ...opts,
   });
 
 const ids = () => (useAppStore.getState().portfolio?.milestones ?? []).map((m) => m.id);
@@ -157,5 +163,86 @@ describe("acknowledging", () => {
     useAppStore.setState({ dirty: false });
     useAppStore.getState().clearMilestoneQueue();
     expect(useAppStore.getState().dirty).toBe(false);
+  });
+});
+
+describe("an event raised before any file was open", () => {
+  // The whitepaper is reached from "how it works", a page one reads *before*
+  // opening a portfolio — so the click used to land in a store with no file
+  // and was dropped, which made the milestone unreachable in practice.
+  const WHEN = new Date("2026-08-18T09:00:00.000Z");
+  const recordOf = (id: string) =>
+    (useAppStore.getState().portfolio?.milestones ?? []).find((m) => m.id === id);
+
+  it("waits instead of being lost, and keeps the time it happened", () => {
+    useAppStore.getState().achieveMilestone("whitepaperOpened");
+    expect(pendingMilestones().map((e) => e.id)).toEqual(["whitepaperOpened"]);
+  });
+
+  it("is written into the next file, dated when it happened", () => {
+    queuePendingMilestone("whitepaperOpened", WHEN);
+    const p = portfolio([]);
+    p.milestones = [];
+
+    open(p);
+
+    // The date is the event's, not the moment the file was opened.
+    expect(recordOf("whitepaperOpened")?.achievedAt).toBe(WHEN.toISOString());
+    // Announced rather than swallowed: it was reached, not discovered.
+    expect(queue()).toEqual(["whitepaperOpened"]);
+    // The file now differs from the one on disk, so it has to be saved.
+    expect(useAppStore.getState().dirty).toBe(true);
+    // And it is gone from the waiting room.
+    expect(pendingMilestones()).toEqual([]);
+  });
+
+  it("is not handed to a second file as well", () => {
+    queuePendingMilestone("whitepaperOpened", WHEN);
+    const first = portfolio([]);
+    first.milestones = [];
+    open(first);
+
+    const second = portfolio([]);
+    second.milestones = [];
+    open(second);
+
+    expect(recordOf("whitepaperOpened")).toBeUndefined();
+  });
+
+  it("expires after a day rather than surfacing in a file opened much later", () => {
+    queuePendingMilestone(
+      "whitepaperOpened",
+      new Date(Date.now() - PENDING_TTL_MS - 1000),
+    );
+    const p = portfolio([]);
+    p.milestones = [];
+
+    open(p);
+
+    expect(recordOf("whitepaperOpened")).toBeUndefined();
+    expect(queue()).toEqual([]);
+    expect(useAppStore.getState().dirty).toBe(false);
+  });
+
+  it("is left waiting when the demo is opened, which has nowhere to save it", () => {
+    queuePendingMilestone("whitepaperOpened", WHEN);
+    const p = portfolio([]);
+    p.milestones = [];
+
+    open(p, null, { isDemo: true });
+
+    expect(recordOf("whitepaperOpened")).toBeUndefined();
+    expect(pendingMilestones().map((e) => e.id)).toEqual(["whitepaperOpened"]);
+  });
+
+  it("collects several into one notification rather than a sequence", () => {
+    queuePendingMilestone("whitepaperOpened", WHEN);
+    queuePendingMilestone("taxExported", new Date(WHEN.getTime() + 60_000));
+    const p = portfolio([]);
+    p.milestones = [];
+
+    open(p);
+
+    expect(queue()).toEqual(["whitepaperOpened", "taxExported"]);
   });
 });

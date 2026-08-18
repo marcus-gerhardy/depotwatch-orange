@@ -38,6 +38,11 @@ import {
   milestoneContext,
   type MilestoneRecord,
 } from "./milestones";
+import {
+  clearPendingMilestones,
+  pendingMilestones,
+  queuePendingMilestone,
+} from "./milestoneEvents";
 import { computeFifo } from "./fifo";
 import { Decimal, dec, ZERO } from "./decimal";
 import {
@@ -704,6 +709,40 @@ export const useAppStore = create<AppState>((set, get) => {
   };
 
   /**
+   * Milestone events raised while no file was open, written into the file that
+   * is being opened (lib/milestoneEvents.ts).
+   *
+   * Each keeps **the time it happened** rather than the time of the open: a
+   * milestone records when something was done, and the whitepaper was read
+   * before this file existed on screen, not while it was loading.
+   *
+   * Not into the demo. That is a portfolio the app has nowhere to save, so a
+   * record written there is gone again the moment it is closed — and it would
+   * dirty the demo, which asks the user to pick a location for test data. The
+   * queue is left untouched in that case and goes into the next real file.
+   */
+  const withPendingEvents = (
+    p: PortfolioFile,
+    { canPersist }: { canPersist: boolean },
+  ): { portfolio: PortfolioFile; newly: MilestoneRecord[] } => {
+    if (!canPersist) return { portfolio: p, newly: [] };
+    const pending = pendingMilestones();
+    if (pending.length === 0) return { portfolio: p, newly: [] };
+
+    let milestones = p.milestones ?? [];
+    const newly: MilestoneRecord[] = [];
+    for (const event of pending) {
+      const applied = achieveEvent(milestones, event.id, new Date(event.at));
+      milestones = applied.milestones;
+      newly.push(...applied.newlyAchieved);
+    }
+    // Cleared either way: an event this file had already recorded is settled
+    // too, and leaving it would keep re-offering it to every file opened next.
+    clearPendingMilestones();
+    return { portfolio: newly.length > 0 ? { ...p, milestones } : p, newly };
+  };
+
+  /**
    * Apply a change. `change` records it in the file's change log (§6.6) — the
    * entry is *derived by diffing* rather than described by the caller, so an
    * undo also reverses what the action did on the side (a deletion drops lot
@@ -838,14 +877,19 @@ export const useAppStore = create<AppState>((set, get) => {
       const evaluated = withMilestones(portfolio, {
         silent: portfolio.milestones === undefined,
       });
+      // What happened before this file was open (the whitepaper, §5.2) — never
+      // silent, because it was genuinely reached rather than discovered.
+      const pending = withPendingEvents(evaluated.portfolio, { canPersist: !isDemo });
       set({
-        portfolio: evaluated.portfolio,
-        milestoneQueue: evaluated.newly,
+        portfolio: pending.portfolio,
+        milestoneQueue: [...evaluated.newly, ...pending.newly],
         fileHandle: handle,
         fileName,
         password,
         encryptionEnabled: password !== null,
-        dirty: false,
+        // A file that just took in a waiting milestone differs from the one on
+        // disk, and the point of the queue is that the record survives.
+        dirty: pending.newly.length > 0,
         lastSavedAt: null,
         needsFileSetup: !!isDemo,
         integrityWarning: integrityWarning ?? null,
@@ -860,6 +904,7 @@ export const useAppStore = create<AppState>((set, get) => {
         unlockBlockedUntil: 0,
         fileSetupRequested: false,
       });
+      if (pending.newly.length > 0) scheduleAutosave();
     },
 
     closePortfolio: () => {
@@ -1078,7 +1123,13 @@ export const useAppStore = create<AppState>((set, get) => {
 
     achieveMilestone: (id) => {
       const p = get().portfolio;
-      if (!p) return;
+      // No file open — the whitepaper is read from a page one visits *before*
+      // opening one (§5.2). The event waits in localStorage and is written
+      // into the next file that is opened, with the time it happened.
+      if (!p) {
+        queuePendingMilestone(id);
+        return;
+      }
       const { milestones, newlyAchieved } = achieveEvent(p.milestones ?? [], id);
       if (newlyAchieved.length === 0) return;
       set({

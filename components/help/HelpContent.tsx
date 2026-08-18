@@ -11,10 +11,13 @@
 // Links come in two kinds and behave differently on purpose. A link into the
 // help itself moves *within* the current surface — inside the panel it must not
 // navigate the app away from what the reader was doing. A link to an app page
-// ("So funktioniert's") is a real navigation and gets a real anchor.
+// ("So funktioniert's") is a real navigation and gets a real anchor. The one
+// link the renderer knows by name is the whitepaper, because opening it is a
+// milestone (see below).
 
 import Link from "next/link";
 import { useState } from "react";
+import { useAppStore } from "@/lib/store";
 import type { HelpBlock } from "@/lib/help/types";
 
 /** One piece of inline text. */
@@ -57,11 +60,25 @@ export function parseInline(text: string): Inline[] {
   return out;
 }
 
+/**
+ * The whitepaper, which ships with the app (public/bitcoin.pdf, §5.1).
+ *
+ * The renderer knows this one href on purpose: opening the paper is a
+ * milestone (§5.2), and nothing in the file could work that out afterwards, so
+ * it has to be recorded at the click. Without a portfolio open the record goes
+ * into the waiting queue (lib/milestoneEvents.ts) — which is the normal case
+ * here, since the help is readable before any file is.
+ */
+const WHITEPAPER_HREF = "/bitcoin.pdf";
+
 /** Is this a link into the help itself? Then it stays inside the surface. */
 export function helpTargetOf(href: string): string | null {
   const m = /^\/(?:hilfe|help)\/([a-z0-9-]+)(?:#([a-z0-9-]+))?$/.exec(href);
   return m ? (m[2] ?? m[1]) : null;
 }
+
+/** The milestone the whitepaper link records. */
+const WHITEPAPER_HREF_MILESTONE = "whitepaperOpened";
 
 function InlineText({
   text,
@@ -70,6 +87,7 @@ function InlineText({
   text: string;
   onNavigate?: (target: string) => void;
 }) {
+  const achieveMilestone = useAppStore((s) => s.achieveMilestone);
   return (
     <>
       {parseInline(text).map((piece, i) => {
@@ -82,6 +100,20 @@ function InlineText({
           );
         }
         if (piece.kind === "link") {
+          if (piece.href === WHITEPAPER_HREF) {
+            return (
+              <a
+                key={i}
+                href={piece.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent underline decoration-dotted"
+                onClick={() => achieveMilestone(WHITEPAPER_HREF_MILESTONE)}
+              >
+                {piece.text}
+              </a>
+            );
+          }
           const target = helpTargetOf(piece.href);
           if (target && onNavigate) {
             return (

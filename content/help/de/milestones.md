@@ -8,6 +8,11 @@ Eine Regel entscheidet, was aufgenommen wird: **Belohnt wird eine Entscheidung, 
 
 Fünf Kategorien: Stapeln, Souveränität, Geduld, Sorgfalt, Kultur.
 
+## Das Whitepaper lesen {#ms-whitepaper}
+Bitcoin in neun Seiten, von Satoshi Nakamoto: [Bitcoin: A Peer-to-Peer Electronic Cash System (PDF)](/bitcoin.pdf). Die Datei liegt in dieser App, nicht bei einem Dritten — sie zu öffnen fragt niemanden um Erlaubnis und meldet es niemandem.
+
+Damit ist der Meilenstein „Whitepaper geöffnet" aus der Kategorie Kultur erreicht. Er wird beim Klick festgehalten; passiert das, bevor eine Portfolio-Datei offen ist, wird er der nächsten Datei gutgeschrieben, die du innerhalb eines Tages öffnest.
+
 ## Wann etwas erreicht ist {#ms-when}
 Die App wertet bei jeder Änderung aus und einmal beim Öffnen der Datei. Erreichtes wird mit dem Datum festgehalten, an dem es **tatsächlich** passiert ist — bei einer Datei mit fünf Jahren Historie also rückwirkend, nicht auf heute datiert.
 

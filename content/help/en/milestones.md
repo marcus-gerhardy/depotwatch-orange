@@ -8,6 +8,11 @@ One rule decides what gets in: **a decision is rewarded, never the price.** Ther
 
 Five categories: stacking, sovereignty, patience, diligence, culture.
 
+## Reading the whitepaper {#ms-whitepaper}
+Bitcoin in nine pages, by Satoshi Nakamoto: [Bitcoin: A Peer-to-Peer Electronic Cash System (PDF)](/bitcoin.pdf). The file ships with this app rather than sitting on somebody else's server — opening it asks nobody for permission and tells nobody about it.
+
+That is the "whitepaper opened" milestone, from the culture category. It is recorded on the click; if that happens before a portfolio file is open, it is credited to the next file you open within a day.
+
 ## When something counts as reached {#ms-when}
 The app evaluates on every change and once when a file is opened. What is reached is recorded with the date it **actually** happened — so a file with five years of history gets historical dates, not today's.
 

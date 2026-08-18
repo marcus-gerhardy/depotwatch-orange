@@ -1197,6 +1197,21 @@ export const HELP_CONTENT: HelpContent = {
           "text": "Der Meilenstein-Katalog hält kleine Wegmarken fest: die erste Transaktion, 100.000 Sats, der erste Abzug von der Börse auf eigene Verwahrung, die erste Position über der Haltefrist, ein sauber geführter Übertragsbestand. Eine Regel entscheidet, was aufgenommen wird: Belohnt wird eine Entscheidung, nie der Kurs. Für einen steigenden Preis gibt es nichts, denn das ist keine Leistung, sondern Wetter. Serien, die man verlieren kann, gibt es ebenfalls nicht, und verglichen wird mit niemandem — die App hat nie jemand anderen gesehen. Fünf Kategorien: Stapeln, Souveränität, Geduld, Sorgfalt, Kultur."
         },
         {
+          "id": "ms-whitepaper",
+          "title": "Das Whitepaper lesen",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Bitcoin in neun Seiten, von Satoshi Nakamoto: [Bitcoin: A Peer-to-Peer Electronic Cash System (PDF)](/bitcoin.pdf). Die Datei liegt in dieser App, nicht bei einem Dritten — sie zu öffnen fragt niemanden um Erlaubnis und meldet es niemandem."
+            },
+            {
+              "kind": "p",
+              "text": "Damit ist der Meilenstein „Whitepaper geöffnet\" aus der Kategorie Kultur erreicht. Er wird beim Klick festgehalten; passiert das, bevor eine Portfolio-Datei offen ist, wird er der nächsten Datei gutgeschrieben, die du innerhalb eines Tages öffnest."
+            }
+          ],
+          "text": "Bitcoin in neun Seiten, von Satoshi Nakamoto: Bitcoin: A Peer-to-Peer Electronic Cash System (PDF). Die Datei liegt in dieser App, nicht bei einem Dritten — sie zu öffnen fragt niemanden um Erlaubnis und meldet es niemandem. Damit ist der Meilenstein „Whitepaper geöffnet\" aus der Kategorie Kultur erreicht. Er wird beim Klick festgehalten; passiert das, bevor eine Portfolio-Datei offen ist, wird er der nächsten Datei gutgeschrieben, die du innerhalb eines Tages öffnest."
+        },
+        {
           "id": "ms-when",
           "title": "Wann etwas erreicht ist",
           "blocks": [
@@ -2558,6 +2573,21 @@ export const HELP_CONTENT: HelpContent = {
             }
           ],
           "text": "The milestone catalogue records small markers: the first transaction, 100,000 sats, the first withdrawal from an exchange into your own custody, the first position past the holding period, a transfer history kept in order. One rule decides what gets in: a decision is rewarded, never the price. There is nothing for the price going up, because that is not an achievement, it is weather. There are no streaks to lose either, and nothing is compared with anyone — the app has never seen another user. Five categories: stacking, sovereignty, patience, diligence, culture."
+        },
+        {
+          "id": "ms-whitepaper",
+          "title": "Reading the whitepaper",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Bitcoin in nine pages, by Satoshi Nakamoto: [Bitcoin: A Peer-to-Peer Electronic Cash System (PDF)](/bitcoin.pdf). The file ships with this app rather than sitting on somebody else's server — opening it asks nobody for permission and tells nobody about it."
+            },
+            {
+              "kind": "p",
+              "text": "That is the \"whitepaper opened\" milestone, from the culture category. It is recorded on the click; if that happens before a portfolio file is open, it is credited to the next file you open within a day."
+            }
+          ],
+          "text": "Bitcoin in nine pages, by Satoshi Nakamoto: Bitcoin: A Peer-to-Peer Electronic Cash System (PDF). The file ships with this app rather than sitting on somebody else's server — opening it asks nobody for permission and tells nobody about it. That is the \"whitepaper opened\" milestone, from the culture category. It is recorded on the click; if that happens before a portfolio file is open, it is credited to the next file you open within a day."
         },
         {
           "id": "ms-when",
