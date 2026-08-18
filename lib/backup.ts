@@ -103,6 +103,22 @@ export function backupFileName(date: Date, extension = "dwp"): string {
 }
 
 /**
+ * A file name with a marker and a timestamp before its extension:
+ * "portfolio.dwp" + "extern" → "portfolio-extern-2026-08-18T20-15-00.dwp".
+ *
+ * Used where a second version of the same file has to sit next to it without
+ * claiming to be it (§6.8): the colons of an ISO stamp are not legal in a
+ * Windows file name, hence the same substitution `backupFileName` makes.
+ */
+export function stampedName(fileName: string, marker: string): string {
+  const dot = fileName.lastIndexOf(".");
+  const base = dot > 0 ? fileName.slice(0, dot) : fileName;
+  const ext = dot > 0 ? fileName.slice(dot + 1) : "dwp";
+  const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+  return `${base}-${marker}-${stamp}.${ext}`;
+}
+
+/**
  * The timestamp in a backup's name, or null when it is not one of ours. The
  * optional `-2`, `-3` … is the collision suffix (`uniqueBackupName`).
  */

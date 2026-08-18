@@ -25,6 +25,7 @@ import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
 import {
   DownloadIcon,
+  WarnIcon,
   FlaskIcon,
   LockIcon,
   MenuIcon,
@@ -33,6 +34,8 @@ import {
 } from "./icons";
 import BrandMark from "./BrandMark";
 import ReadOnlyToast from "./ReadOnlyToast";
+import FileWatch from "./FileWatch";
+import FileConflictDialog from "./FileConflictDialog";
 
 /**
  * The help carries its whole content (both languages, ~170 kB) and is opened
@@ -123,6 +126,31 @@ function HelpHeaderButton() {
         <path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4" />
         <path d="M12 17.4h.01" />
       </svg>
+    </button>
+  );
+}
+
+/**
+ * The file was written by somebody else while it was open (§6.8).
+ *
+ * A line, not a dialog: nothing is at stake until a save would overwrite
+ * something, and interrupting an edit to say "by the way" would be worse than
+ * the problem. Clicking it asks the question properly.
+ */
+function ExternalChangeHint() {
+  const { t } = useI18n();
+  const noticed = useAppStore((s) => s.externalChangeNoticed);
+  const conflict = useAppStore((s) => s.fileConflict);
+  const saveNow = useAppStore((s) => s.saveNow);
+  if (!noticed || conflict) return null;
+  return (
+    <button
+      onClick={() => void saveNow()}
+      title={t("conflict.noticed")}
+      className="flex shrink-0 items-center gap-1.5 rounded-lg border border-warning/50 bg-warning/10 px-2 py-1.5 text-xs text-warning transition-colors hover:bg-warning/20"
+    >
+      <WarnIcon />
+      <span className="hidden lg:inline">{t("conflict.noticedAction")}</span>
     </button>
   );
 }
@@ -300,6 +328,8 @@ export default function AppShell() {
       <HelpPanel />
       <Toast message={toast} onDone={() => setToast(null)} />
       <ReadOnlyToast />
+      <FileWatch />
+      <FileConflictDialog />
       <MilestoneToast />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-3 sm:px-4">
@@ -404,6 +434,7 @@ export default function AppShell() {
                   <span className="hidden md:inline"> {t("nav.saveFile")}</span>
                 </Button>
               )}
+              <ExternalChangeHint />
               <FileIndicator />
               <button
                 title={t("nav.closeFile")}

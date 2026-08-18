@@ -578,6 +578,20 @@ A portfolio can be opened to be looked at rather than worked in: read, filtered,
 
 Everything else keeps working unchanged: the auto-lock (§6.4) still counts down and still locks, and unlocking returns to the same read-only session.
 
+### 6.8 External File Changes
+
+One file, owned by the user — and people keep such a file where their other important files live, which today usually means a synced folder. Two devices, or one device and a sync client, then write the same file, and a save would silently win: what the app holds in memory goes to disk and whatever arrived in between is gone, with nobody told. That is the one loss this app cannot shrug off.
+
+**The file is fingerprinted when it is read and checked again before every write** (`lib/fileWatch.ts`). `lastModified` and `size` come free with the handle, but **the SHA-256 of the raw bytes is what decides**: a timestamp moves without the contents changing often enough — a re-download of the same version, a metadata touch, a backup tool — and warning about each of those would teach people to click the dialog away, which is exactly when the real conflict arrives. Same hash, same file, no conflict, whatever the clock says.
+
+**The check sits in `persist()`**, the one function every write goes through, rather than in the callers: a check somewhere else is a check somebody can forget. A conflict does not write; it sets `fileConflict` and the dialog takes over.
+
+**The dialog names both sides** — transactions and last transaction date for each, plus when the external one was written — because the question "which version counts" is unanswerable in the abstract. Three ways out, each saying what it costs: *load the external version* (the local edits go, backed up first), *save as a new file* (both kept), *overwrite* (the external version goes, downloaded as a copy first). **Every branch that loses something backs up exactly the side it is about to lose** — a backup of the surviving side would be worth nothing. A file that cannot be read (a different password) can still be preserved and overwritten; it just cannot be shown.
+
+**And it looks before it is asked to write** (`components/FileWatch.tsx`): every two minutes and whenever the tab comes back to the foreground, which is when a laptop was closed and synced. That one is deliberately *quiet* — a line in the header, never a modal. Being interrupted mid-edit about a file that has not been written yet would be worse than the problem; the dialog belongs to the moment a write would actually overwrite something.
+
+Without the File System Access API there is no handle to re-read, so there is nothing to compare: saving is a download the user places themselves. A missing capability, not an error — nothing is reported and nothing is blocked.
+
 ## 7. Tech Stack
 
 - **Framework:** Next.js (App Router) + Tailwind CSS

@@ -60,12 +60,14 @@ export async function pickFileForOpen(): Promise<{
   });
 }
 
-export async function pickFileForCreate(): Promise<FileSystemFileHandle | null> {
+export async function pickFileForCreate(
+  suggestedName = "portfolio.dwp",
+): Promise<FileSystemFileHandle | null> {
   const w = window as FsaWindow;
   if (typeof w.showSaveFilePicker !== "function") return null;
   try {
     return await w.showSaveFilePicker({
-      suggestedName: "portfolio.dwp",
+      suggestedName,
       types: PICKER_TYPES,
     });
   } catch (e) {

@@ -1737,6 +1737,32 @@ const de = {
     viewBackupUnsaved:
       "Es gibt ungespeicherte Änderungen. Backup trotzdem zur Ansicht öffnen? Die Änderungen gehen verloren.",
   },
+  conflict: {
+    title: "Die Datei wurde zwischenzeitlich geändert",
+    intro:
+      "Diese Portfolio-Datei ist auf dem Datenträger nicht mehr die, die du geöffnet hast. Meist heißt das: Ein anderes Gerät oder ein Sync-Dienst hat sie geschrieben. Deshalb wurde nichts gespeichert. Du entscheidest, welche Fassung gilt.",
+    mine: "Hier geöffnet",
+    theirs: "Auf dem Datenträger",
+    transactions: "Transaktionen",
+    lastTransaction: "Letzte Transaktion",
+    modified: "Geändert",
+    theirsWrongPassword:
+      "Die Fassung auf dem Datenträger lässt sich mit dem Passwort dieser Sitzung nicht lesen. Sie kann trotzdem gesichert und überschrieben werden, ansehen lässt sie sich hier aber nicht.",
+    theirsUnreadable:
+      "Die Fassung auf dem Datenträger lässt sich nicht lesen. Sie kann gesichert und überschrieben werden, ansehen lässt sie sich hier aber nicht.",
+    loadExternal: "Externe Fassung laden",
+    loadExternalHint:
+      "Deine Änderungen in dieser Sitzung gehen verloren. Vorher wird automatisch ein Backup davon angelegt.",
+    saveAs: "Als neue Datei speichern",
+    saveAsHint:
+      "Beide Fassungen bleiben erhalten: Du wählst einen neuen Speicherort für den Stand aus dieser Sitzung.",
+    overwrite: "Externe Fassung überschreiben",
+    overwriteHint:
+      "Die Fassung auf dem Datenträger geht verloren. Sie wird vorher als Kopie heruntergeladen.",
+    later: "Später entscheiden",
+    noticed: "Die Datei wurde außerhalb dieser App geändert.",
+    noticedAction: "Prüfen",
+  },
   settings: {
     title: "Einstellungen",
     nav: {

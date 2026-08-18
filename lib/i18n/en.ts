@@ -1725,6 +1725,32 @@ const en: typeof de = {
     viewBackupUnsaved:
       "There are unsaved changes. Open the backup for viewing anyway? Those changes are lost.",
   },
+  conflict: {
+    title: "The file has changed in the meantime",
+    intro:
+      "This portfolio file on disk is no longer the one you opened. Usually that means another device or a sync service has written it. Nothing was saved, and you decide which version counts.",
+    mine: "Open here",
+    theirs: "On disk",
+    transactions: "Transactions",
+    lastTransaction: "Last transaction",
+    modified: "Modified",
+    theirsWrongPassword:
+      "The version on disk cannot be read with this session's password. It can still be backed up and overwritten, but not shown here.",
+    theirsUnreadable:
+      "The version on disk cannot be read. It can still be backed up and overwritten, but not shown here.",
+    loadExternal: "Load the external version",
+    loadExternalHint:
+      "Your changes in this session are lost. A backup of them is written first.",
+    saveAs: "Save as a new file",
+    saveAsHint:
+      "Both versions are kept: you pick a new location for this session's state.",
+    overwrite: "Overwrite the external version",
+    overwriteHint:
+      "The version on disk is lost. It is downloaded as a copy first.",
+    later: "Decide later",
+    noticed: "The file has been changed outside this app.",
+    noticedAction: "Check",
+  },
   settings: {
     title: "Settings",
     nav: {

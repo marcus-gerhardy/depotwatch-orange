@@ -43,12 +43,18 @@ import {
   pendingMilestones,
   queuePendingMilestone,
 } from "./milestoneEvents";
+import {
+  fingerprintHandle,
+  hasChanged,
+  type FileFingerprint,
+} from "./fileWatch";
 import { computeFifo } from "./fifo";
 import { Decimal, dec, ZERO } from "./decimal";
 import {
   decryptPortfolio,
   encryptPortfolio,
   isEncryptedEnvelope,
+  WrongPasswordError,
 } from "./crypto";
 import {
   FileIntegrityError,
@@ -70,6 +76,7 @@ import {
   type BackupMeta,
   type BackupSettings,
   type BackupState,
+  stampedName,
 } from "./backup";
 import {
   applyUndo,
@@ -94,6 +101,7 @@ import {
   downloadAsFile,
   writeToHandle,
   type FileMode,
+  pickFileForCreate,
 } from "./fileStorage";
 
 interface AppState {
@@ -177,6 +185,28 @@ interface AppState {
    * doors every change goes through, and both are shut here.
    */
   readOnly: boolean;
+
+  /**
+   * A save that would overwrite a file changed behind our back (§6.8).
+   *
+   * Set instead of writing, so the dialog decides. Session state: it holds the
+   * content that was found on disk, which is nothing the portfolio should
+   * carry around.
+   */
+  fileConflict: FileConflict | null;
+  /** Resolve the conflict; each branch backs up what it is about to lose. */
+  resolveFileConflict: (choice: FileConflictChoice) => Promise<void>;
+  dismissFileConflict: () => void;
+  /** Preserve the version found on disk before overwriting it (§6.8). */
+  backupExternalVersion: (conflict: FileConflict) => Promise<void>;
+  /**
+   * Check the file on disk without writing. Called on a timer while a file is
+   * open, so an external change is noticed before the next save rather than
+   * during it.
+   */
+  checkFileChanged: () => Promise<void>;
+  /** An external change was noticed by that check, and not yet acted on. */
+  externalChangeNoticed: boolean;
   /**
    * When a write was last refused, so the UI can say so. A timestamp rather
    * than a flag: two refusals in a row are two things to say, and a flag would
@@ -399,6 +429,33 @@ export type BackupDirStatus =
   /** Folder remembered, but the browser wants permission again after a reload. */
   | "prompt"
   | "denied";
+
+/**
+ * A save that was refused because the file on disk is no longer the one that
+ * was opened (§6.8) — most often a synced folder that brought in a version
+ * from another device.
+ */
+export interface FileConflict {
+  fileName: string;
+  /** What is on disk now, already parsed; null when it cannot be read. */
+  external: PortfolioFile | null;
+  /** Why it could not be parsed, when it could not (a wrong password). */
+  externalError: "wrongPassword" | "unreadable" | null;
+  /** When the file on disk was last written. */
+  externalModified: number;
+}
+
+/**
+ * What to do about it. Every branch that loses something writes a backup of
+ * exactly the side it is about to lose, first.
+ */
+export type FileConflictChoice =
+  /** Take what is on disk; the local edits go (backed up first). */
+  | "loadExternal"
+  /** Keep the local version; the external edits go (backed up first). */
+  | "overwrite"
+  /** Keep both: the local version is saved as a new file. */
+  | "saveAs";
 
 export interface BackupRunResult {
   ok: boolean;
@@ -639,6 +696,59 @@ export const useAppStore = create<AppState>((set, get) => {
     return password ? await encryptPortfolio(json, password) : json;
   }
 
+  /** "portfolio.dwp" → "portfolio-extern-2026-08-18T20-15-00.dwp". */
+  const externalVersionName = (fileName: string): string =>
+    stampedName(fileName, "extern");
+
+  /** "portfolio.dwp" → "portfolio-kopie-2026-08-18T20-15-00.dwp". */
+  const conflictCopyName = (fileName: string | null): string =>
+    stampedName(fileName ?? "portfolio.dwp", "kopie");
+
+  /**
+   * The file as it was when we last read or wrote it (§6.8). Module state, not
+   * store state: nothing renders it, and a hash in a React dependency array is
+   * an invitation to re-run effects for no reason.
+   */
+  let fingerprint: FileFingerprint | null = null;
+
+  /** Adopt the file on disk as "what we know", after reading or writing it. */
+  async function refreshFingerprint(): Promise<void> {
+    const { fileHandle } = get();
+    fingerprint = fileHandle ? await fingerprintHandle(fileHandle) : null;
+  }
+
+  /**
+   * Is the file on disk still the one we opened? Returns the conflict rather
+   * than throwing, so both callers — the save and the background check — can
+   * decide what to do about it.
+   */
+  async function externalChange(): Promise<FileConflict | null> {
+    const { fileHandle, fileName, password } = get();
+    // Nothing to compare against: no handle (a downloaded file), or a file we
+    // have not fingerprinted yet. Not an error — a capability this browser
+    // does not have (§6.8).
+    if (!fileHandle || !fingerprint) return null;
+    const now = await fingerprintHandle(fileHandle);
+    if (!now || !hasChanged(fingerprint, now)) return null;
+
+    // There *is* a different file there. Read it, so the dialog can say what
+    // it holds rather than only that something changed.
+    let external: PortfolioFile | null = null;
+    let externalError: FileConflict["externalError"] = null;
+    try {
+      const text = await fileHandle.getFile().then((f) => f.text());
+      external = (await deserializePortfolio(text, password)).portfolio;
+    } catch (e) {
+      externalError = e instanceof WrongPasswordError ? "wrongPassword" : "unreadable";
+    }
+    return {
+      fileName: fileName ?? "",
+      external,
+      externalError,
+      externalModified: now.lastModified,
+    };
+  }
+
   async function persist(): Promise<void> {
     // Not even a byte, and not even the file's timestamp: a portfolio in a
     // synced folder must come out of a read-only visit untouched (§6.7).
@@ -651,6 +761,16 @@ export const useAppStore = create<AppState>((set, get) => {
     const current = get().portfolio;
     if (!current) return;
     const { fileHandle, fileMode } = get();
+    // Never overwrite a file that changed behind our back (§6.8). Checked here
+    // rather than in the callers: every write goes through this function, and
+    // a check somewhere else would be a check somebody can forget.
+    if (fileMode === "fsa" && fileHandle) {
+      const conflict = await externalChange();
+      if (conflict) {
+        set({ fileConflict: conflict, externalChangeNoticed: true });
+        return;
+      }
+    }
     const content = await fileContentOf(
       current,
       encryptionEnabled && password ? password : null,
@@ -659,7 +779,9 @@ export const useAppStore = create<AppState>((set, get) => {
       set({ saving: true });
       try {
         await writeToHandle(fileHandle, content);
-        set({ dirty: false, lastSavedAt: Date.now() });
+        // What we just wrote is now what we know is on disk.
+        await refreshFingerprint();
+        set({ dirty: false, lastSavedAt: Date.now(), externalChangeNoticed: false });
       } finally {
         set({ saving: false });
       }
@@ -875,6 +997,8 @@ export const useAppStore = create<AppState>((set, get) => {
     fileSetupRequested: false,
     readOnly: false,
     readOnlyBlockedAt: null,
+    fileConflict: null,
+    externalChangeNoticed: false,
     locked: false,
     lockedPayload: null,
     lockedFileName: null,
@@ -998,12 +1122,17 @@ export const useAppStore = create<AppState>((set, get) => {
         unlockFailures: 0,
         unlockBlockedUntil: 0,
         fileSetupRequested: false,
+        fileConflict: null,
+        externalChangeNoticed: false,
       });
+      // What is on disk right now is what this session was opened from (§6.8).
+      void refreshFingerprint();
       if (pending.newly.length > 0) scheduleAutosave();
     },
 
     closePortfolio: () => {
       if (autosaveTimer) clearTimeout(autosaveTimer);
+      fingerprint = null;
       set({
         portfolio: null,
         fileHandle: null,
@@ -1014,6 +1143,8 @@ export const useAppStore = create<AppState>((set, get) => {
         needsFileSetup: false,
         readOnly: false,
         readOnlyBlockedAt: null,
+        fileConflict: null,
+        externalChangeNoticed: false,
         privacyMode: false,
         helpTarget: null,
         // Closing from the lock screen has to drop the ciphertext too, or the
@@ -1036,6 +1167,85 @@ export const useAppStore = create<AppState>((set, get) => {
      * columns) stays a session change rather than being saved retroactively.
      */
     setReadOnly: (on) => set({ readOnly: on, readOnlyBlockedAt: null }),
+
+    checkFileChanged: async () => {
+      // Only worth asking where there is something to compare and nothing
+      // already being decided.
+      if (get().fileConflict || get().locked || !get().fileHandle) return;
+      const conflict = await externalChange();
+      if (!conflict) {
+        if (get().externalChangeNoticed) set({ externalChangeNoticed: false });
+        return;
+      }
+      // Noticed early and said quietly. It only becomes a dialog when a write
+      // would actually overwrite something — being told mid-edit that the file
+      // moved is useful; being interrupted by it is not.
+      set({ externalChangeNoticed: true });
+    },
+
+    dismissFileConflict: () => set({ fileConflict: null }),
+
+    resolveFileConflict: async (choice) => {
+      const conflict = get().fileConflict;
+      if (!conflict) return;
+      set({ fileConflict: null });
+
+      if (choice === "loadExternal") {
+        if (!conflict.external) return;
+        // The local edits are what this branch throws away, so they are what
+        // gets backed up — a restore is only worth having for the side that
+        // is about to disappear.
+        await get().runBackup({ manual: true });
+        const { fileHandle, fileName, password } = get();
+        get().openPortfolio({
+          portfolio: conflict.external,
+          handle: fileHandle,
+          fileName: fileName ?? conflict.fileName,
+          password,
+        });
+        await refreshFingerprint();
+        set({ externalChangeNoticed: false });
+        return;
+      }
+
+      if (choice === "overwrite") {
+        // Here the *external* version is the one being lost. It is not in this
+        // session and cannot be backed up from the portfolio, so it is written
+        // out as its own backup file before it is overwritten.
+        await get().backupExternalVersion(conflict);
+        fingerprint = await (async () => {
+          const h = get().fileHandle;
+          return h ? await fingerprintHandle(h) : null;
+        })();
+        await persist();
+        return;
+      }
+
+      // saveAs: keep both. A fresh destination, so neither side is touched.
+      const handle = await pickFileForCreate(conflictCopyName(get().fileName));
+      if (!handle) return;
+      set({ fileHandle: handle, fileName: handle.name });
+      fingerprint = null;
+      await persist();
+    },
+
+    /**
+     * Write the version found on disk to the backup folder before it is
+     * overwritten. Its own function because it is the one backup that is not
+     * of the open portfolio: what it preserves is the file we are about to
+     * replace, exactly as it was.
+     */
+    backupExternalVersion: async (conflict) => {
+      const { fileHandle } = get();
+      if (!fileHandle) return;
+      try {
+        const text = await fileHandle.getFile().then((f) => f.text());
+        downloadAsFile(text, externalVersionName(conflict.fileName));
+      } catch {
+        // Unreadable: there is nothing to preserve, and refusing the save
+        // would leave the user unable to write their own data anywhere.
+      }
+    },
 
     openBackupForViewing: async (fileName, password) => {
       try {
