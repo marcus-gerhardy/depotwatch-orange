@@ -22,7 +22,8 @@ import SettingsView, { type SettingsSection } from "./SettingsView";
 import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
-import { FlaskIcon, LockIcon, MenuIcon, UnlockIcon } from "./icons";
+import { DownloadIcon, FlaskIcon, LockIcon, MenuIcon, UnlockIcon } from "./icons";
+import BrandMark from "./BrandMark";
 
 /**
  * The help carries its whole content (both languages, ~170 kB) and is opened
@@ -67,10 +68,16 @@ function FileIndicator() {
   return (
     <div
       title={tooltip}
-      className="flex items-center gap-2 rounded-lg border border-border-c bg-surface px-2.5 py-1.5 text-xs"
+      // On a phone the header has room for the state, not for the name: the
+      // padlock and the dot say what matters (encrypted? saved?), the file
+      // name appears from the first breakpoint that can afford it. The menu
+      // panel names the file in full, so it is never merely gone.
+      className="flex shrink-0 items-center gap-2 rounded-lg border border-border-c bg-surface px-2 py-1.5 text-xs sm:px-2.5"
     >
       {encryptionEnabled ? <LockIcon className="text-muted" /> : <UnlockIcon className="text-muted" />}
-      <span className="max-w-32 truncate font-mono sm:max-w-48">{fileName}</span>
+      <span className="hidden max-w-32 truncate font-mono md:inline lg:max-w-48">
+        {fileName}
+      </span>
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${
           dirty || saving ? "animate-pulse bg-accent" : "bg-gain"
@@ -168,6 +175,7 @@ export default function AppShell() {
   const closePortfolio = useAppStore((s) => s.closePortfolio);
   const needsFileSetup = useAppStore((s) => s.needsFileSetup);
   const portfolio = useAppStore((s) => s.portfolio);
+  const fileName = useAppStore((s) => s.fileName);
 
   // Demo data has no real destination yet — offer the location+password step
   // the first time an edit would otherwise trigger a save. Derived (not an
@@ -241,18 +249,21 @@ export default function AppShell() {
       <Toast message={toast} onDone={() => setToast(null)} />
       <MilestoneToast />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4">
-          {/* Row 1: logo left, file indicator + actions right */}
-          <div className="flex items-center gap-2 py-2.5">
+        <div className="mx-auto max-w-6xl px-3 sm:px-4">
+          {/* Row 1: logo left, file indicator + actions right. It has to fit a
+              phone, so everything in it either shrinks (the file name), turns
+              into its icon (the setup/save button) or steps aside (the help
+              question mark, which every view carries in its own heading). */}
+          <div className="flex items-center gap-1 py-2 sm:gap-2 sm:py-2.5">
             <button
-              className="rounded-lg px-2 py-1.5 text-muted hover:text-foreground md:hidden"
+              className="shrink-0 rounded-lg px-2 py-1.5 text-muted hover:text-foreground md:hidden"
               onClick={() => setMenuOpen((o) => !o)}
               aria-label={t("nav.menu")}
               aria-expanded={menuOpen}
             >
               <MenuIcon />
             </button>
-            <div className="flex items-center gap-2 font-heading text-lg font-bold tracking-tight">
+            <div className="flex shrink-0 items-center gap-2 font-heading text-lg font-bold tracking-tight">
               {/* 21 clicks unlock the cosmetic laser eyes (§5.1). A plain
                   button, so it is reachable by keyboard and says what it is;
                   for everyone not counting, it is simply the logo. */}
@@ -263,16 +274,24 @@ export default function AppShell() {
                 aria-label={t("app.name")}
                 onClick={countLogoClick}
               >
-                {/* Unlocked, the ₿ gives way to the face the flares need
+                {/* Unlocked, the mark gives way to the face the flares need
                     (LaserAvatar) — a pair of eyes has to sit in something. */}
-                {laserEyes ? <LaserAvatar className="h-[1.5em] w-[1.5em]" /> : "₿"}
+                {laserEyes ? (
+                  <LaserAvatar className="h-[1.5em] w-[1.5em]" />
+                ) : (
+                  <BrandMark className="h-[1.2em] w-[1.2em]" />
+                )}
               </button>
               <span className="hidden sm:inline">
                 DepotWatch <span className="text-accent">Orange</span>
               </span>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <HelpHeaderButton />
+            <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-2">
+              {/* Every view heading carries its own question mark, so this one
+                  is the first thing to go where there is no room for it. */}
+              <span className="hidden sm:inline">
+                <HelpHeaderButton />
+              </span>
               <LockButton onLock={lockManually} />
               {/* Drawn, not an emoji: at this size the emoji eye rendered as a
                   few grey pixels, and its look depended on the platform's
@@ -282,7 +301,7 @@ export default function AppShell() {
                 title={t("nav.privacyMode")}
                 aria-label={t("nav.privacyMode")}
                 aria-pressed={privacyMode}
-                className={`rounded-lg p-2 transition-colors ${
+                className={`shrink-0 rounded-lg p-2 transition-colors ${
                   privacyMode
                     ? "bg-accent/15 text-accent"
                     : "text-muted hover:text-foreground"
@@ -303,20 +322,32 @@ export default function AppShell() {
                   {privacyMode && <path d="M3.5 3.5 20.5 20.5" />}
                 </svg>
               </button>
+              {/* The label is the first casualty on a narrow screen: as two
+                  wrapped lines it made the header twice as tall and pushed the
+                  file indicator off the edge. The icon carries it, and the
+                  accessible name stays whatever the label said. */}
               {needsFileSetup && (
                 <Button
                   variant="primary"
                   onClick={() => setFileSetupOpenedManually(true)}
+                  title={t("nav.setUpFile")}
+                  aria-label={t("nav.setUpFile")}
+                  className="shrink-0 whitespace-nowrap px-2 md:px-3"
                 >
-                  <FlaskIcon /> {t("nav.setUpFile")}
+                  <FlaskIcon /> <span className="hidden md:inline">{t("nav.setUpFile")}</span>
                 </Button>
               )}
               {!needsFileSetup && fileMode === "fallback" && (
                 <Button
                   variant={dirty ? "primary" : "default"}
                   onClick={() => saveNow()}
+                  title={t("nav.saveFile")}
+                  aria-label={t("nav.saveFile")}
+                  className="shrink-0 whitespace-nowrap px-2 md:px-3"
                 >
-                  {t("nav.saveFile")}
+                  {/* Saving in fallback mode *is* a download (§2). */}
+                  <DownloadIcon />
+                  <span className="hidden md:inline"> {t("nav.saveFile")}</span>
                 </Button>
               )}
               <FileIndicator />
@@ -336,7 +367,8 @@ export default function AppShell() {
                   )
                     closePortfolio();
                 }}
-                className="flex items-center gap-1.5 rounded-lg border border-transparent px-2.5 py-1.5 text-sm text-muted transition-colors hover:border-loss/40 hover:bg-loss/10 hover:text-loss"
+                aria-label={t("nav.closeFile")}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-transparent px-2 py-1.5 text-sm text-muted transition-colors hover:border-loss/40 hover:bg-loss/10 hover:text-loss sm:px-2.5"
               >
                 <svg
                   aria-hidden
@@ -354,12 +386,16 @@ export default function AppShell() {
             </div>
           </div>
 
-          {/* Row 2: main navigation (collapsible on mobile) */}
+          {/* Row 2: main navigation (a panel on mobile, a row from md up) */}
           <nav
             className={`${
               menuOpen ? "flex" : "hidden"
             } w-full flex-col gap-1 border-t border-border-c/60 py-2 md:flex md:flex-row md:items-center md:overflow-x-auto`}
           >
+            {/* The file name the header itself has no room for on a phone. */}
+            <p className="truncate px-3 pb-1 font-mono text-xs text-muted md:hidden">
+              {fileName}
+            </p>
             {tabs.map((item) => (
               <button
                 key={item.id}
@@ -374,7 +410,7 @@ export default function AppShell() {
                   setTab(item.id);
                   setMenuOpen(false);
                 }}
-                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-left text-sm transition-colors md:text-center ${
+                className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm transition-colors md:py-1.5 md:text-center ${
                   tab === item.id
                     ? "bg-accent/15 text-accent"
                     : "text-muted hover:text-foreground"
@@ -387,7 +423,7 @@ export default function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-3 py-4 sm:px-4 sm:py-6">
         {tab === "dashboard" && (
           <Dashboard
             onOpenTransactions={(filter) => {

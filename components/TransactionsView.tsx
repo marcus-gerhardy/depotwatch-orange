@@ -57,7 +57,7 @@ import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import CsvImportWizard from "./CsvImportWizard";
 import { TargetIcon, UploadIcon } from "./icons";
 
-type ColumnKey =
+export type ColumnKey =
   | "date"
   | "type"
   | "taxStatus"
@@ -116,6 +116,32 @@ const RIGHT_ALIGNED: ReadonlySet<ColumnKey> = new Set([
   "value",
   "originalCurrency",
 ]);
+
+/**
+ * From which screen width a column earns its space.
+ *
+ * A phone fits four columns, not eleven, and a table wider than the screen is
+ * read through a letterbox: the first three columns and a horizontal scrollbar
+ * that fights the page's own. So what is left on a narrow screen is what
+ * identifies a row and what it did — date, type, amount, value — and the rest
+ * comes back as the viewport grows. Nothing is lost: the row opens the
+ * transaction with every field in it.
+ *
+ * This is a display rule, not a preference: the user's column choice
+ * (§3.5) is untouched, and every column they picked is there again on a
+ * screen that can show it.
+ */
+const COLUMN_MIN_WIDTH: Partial<Record<ColumnKey, string>> = {
+  taxStatus: "hidden lg:table-cell",
+  walletAccount: "hidden md:table-cell",
+  feeBtc: "hidden md:table-cell",
+  price: "hidden sm:table-cell",
+  originalCurrency: "hidden md:table-cell",
+  txid: "hidden md:table-cell",
+  address: "hidden md:table-cell",
+};
+
+export const colCls = (key: ColumnKey): string => COLUMN_MIN_WIDTH[key] ?? "";
 
 /** Keep only keys this build actually has a column for. */
 function validColumns(stored: unknown): Set<ColumnKey> | null {
@@ -1997,7 +2023,7 @@ export default function TransactionsView({
         key={key}
         scope="col"
         aria-sort={active ? (sortAsc ? "ascending" : "descending") : "none"}
-        className={`select-none py-2 pr-4 font-normal ${grow ? "w-full" : "whitespace-nowrap"} ${right ? "text-right" : "text-left"}`}
+        className={`select-none py-2 pr-4 font-normal ${grow ? "w-full" : "whitespace-nowrap"} ${right ? "text-right" : "text-left"} ${colCls(key)}`}
       >
         {/* A button, not a clickable <th>: sorting has to be reachable by
             keyboard and announced as a control. */}
@@ -2054,7 +2080,7 @@ export default function TransactionsView({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         {/* The help button sits beside the heading, not inside it: a "?" in the
             heading would become part of its accessible name. */}
         <div className="flex items-center gap-2">
@@ -2065,14 +2091,16 @@ export default function TransactionsView({
           </SectionTitle>
           <HelpButton anchor="tx-types" label={t("tx.title")} className="mb-3" />
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="primary"
-            onClick={openAdd}
-          >
+        {/* On a phone these two sit under the heading rather than beside it,
+            where the label of each wrapped onto two lines. */}
+        <div className="flex w-full gap-2 sm:w-auto">
+          <Button variant="primary" onClick={openAdd} className="flex-1 sm:flex-none">
             + {t("tx.add")}
           </Button>
-          <Button onClick={() => setShowImport(true)}>
+          <Button
+            onClick={() => setShowImport(true)}
+            className="flex-1 whitespace-nowrap sm:flex-none"
+          >
             <UploadIcon /> {t("csvImport.button")}
           </Button>
         </div>
@@ -2262,8 +2290,8 @@ export default function TransactionsView({
             the bar's edges land exactly on the table's edges instead of the
             wider page column. */}
         {selectedEntries.length > 0 && (
-          <div className="fixed inset-x-0 bottom-4 z-30 px-4">
-            <div className="mx-auto max-w-6xl px-8">
+          <div className="fixed inset-x-0 bottom-4 z-30 px-3 sm:px-4">
+            <div className="mx-auto max-w-6xl px-6 sm:px-8">
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm shadow-lg backdrop-blur">
                 <span className="font-medium text-accent">
                   {t("tx.selectedCount", { count: selectedEntries.length })}
@@ -2293,7 +2321,11 @@ export default function TransactionsView({
               <tr className="border-b border-border-c text-xs text-muted">
                 {/* Expander for the origin sub-list; only incoming legs have one. */}
                 <th className="w-6 py-2 font-normal" aria-label={t("tx.origin.section")} />
-                <th className="py-2 pr-3 text-center font-normal">
+                {/* Selecting rows in bulk and the per-row buttons are both
+                    desktop work, and on a phone they cost the columns that
+                    say what a row *is*. The row itself opens the transaction,
+                    where every one of those actions lives too. */}
+                <th className="hidden py-2 pr-3 text-center font-normal sm:table-cell">
                   <Switch
                     checked={allFilteredSelected}
                     indeterminate={someFilteredSelected && !allFilteredSelected}
@@ -2313,7 +2345,7 @@ export default function TransactionsView({
                 {header("originalCurrency")}
                 {header("txid")}
                 {header("address")}
-                <th className="py-2 text-right font-normal whitespace-nowrap"></th>
+                <th className="hidden py-2 text-right font-normal whitespace-nowrap sm:table-cell"></th>
               </tr>
             </thead>
             <tbody>
@@ -2403,7 +2435,7 @@ export default function TransactionsView({
                       )}
                     </td>
                     <td
-                      className="py-2 pr-3 text-center"
+                      className="hidden py-2 pr-3 text-center sm:table-cell"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Switch
@@ -2444,7 +2476,7 @@ export default function TransactionsView({
                       </td>
                     )}
                     {visibleCols.has("taxStatus") && (
-                      <td className="py-2 pr-4 whitespace-nowrap">
+                      <td className={`py-2 pr-4 whitespace-nowrap ${colCls("taxStatus")}`}>
                         {originUnresolved || incompleteAllocation ? (
                           <OriginUnresolvedBadge />
                         ) : lot ? (
@@ -2455,7 +2487,7 @@ export default function TransactionsView({
                       </td>
                     )}
                     {visibleCols.has("walletAccount") && (
-                      <td className="w-full py-2 pr-4 text-muted">
+                      <td className={`w-full py-2 pr-4 text-muted ${colCls("walletAccount")}`}>
                         <span className="flex items-center gap-1.5">
                           <span
                             className="min-w-0 truncate"
@@ -2508,7 +2540,7 @@ export default function TransactionsView({
                       </td>
                     )}
                     {visibleCols.has("feeBtc") && (
-                      <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
+                      <td className={`py-2 pr-4 text-right font-mono whitespace-nowrap ${colCls("feeBtc")}`}>
                         {r.feeBtc !== undefined && r.feeBtc !== "" ? (
                           <Amount>{amountFmt.format(r.feeBtc ?? "0")}</Amount>
                         ) : (
@@ -2517,7 +2549,7 @@ export default function TransactionsView({
                       </td>
                     )}
                     {visibleCols.has("price") && (
-                      <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
+                      <td className={`py-2 pr-4 text-right font-mono whitespace-nowrap ${colCls("price")}`}>
                         {price !== null ? (
                           <>
                             {derivedPartial && (
@@ -2556,7 +2588,7 @@ export default function TransactionsView({
                       </td>
                     )}
                     {visibleCols.has("originalCurrency") && (
-                      <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
+                      <td className={`py-2 pr-4 text-right font-mono whitespace-nowrap ${colCls("originalCurrency")}`}>
                         {r.originalCurrency && r.originalAmount ? (
                           <Amount>
                             {`${formatFiatPlain(r.originalAmount, loc)} ${r.originalCurrency}`}
@@ -2569,7 +2601,7 @@ export default function TransactionsView({
                       </td>
                     )}
                     {visibleCols.has("txid") && (
-                      <td className="py-2 pr-4 whitespace-nowrap">
+                      <td className={`py-2 pr-4 whitespace-nowrap ${colCls("txid")}`}>
                         <OnChainCell
                           value={onChain.txid}
                           inherited={onChain.txidInherited}
@@ -2582,7 +2614,7 @@ export default function TransactionsView({
                       </td>
                     )}
                     {visibleCols.has("address") && (
-                      <td className="py-2 pr-4 whitespace-nowrap">
+                      <td className={`py-2 pr-4 whitespace-nowrap ${colCls("address")}`}>
                         <OnChainCell
                           value={onChain.address}
                           inherited={onChain.addressInherited}
@@ -2597,7 +2629,7 @@ export default function TransactionsView({
                         />
                       </td>
                     )}
-                    <td className="py-2 pl-2 text-right whitespace-nowrap">
+                    <td className="hidden py-2 pl-2 text-right whitespace-nowrap sm:table-cell">
                       {lot && (
                         <button
                           className="mr-1 rounded-md p-1.5 text-muted hover:bg-accent/10 hover:text-accent"
@@ -2780,6 +2812,14 @@ export default function TransactionsView({
             setShowForm(false);
             setSellingLot(null);
           }}
+          onDelete={
+            editing
+              ? () => {
+                  setShowForm(false);
+                  setDeleting(editing);
+                }
+              : undefined
+          }
           onJumpToTransaction={jumpToTransaction}
           onAssignOrigin={setLinkOriginFor}
         />

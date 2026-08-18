@@ -150,6 +150,30 @@ describe("an icon that is the whole button", () => {
   });
 });
 
+describe("the bitcoin sign is drawn, not typed", () => {
+  it("never appears as a character in a component", () => {
+    // U+20BF is in none of the three bundled fonts (app/fonts), so it was
+    // rendered by whatever the device fell back to — and by nothing at all on
+    // a device without it, where the app's own lockup showed an empty box.
+    // components/BrandMark.tsx draws it instead.
+    const offenders: string[] = [];
+    for (const dir of ["components", "lib", "app"]) {
+      for (const file of sourceFiles(dir)) {
+        // This file names the character it exists to keep out.
+        if (file.endsWith(join("components", "icons.test.tsx"))) continue;
+        readFileSync(file, "utf8")
+          .split("\n")
+          .forEach((line, i) => {
+            if (line.includes("₿")) {
+              offenders.push(`${relative(ROOT, file)}:${i + 1}`);
+            }
+          });
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe("no symbol characters in the source", () => {
   it("finds none outside the module that replaced them", () => {
     const offenders: string[] = [];

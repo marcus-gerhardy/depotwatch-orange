@@ -17,6 +17,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { WrongPasswordError } from "@/lib/crypto";
 import { Button, inputCls } from "./ui";
+import BrandMark from "./BrandMark";
 
 export default function LockScreen() {
   const { t } = useI18n();
@@ -73,7 +74,7 @@ export default function LockScreen() {
       <div className="w-full max-w-sm space-y-5 text-center">
         <div>
           <div className="font-heading text-3xl font-bold tracking-tight">
-            <span className="text-accent">₿</span> DepotWatch{" "}
+            <BrandMark className="inline-block text-accent" /> DepotWatch{" "}
             <span className="text-accent">Orange</span>
           </div>
           <p className="mt-2 text-sm text-muted">{t("lock.title")}</p>

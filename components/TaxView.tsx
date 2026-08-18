@@ -12,6 +12,20 @@ import { downloadAsFile } from "@/lib/fileStorage";
 import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
 import { DownloadIcon, WarnIcon } from "./icons";
 
+/** Rows shown before "show more" — the same for both tables. */
+const PAGE_SIZE = 50;
+
+/** "Show N more", for a table that is only partly rendered. */
+function ShowMore({ hidden, onMore }: { hidden: number; onMore: () => void }) {
+  const { t } = useI18n();
+  if (hidden <= 0) return null;
+  return (
+    <div className="pt-3 text-center">
+      <Button onClick={onMore}>{t("common.showMore", { count: Math.min(hidden, PAGE_SIZE) })}</Button>
+    </div>
+  );
+}
+
 export default function TaxView() {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
@@ -33,6 +47,14 @@ export default function TaxView() {
     return [...ys].sort((a, b) => b - a);
   }, [fifo.disposals]);
   const [year, setYear] = useState<string>("");
+  /**
+   * Both tables grow with the ledger, and a savings plan puts hundreds of open
+   * lots in the first one. Rendering all of them makes a page tens of
+   * thousands of pixels tall — unusable on a phone, and slow everywhere — so
+   * they start at a screenful and are extended on request.
+   */
+  const [lotLimit, setLotLimit] = useState(PAGE_SIZE);
+  const [disposalLimit, setDisposalLimit] = useState(PAGE_SIZE);
 
   const disposals = useMemo(
     () =>
@@ -124,18 +146,21 @@ export default function TaxView() {
               <thead>
                 <tr className="border-b border-border-c text-left text-xs text-muted">
                   <th className="py-2 pr-4 font-normal">{t("tax.acquired")}</th>
-                  <th className="py-2 pr-4 font-normal">
+                  {/* What a phone shows of a lot: when it was bought, how
+                      much is left, and whether it is out of the holding
+                      period. The rest returns with the width for it. */}
+                  <th className="hidden py-2 pr-4 font-normal md:table-cell">
                     {t("tx.wallet")} / {t("tx.account")}
                   </th>
                   <th className="py-2 pr-4 text-right font-normal">{t("tax.remaining")}</th>
-                  <th className="py-2 pr-4 text-right font-normal">{t("tax.costPerBtc")}</th>
-                  <th className="py-2 pr-4 font-normal">{t("tax.taxFreeFrom")}</th>
+                  <th className="hidden py-2 pr-4 text-right font-normal sm:table-cell">{t("tax.costPerBtc")}</th>
+                  <th className="hidden py-2 pr-4 font-normal md:table-cell">{t("tax.taxFreeFrom")}</th>
                   <th className="py-2 pr-4 font-normal">Status</th>
-                  <th className="py-2 font-normal">{t("tx.note")}</th>
+                  <th className="hidden py-2 font-normal lg:table-cell">{t("tx.note")}</th>
                 </tr>
               </thead>
               <tbody>
-                {fifo.openLots.map((lot, i) => {
+                {fifo.openLots.slice(0, lotLimit).map((lot, i) => {
                   const free = isLotTaxFree(lot);
                   const days = daysUntilTaxFree(lot);
                   return (
@@ -143,13 +168,13 @@ export default function TaxView() {
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {formatDate(lot.acquiredDate, loc)}
                       </td>
-                      <td className="py-2 pr-4 text-muted">
+                      <td className="hidden py-2 pr-4 text-muted md:table-cell">
                         {lot.walletName} / {lot.accountName}
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{amountFmt.format(lot.remainingBtc)}</Amount>
                       </td>
-                      <td className="py-2 pr-4 text-right font-mono">
+                      <td className="hidden py-2 pr-4 text-right font-mono sm:table-cell">
                         {lot.costPerBtcEur ? (
                           <Amount>{formatFiat(lot.costPerBtcEur, "EUR", loc)}</Amount>
                         ) : (
@@ -161,7 +186,7 @@ export default function TaxView() {
                           </span>
                         )}
                       </td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
+                      <td className="hidden py-2 pr-4 whitespace-nowrap md:table-cell">
                         {/* An unresolved origin leaves the arrival date as the
                             only date there is, and that one says nothing about
                             a holding period (CLAUDE.md §3.2). */}
@@ -186,7 +211,7 @@ export default function TaxView() {
                         )}
                       </td>
                       <td
-                        className="max-w-40 truncate py-2 text-xs text-muted"
+                        className="hidden max-w-40 truncate py-2 text-xs text-muted lg:table-cell"
                         title={lot.note || undefined}
                       >
                         {lot.note || "—"}
@@ -196,12 +221,16 @@ export default function TaxView() {
                 })}
               </tbody>
             </table>
+            <ShowMore
+              hidden={fifo.openLots.length - lotLimit}
+              onMore={() => setLotLimit((n) => n + PAGE_SIZE)}
+            />
           </div>
         )}
       </Card>
 
       <Card>
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <SectionTitle level={2}>{t("tax.disposals")}</SectionTitle>
           {years.length > 0 && (
             <select
@@ -224,7 +253,7 @@ export default function TaxView() {
           <p className="text-sm text-muted">{t("tax.emptyDisposals")}</p>
         ) : (
           <>
-            <div className="mb-3 grid grid-cols-3 gap-3 text-sm">
+            <div className="mb-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
               <div>
                 <div className="text-xs text-muted">{t("tax.totalRealized")}</div>
                 <PnlValue value={totals.gain}>
@@ -245,22 +274,22 @@ export default function TaxView() {
                 <thead>
                   <tr className="border-b border-border-c text-left text-xs text-muted">
                     <th className="py-2 pr-4 font-normal">{t("tx.date")}</th>
-                    <th className="py-2 pr-4 font-normal">{t("tx.type")}</th>
+                    <th className="hidden py-2 pr-4 font-normal sm:table-cell">{t("tx.type")}</th>
                     <th className="py-2 pr-4 text-right font-normal">{t("tax.amount")}</th>
-                    <th className="py-2 pr-4 text-right font-normal">{t("tax.proceeds")}</th>
-                    <th className="py-2 pr-4 text-right font-normal">{t("tax.cost")}</th>
+                    <th className="hidden py-2 pr-4 text-right font-normal md:table-cell">{t("tax.proceeds")}</th>
+                    <th className="hidden py-2 pr-4 text-right font-normal md:table-cell">{t("tax.cost")}</th>
                     <th className="py-2 pr-4 text-right font-normal">{t("tax.gain")}</th>
-                    <th className="py-2 pr-4 text-right font-normal">{t("tax.taxableGain")}</th>
-                    <th className="py-2 font-normal">{t("tx.note")}</th>
+                    <th className="hidden py-2 pr-4 text-right font-normal lg:table-cell">{t("tax.taxableGain")}</th>
+                    <th className="hidden py-2 font-normal lg:table-cell">{t("tx.note")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {disposals.map((d) => (
+                  {disposals.slice(0, disposalLimit).map((d) => (
                     <tr key={d.txId} className="border-b border-border-c/50">
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {formatDate(d.date, loc)}
                       </td>
-                      <td className="py-2 pr-4">
+                      <td className="hidden py-2 pr-4 sm:table-cell">
                         <span className="flex items-center gap-1.5">
                           {t(`tx.types.${d.type}`)}
                           {/* Part of this disposal came from lots whose origin
@@ -282,10 +311,10 @@ export default function TaxView() {
                       <td className="py-2 pr-4 text-right font-mono">
                         <Amount>{amountFmt.format(d.amountBtc)}</Amount>
                       </td>
-                      <td className="py-2 pr-4 text-right font-mono">
+                      <td className="hidden py-2 pr-4 text-right font-mono md:table-cell">
                         <Amount>{formatFiat(d.proceedsEur, "EUR", loc)}</Amount>
                       </td>
-                      <td className="py-2 pr-4 text-right font-mono">
+                      <td className="hidden py-2 pr-4 text-right font-mono md:table-cell">
                         <Amount>{formatFiat(d.costBasisEur, "EUR", loc)}</Amount>
                       </td>
                       <td className="py-2 pr-4 text-right font-mono">
@@ -293,11 +322,11 @@ export default function TaxView() {
                           {formatFiat(d.gainEur, "EUR", loc)}
                         </PnlValue>
                       </td>
-                      <td className="py-2 pr-4 text-right font-mono">
+                      <td className="hidden py-2 pr-4 text-right font-mono lg:table-cell">
                         <Amount>{formatFiat(d.taxableGainEur, "EUR", loc)}</Amount>
                       </td>
                       <td
-                        className="max-w-40 truncate py-2 text-xs text-muted"
+                        className="hidden max-w-40 truncate py-2 text-xs text-muted lg:table-cell"
                         title={d.note || undefined}
                       >
                         {d.note || "—"}
@@ -306,6 +335,10 @@ export default function TaxView() {
                   ))}
                 </tbody>
               </table>
+              <ShowMore
+                hidden={disposals.length - disposalLimit}
+                onMore={() => setDisposalLimit((n) => n + PAGE_SIZE)}
+              />
             </div>
           </>
         )}

@@ -138,7 +138,7 @@ export default function SettingsView({
               type="button"
               onClick={() => setSection(entry.id)}
               aria-current={section === entry.id ? "page" : undefined}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-left text-sm whitespace-nowrap transition-colors ${
+              className={`shrink-0 rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors md:py-1.5 ${
                 section === entry.id
                   ? "bg-accent/15 text-accent"
                   : "text-muted hover:bg-surface-2/60 hover:text-foreground"

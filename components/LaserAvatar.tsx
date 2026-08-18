@@ -3,7 +3,8 @@
 // The laser eyes (CLAUDE.md §5.1).
 //
 // The meme is a face with two star flares burnt into it, and both halves
-// matter: a flare needs eyes to sit in, and a ₿ has none. So the unlocked logo
+// matter: a flare needs eyes to sit in, and the block mark has none. So the
+// unlocked logo
 // becomes the placeholder avatar everybody knows from a login screen — just the
 // contours of a head and a pair of shoulders — with the flares on it.
 //

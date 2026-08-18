@@ -383,7 +383,7 @@ The cards: net sats stacked and how many buys they took, EUR invested, the volum
 - Minimalist, clean, reduced UI.
 - Dark mode as the default theme (both themes are dark).
 - Bitcoin color theme: accent color orange (`#F7931A`) on black/dark gray, green/red for profit/loss indicators.
-- Responsive, desktop-focused, but mobile-friendly.
+- **Mobile first**, and comfortable up to a wide desktop (§5.3).
 - **Typography:** Outfit for body text, Space Grotesk for headings, Geist Mono for anything that has to line up in a column (amounts, ids, addresses). All three are **bundled with the app** (`app/fonts/`, variable woff2, latin subset, wired up via `next/font/local`) rather than fetched from Google — an app whose whole point is that opening a portfolio tells nobody must not ask a CDN for a font while doing it. The heading face is applied to `h1`–`h6` in `globals.css`, so every heading follows without a component knowing about it; `font-heading` is there for the few lockups that read as headings without being one.
 
 **The app mark** (`assets/icon.svg`) is a **block**, drawn as a solid object: one lit face, one in shadow, one outlined. Deliberately not a ₿ — that glyph belongs to bitcoin rather than to this app, and a letterform is the hardest thing to keep legible at 16 px, where counters close up and stems blur. A block is the opposite: three straight faces on a hexagonal silhouette, which survives being rasterised to 16 pixels and still reads as one shape. It also says what the app is — a block is what the chain is made of, and a container, which is the premise: one file holding the whole portfolio.
@@ -391,6 +391,8 @@ The cards: net sats stacked and how many buys they took, EUR invested, the volum
 It is the single source for every icon the app ships — favicon (16/32/48 in one .ico), the SVG modern browsers prefer, the 180 px touch icon, and the 192/512 manifest icons — all rasterised by `scripts/build-icons.mjs` (`npm run icons:build`). The **maskable** variant is a different drawing rather than a resize: Android crops launcher icons to whatever shape it likes, so it is full-bleed and its mark sits inside the safe circle; both substitutions that make it are asserted, so a changed source fails the build instead of silently shipping a rounded tile to be cropped again. The tile is accent-filled with a dark mark, the inverse of the header lockup — at 16 px an orange tile is legible on both a light and a dark tab strip, where dark-on-dark is not.
 
 Every candidate was judged **as a 16 px raster in a mock tab strip**, not as a large drawing: that is the size the icon spends its life at, and it is where a mark either survives or turns to mush.
+
+**The same block is the lockup mark**, wherever the app's name is written out — header, start screen, lock screen, footer, static pages (`components/BrandMark.tsx`, the icon's geometry in `currentColor`), so what sits in the tab strip and what sits beside the name are one mark rather than two. It replaced a literal ₿ character: **none of the three bundled fonts contains U+20BF**, so the mark hung on whatever the device fell back to and rendered as an empty box on one without the glyph — the same argument every icon in the app is drawn under. A test keeps the character out of the source.
 
 **Colour themes** (`lib/theme.ts` + the generated `app/themes.css`, chosen in the settings, §6.3): a theme is **nothing but a set of token values** — background/surface/surface-2, border, foreground/muted, accent (+ its dim and the text colour on it), gain/gain-safe/loss/warning, and a five-colour chart series. No component ever names a colour, so a new theme is one entry in the table and no component changes at all. Nine ship: `ocean` (default, deep navy), `night` (the Bitcoin orange on near-black), `terminal` (green on black, monospaced, with a static scanline texture), `gold`, `paper` (light, serif headings), `sunrise` (light, warm), `nord`, `mono` (greyscale, colour reserved for gain/loss) and `mempool` (after its fee gradient). A theme may bring its own typeface (`--theme-font-body`/`--theme-font-heading`), which is how terminal and paper differ in more than colour.
 
@@ -411,6 +413,24 @@ An icon is decoration beside text that already says what it is, so all three set
 **Laser eyes** (§5.1) add no colour of their own: the glow is `var(--accent)`, so the effect works in every theme, including the light ones.
 
 **Keyboard and dialogs:** `:focus-visible` draws an accent outline globally — the UI is dense and made largely of icon buttons, table headers and disclosure headers that have no other affordance. Anything sortable or expandable is a real `<button>` with `aria-sort`/`aria-expanded`, never a clickable `<th>` or `<div>`. `Modal` is a `role="dialog" aria-modal` with its title as the accessible name; it takes focus when it opens, returns it where it was on close, closes on Escape, and freezes the page behind it.
+
+### 5.3 Mobile First
+
+A phone is not a narrow desktop, and the rules below are what the app is laid out under. Every one of them exists because the desktop version, shrunk, was broken in a specific way.
+
+**The header fits the screen it is on.** Everything in it either shrinks, turns into its icon, or steps aside: the file name appears from `md` (the padlock and the save dot say the rest, and the menu panel names the file in full), the "set up file"/"save" button is its icon until `md`, and the header's own question mark goes at `sm` because every view heading carries one anyway. Nothing wraps: a wrapped label made the header twice as tall and pushed the file indicator off the edge.
+
+**A widget is as tall as its content.** The grid height in `uiSettings.dashboardLayout` is a desktop figure — chosen so the tiles beside it in its row line up — and imposing it on the single-column stack gave four lines of text a tile of empty space and cut off the tiles that needed more. Only a widget whose content has no height of its own says otherwise, with `mobileHeight` in the registry: a chart fills what it is given and collapses to nothing when that is "as tall as the content". A test holds those two sets apart (§4.1).
+
+**A table shows what a row *is*, not every column it has.** Eleven columns on a 390 px screen is a letterbox with a horizontal scrollbar fighting the page's own. So each column names the width from which it earns its space (`COLUMN_MIN_WIDTH` in the transaction table, the same idea in the tax view), and what is left on a phone identifies the row and says what it did: date, type, amount, value. This is a display rule, not a preference — the user's column choice (§3.5) is untouched and every column comes back on a screen that can show it. What goes with the columns is the row's own controls: bulk selection and the per-row icon buttons are desktop work, so **the row itself opens the transaction**, and everything those buttons do is reachable inside that dialog (which is why the transaction form has a delete button at all).
+
+**A long list is paged, not endless.** A savings plan puts hundreds of open lots in the tax view; rendered whole they make a page tens of thousands of pixels tall — unusable on a phone and slow everywhere. Both of its tables start at a screenful and are extended on request.
+
+**Dialogs use the width they are given** (`p-2 pt-4` on a phone against `p-4 pt-16` above it), and a form inside one measures its scroll area in `dvh` rather than `vh`: on a phone the browser chrome comes and goes, and `vh` measures the taller of the two states — a dialog that is a little too long for the screen exactly when the address bar is showing.
+
+**Touch targets** are taller below `sm` where they would otherwise be 30 px (`Button`, the navigation, the settings groups), and nothing depends on hovering: a hover tooltip may add detail, never carry it.
+
+The layout is checked at 320, 375, 390, 640, 700, 768, 1024, 1280 and 1440 px — no page may scroll horizontally at any of them.
 
 ### 5.2 Milestones
 

@@ -61,6 +61,20 @@ export interface WidgetDefinition {
   defaultSize: WidgetSize;
   minSize: WidgetSize;
   maxSize?: WidgetSize;
+  /**
+   * Height in pixels in the single-column layout of a narrow screen.
+   *
+   * Left unset a tile is exactly as tall as what is in it, which is what a
+   * phone wants: the grid height is a *desktop* figure, chosen so neighbouring
+   * tiles line up in their row, and imposing it on a stacked column gives four
+   * lines of text a tile of empty space underneath and cuts off the tiles that
+   * need more.
+   *
+   * A widget only sets this when its content has no height of its own — a
+   * chart fills whatever it is given and collapses to nothing when that is
+   * "as tall as the content".
+   */
+  mobileHeight?: number;
   dataSources: WidgetDataSource[];
   component: ComponentType;
 }
@@ -140,6 +154,9 @@ const BASE_WIDGETS: WidgetDefinition[] = [
     descriptionKey: "dashboard.widgets.priceEntries.description",
     defaultSize: { w: 8, h: 8 },
     minSize: { w: 4, h: 5 },
+    // A chart has no height of its own; without one it collapses (see the
+    // field's doc comment).
+    mobileHeight: 320,
     dataSources: ["ledger", "priceHistory"],
     component: PriceEntriesWidget,
   },
@@ -179,6 +196,7 @@ const BASE_WIDGETS: WidgetDefinition[] = [
     descriptionKey: "dashboard.widgets.dca.description",
     defaultSize: { w: 6, h: 6 },
     minSize: { w: 4, h: 5 },
+    mobileHeight: 300,
     dataSources: ["ledger"],
     component: DcaWidget,
   },
@@ -188,6 +206,7 @@ const BASE_WIDGETS: WidgetDefinition[] = [
     descriptionKey: "dashboard.widgets.portfolioChart.description",
     defaultSize: { w: 8, h: 8 },
     minSize: { w: 4, h: 6 },
+    mobileHeight: 320,
     dataSources: ["ledger", "priceHistory"],
     component: PortfolioChartWidget,
   },
@@ -215,6 +234,7 @@ const BASE_WIDGETS: WidgetDefinition[] = [
     descriptionKey: "dashboard.widgets.stackHistory.description",
     defaultSize: { w: 6, h: 7 },
     minSize: { w: 4, h: 5 },
+    mobileHeight: 280,
     dataSources: ["ledger"],
     component: StackHistoryWidget,
   },

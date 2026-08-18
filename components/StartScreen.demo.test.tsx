@@ -91,10 +91,14 @@ describe("StartScreen: load demo portfolio", () => {
 });
 
 describe("StartScreen: layout", () => {
-  it("puts the ₿ in front of the product name, like the app header", () => {
+  it("puts the drawn mark in front of the product name, like the app header", () => {
+    // Drawn, not the bitcoin sign: none of the bundled fonts carries U+20BF, so the
+    // character was a box on any device whose fallback lacks it too
+    // (components/BrandMark.tsx). The heading's *text* is the name alone.
     render(<StartScreen />);
     const heading = screen.getByRole("heading", { level: 1 });
-    expect(heading.textContent).toBe("₿DepotWatch Orange");
+    expect(heading.textContent).toBe("DepotWatch Orange");
+    expect(heading.querySelector("svg")).not.toBeNull();
   });
 
   it("offers 'how it works' as a button-styled link", () => {

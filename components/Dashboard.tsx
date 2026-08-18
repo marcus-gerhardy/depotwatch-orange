@@ -19,8 +19,6 @@ import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import {
   DASHBOARD_COLS,
-  DASHBOARD_MARGIN,
-  DASHBOARD_ROW_HEIGHT,
   dashboardFor,
   defaultDashboard,
   freeRects,
@@ -35,7 +33,7 @@ import {
   useDashboardData,
   type TxJumpFilter,
 } from "./widgets/context";
-import { WIDGET_IDS, type WidgetDefinition } from "./widgets/registry";
+import { WIDGET_IDS, WIDGETS_BY_ID, type WidgetDefinition } from "./widgets/registry";
 import WidgetHost from "./widgets/WidgetHost";
 import WidgetPicker from "./widgets/WidgetPicker";
 import YearInReviewHint from "./YearInReviewHint";
@@ -106,18 +104,22 @@ function LedgerWarnings() {
   );
 }
 
-/** Single-column fallback for narrow viewports (and for the prerendered HTML). */
+/**
+ * Single-column fallback for narrow viewports (and for the prerendered HTML).
+ *
+ * A tile here is as tall as what is in it. The grid height it carries is a
+ * *desktop* figure — chosen so the tiles beside it in its row line up — and
+ * imposing it on a stacked column is what left four lines of text sitting on a
+ * tile of empty space while the tile below cut its own content off. The
+ * exception is a widget whose content has no height of its own (a chart): it
+ * names one in the registry.
+ */
 function WidgetStack({ widgets }: { widgets: WidgetPlacement[] }) {
   const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x);
   return (
     <div className="space-y-3">
       {ordered.map((w) => (
-        <div
-          key={w.i}
-          // Keep the proportions the user configured: a tile's grid height
-          // still decides how tall it is, so charts stay charts.
-          style={{ height: w.h * DASHBOARD_ROW_HEIGHT + (w.h - 1) * DASHBOARD_MARGIN[1] }}
-        >
+        <div key={w.i} style={{ height: WIDGETS_BY_ID.get(w.widgetId)?.mobileHeight }}>
           <WidgetHost placement={w} editing={false} onRemove={() => {}} />
         </div>
       ))}

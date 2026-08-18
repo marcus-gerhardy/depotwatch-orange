@@ -8,6 +8,7 @@ import { useAppLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { isGenesisDay, isRunningBitcoinDay } from "@/lib/easterEggs";
 import { staticPagePath } from "@/lib/routes";
+import BrandMark from "./BrandMark";
 
 const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
 
@@ -29,11 +30,12 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-border-c/60 bg-background">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3 text-xs text-muted">
+      {/* Mobile first: the two blocks sit under each other and centred, and
+          only line up left and right once there is a row's worth of width.
+          Wrapped in place they interleaved into a ragged block. */}
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-x-6 gap-y-2 px-3 py-3 text-center text-xs text-muted sm:flex-row sm:flex-wrap sm:px-4 sm:text-left">
         <div className="flex items-center gap-2">
-          <span className="text-accent" aria-hidden>
-            ₿
-          </span>
+          <BrandMark className="text-accent" />
           <span>DepotWatch Orange</span>
           <span aria-hidden>·</span>
           <span>{t("footer.openSource")}</span>
@@ -46,7 +48,7 @@ export default function Footer() {
             {dayLine}
           </p>
         )}
-        <nav className="flex items-center gap-4">
+        <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <a
             href={GITHUB_URL}
             target="_blank"

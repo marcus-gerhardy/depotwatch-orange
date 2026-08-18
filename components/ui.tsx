@@ -305,7 +305,10 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 pt-16"
+      // Mobile first: a dialog uses the width it is given and starts near the
+      // top of the screen, because a phone has no room to spare on either
+      // side. The generous inset is a desktop luxury.
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-2 pt-4 sm:p-4 sm:pt-16"
       onClick={onClose}
     >
       <div
@@ -318,7 +321,7 @@ export function Modal({
           { md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" }[
             size ?? (wide ? "xl" : "md")
           ]
-        } rounded-xl border border-border-c bg-surface p-5 shadow-2xl focus:outline-none`}
+        } rounded-xl border border-border-c bg-surface p-4 shadow-2xl focus:outline-none sm:p-5`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-3">

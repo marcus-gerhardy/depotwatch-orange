@@ -309,3 +309,27 @@ describe("shipped demo portfolios", () => {
     });
   }
 });
+
+describe("the single-column layout of a narrow screen", () => {
+  // A tile there is as tall as its content: the grid height is a desktop
+  // figure, chosen so the tiles beside it in its row line up, and imposing it
+  // on a stacked column leaves four lines of text on a tile of empty space.
+  // The exception is content with no height of its own — a chart fills what it
+  // is given and collapses to nothing when that is "as tall as the content" —
+  // so those widgets, and only those, name a height in the registry.
+  it("gives a height to exactly the widgets whose content is a chart", () => {
+    const withHeight = WIDGETS.filter((w) => w.mobileHeight !== undefined).map(
+      (w) => w.id,
+    );
+    expect(withHeight.sort()).toEqual(
+      ["dca", "portfolioChart", "priceEntries", "stackHistory"].sort(),
+    );
+  });
+
+  it("keeps those heights readable rather than a token gesture", () => {
+    for (const w of WIDGETS) {
+      if (w.mobileHeight === undefined) continue;
+      expect(w.mobileHeight, w.id).toBeGreaterThanOrEqual(240);
+    }
+  });
+});

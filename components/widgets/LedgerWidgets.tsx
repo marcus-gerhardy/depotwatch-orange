@@ -152,7 +152,11 @@ export function WalletBreakdownWidget() {
       <thead>
         <tr className="border-b border-border-c text-left text-muted">
           <th className="py-1.5 pr-2 font-normal">{t("dashboard.wallet")}</th>
-          <th className="py-1.5 pr-2 font-normal">{t("dashboard.account")}</th>
+          {/* Four columns do not fit a phone; the account moves under its
+              wallet there rather than pushing the figures off the tile. */}
+          <th className="hidden py-1.5 pr-2 font-normal sm:table-cell">
+            {t("dashboard.account")}
+          </th>
           <th className="py-1.5 pr-2 text-right font-normal">{unit}</th>
           <th className="py-1.5 text-right font-normal">
             {currency === "BTC" ? "sats" : currency}
@@ -169,8 +173,15 @@ export function WalletBreakdownWidget() {
               openTransactions({ walletId: b.walletId, accountId: b.accountId })
             }
           >
-            <td className="py-1.5 pr-2">{b.walletName}</td>
-            <td className="py-1.5 pr-2 text-muted">{b.accountName}</td>
+            <td className="max-w-28 py-1.5 pr-2 sm:max-w-none">
+              <span className="block truncate">{b.walletName}</span>
+              <span className="block truncate text-muted sm:hidden">
+                {b.accountName}
+              </span>
+            </td>
+            <td className="hidden py-1.5 pr-2 text-muted sm:table-cell">
+              {b.accountName}
+            </td>
             <td className="py-1.5 pr-2 text-right font-mono whitespace-nowrap">
               <Amount>{fmtAmountPlain(b.btc)}</Amount>
             </td>

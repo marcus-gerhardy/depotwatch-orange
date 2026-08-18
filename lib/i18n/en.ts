@@ -20,6 +20,7 @@ const en: typeof de = {
     refresh: "Refresh",
     optional: "optional",
     unknown: "unknown",
+    showMore: "Show {count} more",
     yes: "Yes",
     no: "No",
   },

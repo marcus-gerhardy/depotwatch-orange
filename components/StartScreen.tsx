@@ -13,6 +13,7 @@ import { Button, Card, inputCls } from "./ui";
 import NewFileWizard from "./NewFileWizard";
 import LanguageSwitch from "./LanguageSwitch";
 import { WarnIcon } from "./icons";
+import BrandMark from "./BrandMark";
 
 type Stage =
   | { kind: "home" }
@@ -197,9 +198,9 @@ export default function StartScreen() {
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
-            {/* Same lockup as the app header: the ₿ sits in front of the name. */}
+            {/* Same lockup as the app header: the mark sits in front of the name. */}
             <h1 className="flex items-center justify-center gap-2 text-2xl font-bold">
-              <span className="text-accent">₿</span>
+              <BrandMark className="text-accent" />
               <span>
                 DepotWatch <span className="text-accent">Orange</span>
               </span>

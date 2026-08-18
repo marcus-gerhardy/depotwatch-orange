@@ -12,6 +12,7 @@ import { useAppLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { localeForPath, staticPagePath, type StaticPageKey } from "@/lib/routes";
 import LanguageSwitch from "./LanguageSwitch";
+import BrandMark from "./BrandMark";
 
 export default function StaticPage({
   page,
@@ -90,7 +91,7 @@ export default function StaticPage({
             className="flex items-center gap-2 text-sm text-muted transition-colors hover:text-accent"
           >
             <span aria-hidden>←</span>
-            <span className="text-accent">₿</span>
+            <BrandMark className="text-accent" />
             <span>
               DepotWatch <span className="text-accent">Orange</span>
             </span>

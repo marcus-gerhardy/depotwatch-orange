@@ -11,7 +11,7 @@
 import { useAppStore } from "./store";
 import { dec, type Decimal } from "./decimal";
 
-/** Clicks on the ₿ in the header that unlock laser eyes. */
+/** Clicks on the app mark in the header that unlock laser eyes. */
 export const LASER_EYES_CLICKS = 21;
 
 /** BTC Laszlo Hanyecz paid for two pizzas on 22 May 2010 — 5 000 per pizza. */

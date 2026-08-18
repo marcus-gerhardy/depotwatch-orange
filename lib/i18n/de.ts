@@ -18,6 +18,7 @@ const de = {
     refresh: "Aktualisieren",
     optional: "optional",
     unknown: "unbekannt",
+    showMore: "Weitere {count} anzeigen",
     yes: "Ja",
     no: "Nein",
   },

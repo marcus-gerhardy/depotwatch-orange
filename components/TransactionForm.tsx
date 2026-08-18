@@ -70,12 +70,21 @@ export default function TransactionForm({
   existing,
   sellLot = null,
   onClose,
+  onDelete,
   onJumpToTransaction,
   onAssignOrigin,
 }: {
   existing: LedgerEntry | null;
   sellLot?: SellLotTarget | null;
   onClose: () => void;
+  /**
+   * Delete this transaction (opens the confirmation, which names what else it
+   * releases — §3.2). Only for an existing one, and the reason it is here at
+   * all is the phone: there the table has no room for a row of icon buttons,
+   * so the row opens this dialog and every action on a transaction has to be
+   * reachable from inside it.
+   */
+  onDelete?: () => void;
   /** Open another transaction (an origin lot); omitted when unavailable. */
   onJumpToTransaction?: (txId: string) => void;
   /** Hand the unlinked arrival to the assignment dialog; omitted when unavailable. */
@@ -653,7 +662,10 @@ export default function TransactionForm({
           collapsible section per topic. The form scrolls, the actions do not:
           on a long transfer the save button is otherwise a scroll away. */}
       <form
-        className="flex max-h-[70vh] flex-col"
+        // dvh, not vh: on a phone the browser chrome comes and goes, and vh
+        // measures the taller of the two states — a form that is a little too
+        // long for the screen exactly when the address bar is showing.
+        className="flex max-h-[65dvh] flex-col sm:max-h-[70vh]"
         onSubmit={(e) => {
           e.preventDefault();
           submit();
@@ -778,7 +790,10 @@ export default function TransactionForm({
           </div>
 
           {needsPrice && (
-            <div className="grid grid-cols-2 gap-3">
+            /* One column on a phone: the valuation button is a whole sentence,
+               and squeezed into half the width it became a three-line block
+               beside a one-line field. */
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <Field label={t("tx.totalEur")}>
                   <NumberInput
@@ -1094,13 +1109,18 @@ export default function TransactionForm({
           </Section>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 border-t border-border-c pt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border-c pt-3">
           <Button type="submit" variant="primary">
             {t("common.save")}
           </Button>
           <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>
+          {existing && onDelete && (
+            <Button variant="danger" className="ml-auto" onClick={onDelete}>
+              {t("common.delete")}
+            </Button>
+          )}
           {error && <p className="text-sm text-loss">{error}</p>}
         </div>
       </form>

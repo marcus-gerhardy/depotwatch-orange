@@ -3,7 +3,7 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { useAppStore } from "@/lib/store";
 import { emptyPortfolio, type PortfolioFile } from "@/lib/types";
-import TransactionsView from "./TransactionsView";
+import TransactionsView, { colCls, type ColumnKey } from "./TransactionsView";
 
 function seedPortfolio(): PortfolioFile {
   const p = emptyPortfolio();
@@ -169,5 +169,37 @@ describe("TransactionsView: value formatting", () => {
     expect(screen.getByText("20.000,00")).toBeTruthy();
     // The column headers name the currency, so no symbol in the cells.
     expect(document.body.textContent).not.toContain("€");
+  });
+});
+
+describe("TransactionsView: what a phone shows of a row", () => {
+  // The columns are the user's choice (CLAUDE.md §3.5), but a screen 390 px
+  // wide fits four of them, not eleven — so the table hides the rest below a
+  // breakpoint rather than scrolling sideways behind a letterbox. Which four
+  // survive is the decision worth pinning: they identify a row (when, what)
+  // and say what it did (how much, what it was worth). The rest can wait for
+  // a wider screen, because tapping the row opens the transaction with every
+  // field in it.
+  it("keeps the columns that say what a row is", () => {
+    for (const key of ["date", "type", "amount", "value"] as ColumnKey[]) {
+      expect(colCls(key), key).toBe("");
+    }
+  });
+
+  it("defers the rest to a screen with room for them", () => {
+    const deferred: ColumnKey[] = [
+      "taxStatus",
+      "walletAccount",
+      "feeBtc",
+      "price",
+      "originalCurrency",
+      "txid",
+      "address",
+    ];
+    for (const key of deferred) {
+      // Hidden first, then brought back at a named breakpoint — never hidden
+      // outright, which would make the column picker a lie.
+      expect(colCls(key), key).toMatch(/^hidden (sm|md|lg):table-cell$/);
+    }
   });
 });

@@ -61,7 +61,7 @@ export default function WalletsView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <SectionTitle level={1}>{t("wallets.title")}</SectionTitle>
           <HelpButton anchor="wallets-structure" label={t("wallets.title")} className="mb-3" />
@@ -84,10 +84,13 @@ export default function WalletsView() {
 
       {portfolio.wallets.map((w) => (
         <Card key={w.id}>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <span className="font-semibold">{w.name}</span>
-              <span className="ml-2 rounded bg-surface-2 px-2 py-0.5 text-xs text-muted">
+          {/* The name wraps before the buttons do: a long wallet name used to
+              break its own type badge onto a second line and push the actions
+              out of the card. */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="truncate font-semibold">{w.name}</span>
+              <span className="shrink-0 rounded bg-surface-2 px-2 py-0.5 text-xs whitespace-nowrap text-muted">
                 {t(`wallets.types.${w.type}`)}
               </span>
             </div>

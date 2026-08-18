@@ -122,15 +122,23 @@ export default function BackupsView({
   return (
     <div className={embedded ? "space-y-4" : "max-w-4xl space-y-4"}>
       <div>
-        <div className="flex items-center gap-2">
-          {!embedded && <SectionTitle level={1}>{t("backups.title")}</SectionTitle>}
-          <HelpButton
-            anchor="backup-folder"
-            label={t("backups.title")}
-            className={embedded ? "" : "mb-3"}
-          />
-        </div>
+        {!embedded && (
+          <div className="flex items-center gap-2">
+            <SectionTitle level={1}>{t("backups.title")}</SectionTitle>
+            <HelpButton anchor="backup-folder" label={t("backups.title")} className="mb-3" />
+          </div>
+        )}
+        {/* Embedded in the settings the group already has its heading, so the
+            question mark sits with the text it explains instead of alone on a
+            line of its own. */}
         <p className="max-w-2xl text-sm leading-relaxed text-muted">
+          {embedded && (
+            <HelpButton
+              anchor="backup-folder"
+              label={t("backups.title")}
+              className="mr-1 align-middle"
+            />
+          )}
           {t("backups.intro")}
         </p>
       </div>
