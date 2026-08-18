@@ -7,6 +7,7 @@ import { useAppStore } from "@/lib/store";
 import { useReadOnly } from "@/lib/readOnly";
 import type { WalletType } from "@/lib/types";
 import { Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
+import { WarnIcon } from "./icons";
 
 const WALLET_TYPES: WalletType[] = ["exchange", "hardware", "software", "paper"];
 
@@ -25,9 +26,19 @@ export default function WalletsView() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [name, setName] = useState("");
   const [walletType, setWalletType] = useState<WalletType>("exchange");
+  /**
+   * The first account of a new wallet, created with it.
+   *
+   * A wallet on its own holds nothing: transactions hang on accounts, so an
+   * account-less wallet cannot be picked anywhere — not as a transfer target,
+   * not in the transaction dialog, not in a filter. Creating one and finding
+   * it missing from every list is the bug this field fixes.
+   */
+  const [accountName, setAccountName] = useState("");
 
   function openDialog(d: Dialog) {
     setName("current" in d ? d.current : "");
+    setAccountName(d.kind === "addWallet" ? t("wallets.firstAccountDefault") : "");
     setWalletType("exchange");
     setDialog(d);
   }
@@ -41,7 +52,14 @@ export default function WalletsView() {
           id: crypto.randomUUID(),
           name: n,
           type: walletType,
-          accounts: [],
+          // Never empty: see the comment on `accountName`.
+          accounts: [
+            {
+              id: crypto.randomUUID(),
+              name: accountName.trim() || t("wallets.firstAccountDefault"),
+              transactions: [],
+            },
+          ],
         });
         break;
       case "renameWallet":
@@ -118,6 +136,14 @@ export default function WalletsView() {
               </Button>
             </div>
           </div>
+          {/* A wallet can still end up here by having its last account
+              deleted, or from a file written before this. Saying nothing
+              would leave it missing from every list with no explanation. */}
+          {w.accounts.length === 0 && (
+            <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs leading-relaxed text-warning">
+              <WarnIcon /> {t("wallets.noAccounts")}
+            </p>
+          )}
           <ul className="divide-y divide-border-c/50">
             {w.accounts.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2">
@@ -198,6 +224,19 @@ export default function WalletsView() {
                 onChange={(e) => setName(e.target.value)}
               />
             </Field>
+            {dialog.kind === "addWallet" && (
+              <Field label={t("wallets.firstAccountName")}>
+                <input
+                  className={inputCls}
+                  placeholder={t("wallets.firstAccountDefault")}
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                />
+                <span className="mt-1 block text-xs leading-relaxed text-muted">
+                  {t("wallets.firstAccountHint")}
+                </span>
+              </Field>
+            )}
             {dialog.kind === "addWallet" && (
               <Field label={t("wallets.type")}>
                 <select

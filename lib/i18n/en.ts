@@ -587,6 +587,11 @@ const en: typeof de = {
     walletName: "Wallet name",
     walletNamePlaceholder: "Exchange",
     accountName: "Account name",
+    firstAccountName: "First account",
+    firstAccountDefault: "Account 1",
+    firstAccountHint:
+      "A wallet holds nothing on its own: transactions always hang on an account. Without one, this wallet cannot be picked anywhere.",
+    noAccounts: "Without an account this wallet cannot be picked anywhere.",
     type: "Type",
     types: {
       exchange: "Exchange",

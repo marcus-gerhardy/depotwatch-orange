@@ -589,6 +589,11 @@ const de = {
     walletName: "Wallet-Name",
     walletNamePlaceholder: "Börse",
     accountName: "Konto-Name",
+    firstAccountName: "Erstes Konto",
+    firstAccountDefault: "Konto 1",
+    firstAccountHint:
+      "Ein Wallet hält für sich nichts: Transaktionen hängen immer an einem Konto. Ohne Konto lässt sich dieses Wallet nirgends auswählen.",
+    noAccounts: "Ohne Konto lässt sich dieses Wallet nirgends auswählen.",
     type: "Typ",
     types: {
       exchange: "Börse",
