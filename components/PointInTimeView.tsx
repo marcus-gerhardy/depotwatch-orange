@@ -13,14 +13,14 @@
 // reads only — there is no action here that could write anything, and the
 // store would refuse it anyway.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
 import { portfolioAsOf, yearEndOptions } from "@/lib/pointInTime";
 import { isLotTaxFree } from "@/lib/fifo";
-import { dec, formatFiat, ZERO } from "@/lib/decimal";
+import { formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
 import { downloadAsFile } from "@/lib/fileStorage";
 import { loadDailyCloses, peekDailyCloses } from "@/lib/marketData";
@@ -83,15 +83,6 @@ export default function PointInTimeView() {
     for (const c of closes) if (c.time <= day + 86_400_000) best = c.close;
     return best;
   }, [closes, chosen]);
-
-  useEffect(() => {
-    // A file whose data changed underneath may have a longer history now.
-    if (closes === null) {
-      setCloses(
-        peekDailyCloses("EUR", entries.length > 0 ? Date.parse(entries[0].date) : Date.now()),
-      );
-    }
-  }, [entries, closes]);
 
   if (!at || !chosen) return null;
 
