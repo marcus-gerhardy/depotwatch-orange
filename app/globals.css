@@ -127,15 +127,135 @@ h6 {
   }
 }
 
-/* The print tokens themselves come from themes.css (the paper theme); this is
-   what a page still has to drop when it goes on paper. */
+/* ------------------------------------------------------------------ print
+   What the app has to become on paper (CLAUDE.md §5.4).
+
+   The colours come from themes.css (the paper theme, always, whatever is on
+   screen). What is left is everything else: a screen is a place one *works*
+   in, a sheet is a document somebody reads, files or hands to a tax adviser.
+   So the working parts go — the header, the navigation, every button, every
+   filter — and what stays is the content, on white, with page margins.
+
+   These are element-level rules rather than utility classes on components,
+   because a component that has to remember `print:hidden` is a component that
+   will forget. */
+@page {
+  size: A4;
+  /* Room for a stapler on the left and a note in the margin. */
+  margin: 16mm 14mm 18mm;
+}
+
 @media print {
+  html,
+  html[data-theme] {
+    /* One family for the whole document. The paper theme pairs a serif
+       heading with the sans body, which reads as deliberate on screen and as
+       an accident on a page this short — a report is not a magazine. Figures
+       stay monospaced, because columns of numbers have to line up. */
+    --theme-font-heading: var(--font-outfit), system-ui, sans-serif;
+  }
+
+  body {
+    background: #fff;
+    /* Print stylesheets are read at a real size, not at a screen's. */
+    font-size: 10pt;
+    line-height: 1.4;
+  }
+
   body::after {
     display: none;
   }
+
+  /* The app's own chrome: never on paper. A dialog or a toast that happened
+     to be open when somebody pressed print is not part of the report either. */
+  body > div > header,
+  nav,
+  footer,
+  [role="dialog"],
+  [role="status"],
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Anything one could click is a working control, and a printed control is a
+     dead pixel. The exception is a link in running text, which still carries
+     meaning as text. */
+  button,
+  select,
+  input,
+  [type="button"] {
+    display: none !important;
+  }
+
+  main {
+    /* The page margin is the margin; the app's own padding would add to it. */
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Cards are a screen device — a way of grouping things against a dark
+     background. On white they become a boxed-in look that wastes the page. */
+  .rounded-xl,
+  .rounded-lg {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  h1,
+  h2,
+  h3 {
+    /* A heading at the bottom of a page with its content overleaf is the
+       classic print defect. */
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    break-inside: auto;
+  }
+
+  /* A table that runs over a page break repeats its header, and no row is torn
+     in half. Both are why a printed table is readable at all. */
+  thead {
+    display: table-header-group;
+  }
+
+  /* Every column, whatever the width rules say.
+     An A4 page is about 794 px wide, so the `lg:` breakpoint does not apply to
+     it — which silently dropped the note and the taxable-gain column from the
+     printed tax report. On screen a column is hidden because the *viewport* is
+     narrow (§5.3); paper is not narrow, it is finite, and a report is expected
+     to be complete. */
+  th,
+  td {
+    display: table-cell !important;
+  }
+
+  /* …except the ones that hold nothing but controls. Declared after the rule
+     above, because it is what that rule would otherwise bring back. */
+  th.print-hide,
+  td.print-hide {
+    display: none !important;
+  }
+
+  tr,
+  img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .react-grid-item {
     position: static !important;
     transform: none !important;
+  }
+
+  /* Ink is expensive and a printer's colour is not the screen's: keep the
+     accent for what is genuinely a signal (gain, loss, warning) and let the
+     rest be black on white. */
+  * {
+    text-shadow: none !important;
   }
 }
 

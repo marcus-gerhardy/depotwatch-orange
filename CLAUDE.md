@@ -398,7 +398,9 @@ Two details decide whether the figures are right. The cut-off is inclusive to th
 
 **Year ends are one click**, since that is what a tax return asks for — and only years that are over: a year end that has not happened is a guess, not a position. Everything else it says is what the live view would say about that day: holding in total and per account, cost basis (with the BTC it does *not* cover named, §4.1), value at that day's close, and the open lots with their status.
 
-The view **only reads** — it is strictly historical, says so in a banner above every figure, and holds nothing the store would let it write. The market value uses the **already cached** closes (`peekDailyCloses`, like the year in review, §4.2) and offers a button to fetch them on purpose; merely opening a view must not call an exchange. Export is CSV, or PDF through the browser's own print dialog — a megabyte of PDF library to render what the page already renders, in a theme the app already maintains for print (§5), would be a poor trade.
+**Reached from the tax page, not from the navigation** — it answers a tax question, and one asked a few times a year does not earn a permanent slot in a row of seven. The button sits beside the tax view's own export, and the view has a way back.
+
+The view **only reads** — it is strictly historical, says so in a banner above every figure, and holds nothing the store would let it write. The market value uses the **already cached** closes (`peekDailyCloses`, like the year in review, §4.2) and offers a button to fetch them on purpose; merely opening a view must not call an exchange. Export is CSV, or PDF through the browser's own print dialog — a megabyte of PDF library to render what the page already renders, in a theme the app already maintains for print (§5.4), would be a poor trade.
 
 ### 4.4 Savings Goal
 
@@ -443,6 +445,20 @@ An icon is decoration beside text that already says what it is, so all three set
 **Laser eyes** (§5.1) add no colour of their own: the glow is `var(--accent)`, so the effect works in every theme, including the light ones.
 
 **Keyboard and dialogs:** `:focus-visible` draws an accent outline globally — the UI is dense and made largely of icon buttons, table headers and disclosure headers that have no other affordance. Anything sortable or expandable is a real `<button>` with `aria-sort`/`aria-expanded`, never a clickable `<th>` or `<div>`. `Modal` is a `role="dialog" aria-modal` with its title as the accessible name; it takes focus when it opens, returns it where it was on close, closes on Escape, and freezes the page behind it.
+
+### 5.4 Print
+
+Print always uses the light `paper` theme (§5). What that leaves is everything else, and it is a different job: a screen is a place one *works* in, a sheet is a document somebody reads, files, or hands to a tax adviser. So the working parts go — header, navigation, every button, every filter, any dialog or toast that happened to be open — and what stays is the content, on white, inside real page margins (`@page`, A4).
+
+**The rules are element-level, in `globals.css`, not utility classes on components.** A component that has to remember `print:hidden` is a component that will forget; a rule that says "no `nav` on paper" cannot be forgotten by the next view somebody adds.
+
+Three decisions worth naming:
+
+- **Every column prints, whatever the width rules say.** An A4 page is about 794 px, so the `lg:` breakpoint never applies to it — which silently dropped the note and the taxable-gain column from the printed tax report. On screen a column is hidden because the *viewport* is narrow (§5.3); paper is not narrow, it is finite, and a report is expected to be complete. Columns holding nothing but controls carry `print-hide` and go entirely.
+- **A paged table is rendered, not sliced.** The tax and as-of views show a screenful of lots and extend on request (§5.3), but a report that stopped after fifty lots would not be a report — so the remaining rows are rendered and *hidden*, and print shows them. The one place where hiding with CSS beats not rendering, because the printed document needs the rows to exist.
+- **One type family.** The paper theme pairs a serif heading with the sans body, which reads as deliberate on screen and as an accident on a page this short; figures stay monospaced, because columns of numbers have to line up.
+
+**The sheet identifies itself** (`components/PrintHeader.tsx`): app, report, what it covers, the file it came from, and **when it was produced**. That last one matters more than it looks — a portfolio report is a statement about a moment, and two printouts of the same year can legitimately differ once a missing lot assignment is filled in. A sheet that cannot say when it was made is one nobody can reconcile. The disclaimer prints with it, because a sheet that leaves the app has to carry it.
 
 ### 5.3 Mobile First
 

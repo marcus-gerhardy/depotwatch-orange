@@ -367,7 +367,6 @@ export default function AppShell() {
     ...(TAX_FEATURES_ENABLED
       ? [{ id: "tax" as const, label: t("nav.tax") }]
       : []),
-    { id: "pointInTime", label: t("nav.pointInTime") },
     { id: "watchlist", label: t("nav.watchlist") },
     { id: "milestones", label: t("nav.milestones") },
     { id: "settings", label: t("nav.settings") },
@@ -586,8 +585,15 @@ export default function AppShell() {
         )}
         {tab === "transactions" && <TransactionsView initialFilter={txFilter} />}
         {tab === "wallets" && <WalletsView />}
-        {TAX_FEATURES_ENABLED && tab === "tax" && <TaxView />}
-        {tab === "pointInTime" && <PointInTimeView />}
+        {TAX_FEATURES_ENABLED && tab === "tax" && (
+          <TaxView onOpenPointInTime={() => setTab("pointInTime")} />
+        )}
+        {/* Reached from the tax page, not from the navigation: it answers a
+            tax question and is opened when that question comes up, which does
+            not earn a permanent slot in a row of seven. */}
+        {tab === "pointInTime" && (
+          <PointInTimeView onBack={() => setTab("tax")} />
+        )}
         {tab === "watchlist" && <WatchlistView initialAdd={watchlistAdd} />}
         {/* Reached from the milestones page and from the dashboard, not from
             the navigation: it is one page per year, not a place to work in. */}

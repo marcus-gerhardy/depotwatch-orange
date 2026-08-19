@@ -1440,6 +1440,9 @@ const en: typeof de = {
     goToTable: "Go to transaction table",
   },
   tax: {
+    openPointInTime: "As of date & period",
+    openPointInTimeHint:
+      "The holding on a past day, and what happened in a period: the 31 December holding a tax return asks for, for instance.",
     title: "Tax (Germany, FIFO)",
     disclaimer:
       "Not tax advice. FIFO matching per §23 EStG with a {days}-day holding period.",
@@ -1829,6 +1832,11 @@ const en: typeof de = {
     action: "Load new version",
     short: "Update",
     hint: "A new version is ready. It loads when you say so; anything you are typing would be lost.",
+  },
+  print: {
+    generated: "Generated {time}",
+    disclaimer:
+      "Produced with DepotWatch Orange from the portfolio file named above. Without warranty, and no substitute for tax advice.",
   },
   settings: {
     title: "Settings",

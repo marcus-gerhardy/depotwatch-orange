@@ -1448,6 +1448,9 @@ const de = {
     goToTable: "Zur Transaktionstabelle",
   },
   tax: {
+    openPointInTime: "Stichtag & Zeitraum",
+    openPointInTimeHint:
+      "Bestand an einem vergangenen Tag, und was in einem Zeitraum passiert ist: etwa der Bestand zum 31.12. für die Steuererklärung.",
     title: "Steuer (Deutschland, FIFO)",
     disclaimer:
       "Keine Steuerberatung. FIFO-Zuordnung nach §23 EStG mit {days} Tagen Haltefrist.",
@@ -1842,6 +1845,11 @@ const de = {
     action: "Neue Version laden",
     short: "Update",
     hint: "Eine neue Version steht bereit. Sie wird erst geladen, wenn du es sagst; laufende Eingaben gehen dabei verloren.",
+  },
+  print: {
+    generated: "Erstellt am {time}",
+    disclaimer:
+      "Erstellt mit DepotWatch Orange aus der oben genannten Portfolio-Datei. Unverbindlich und ohne Gewähr; ersetzt keine Steuerberatung.",
   },
   settings: {
     title: "Einstellungen",

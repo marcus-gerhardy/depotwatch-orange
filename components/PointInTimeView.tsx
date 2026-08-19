@@ -26,7 +26,11 @@ import { downloadAsFile } from "@/lib/fileStorage";
 import { loadDailyCloses, peekDailyCloses } from "@/lib/marketData";
 import { useNowDate } from "@/lib/clock";
 import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
+import PrintHeader from "./PrintHeader";
 import { DownloadIcon, WarnIcon } from "./icons";
+
+/** Open lots shown before "show more" — the same figure the tax view uses. */
+const PAGE_SIZE = 50;
 
 /** yyyy-mm-dd for a date input, in local time. */
 function inputValue(d: Date): string {
@@ -34,7 +38,12 @@ function inputValue(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export default function PointInTimeView() {
+export default function PointInTimeView({
+  /** Back to the tax page, which is where this view is reached from (§4.3). */
+  onBack,
+}: {
+  onBack?: () => void;
+} = {}) {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
   const amountFmt = useAmountFormat();
@@ -58,6 +67,16 @@ export default function PointInTimeView() {
    * what a tax return asks about a year.
    */
   const [fromDate, setFromDate] = useState<string>("");
+  /**
+   * Rows shown on screen. A savings plan puts hundreds of open lots here, and
+   * rendered whole they make a page tens of thousands of pixels tall (§5.3).
+   *
+   * On paper the opposite is true: a report that stops after fifty lots is not
+   * a report. So the rest is *rendered and hidden*, and print shows it — the
+   * one case where hiding with CSS rather than not rendering is the right
+   * trade, because the printed document needs the rows to exist.
+   */
+  const [lotLimit, setLotLimit] = useState(PAGE_SIZE);
 
   const chosen = useMemo(() => {
     const parsed = new Date(`${date}T00:00:00`);
@@ -179,10 +198,25 @@ export default function PointInTimeView() {
     window.print();
   }
 
+  const asOfLabel = period
+    ? `${formatDate(period.from, loc)} – ${formatDate(period.to, loc)}`
+    : formatDate(at.asOf, loc);
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      {/* The sheet identifies itself; the screen's own header does that job
+          on screen and is gone here (§5.4). */}
+      <PrintHeader title={t("pit.title")} subtitle={asOfLabel} />
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex items-center gap-2">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="mb-3 rounded-lg px-1.5 py-0.5 text-sm text-muted transition-colors hover:text-foreground print:hidden"
+            >
+              ← {t("nav.tax")}
+            </button>
+          )}
           <SectionTitle level={1}>{t("pit.title")}</SectionTitle>
           <HelpButton anchor="pit-what" label={t("pit.title")} className="mb-3" />
         </div>
@@ -197,7 +231,7 @@ export default function PointInTimeView() {
       </div>
 
       {/* Said before any figure is read: everything below is history. */}
-      <p className="rounded-lg border border-accent/40 bg-accent/5 p-3 text-sm leading-relaxed text-accent">
+      <p className="rounded-lg border border-accent/40 bg-accent/5 p-3 text-sm leading-relaxed text-accent print:hidden">
         {period
           ? t("pit.bannerPeriod", {
               from: formatDate(period.from, loc),
@@ -456,7 +490,12 @@ export default function PointInTimeView() {
               </thead>
               <tbody>
                 {at.openLots.map((lot, i) => (
-                  <tr key={`${lot.txId}-${i}`} className="border-b border-border-c/50">
+                  <tr
+                    key={`${lot.txId}-${i}`}
+                    className={`border-b border-border-c/50 ${
+                      i >= lotLimit ? "hidden print:table-row" : ""
+                    }`}
+                  >
                     <td className="py-2 pr-4 whitespace-nowrap">
                       {formatDate(lot.acquiredDate, loc)}
                     </td>
@@ -494,11 +533,22 @@ export default function PointInTimeView() {
                 ))}
               </tbody>
             </table>
+            {at.openLots.length > lotLimit && (
+              <div className="pt-3 text-center print:hidden">
+                <Button onClick={() => setLotLimit((n) => n + PAGE_SIZE)}>
+                  {t("common.showMore", {
+                    count: Math.min(at.openLots.length - lotLimit, PAGE_SIZE),
+                  })}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </Card>
 
       <p className="text-xs text-muted">{t("pit.disclaimer")}</p>
+      {/* Only on paper: a sheet that leaves the app has to carry it. */}
+      <p className="hidden text-[9pt] print:block">{t("print.disclaimer")}</p>
     </div>
   );
 }

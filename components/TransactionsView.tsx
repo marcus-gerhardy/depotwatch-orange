@@ -2333,8 +2333,8 @@ export default function TransactionsView({
             <thead>
               <tr className="border-b border-border-c text-xs text-muted">
                 {/* Expander for the origin sub-list; only incoming legs have one. */}
-                <th className="w-6 py-2 font-normal" aria-label={t("tx.origin.section")} />
-                <th className="py-2 pr-3 text-center font-normal">
+                <th className="print-hide w-6 py-2 font-normal" aria-label={t("tx.origin.section")} />
+                <th className="print-hide py-2 pr-3 text-center font-normal">
                   <Switch
                     checked={allFilteredSelected}
                     indeterminate={someFilteredSelected && !allFilteredSelected}
@@ -2354,7 +2354,7 @@ export default function TransactionsView({
                 {header("originalCurrency")}
                 {header("txid")}
                 {header("address")}
-                <th className="py-2 text-right font-normal whitespace-nowrap"></th>
+                <th className="print-hide py-2 text-right font-normal whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody>
@@ -2442,7 +2442,7 @@ export default function TransactionsView({
                       )}
                     </td>
                     <td
-                      className="py-2 pr-3 text-center"
+                      className="print-hide py-2 pr-3 text-center"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Switch
@@ -2636,7 +2636,7 @@ export default function TransactionsView({
                         />
                       </td>
                     )}
-                    <td className="py-2 pl-2 text-right whitespace-nowrap">
+                    <td className="print-hide py-2 pl-2 text-right whitespace-nowrap">
                       {lot && (
                         <button
                           disabled={locked.readOnly}

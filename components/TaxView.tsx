@@ -10,6 +10,7 @@ import { dec, formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
 import { downloadAsFile } from "@/lib/fileStorage";
 import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
+import PrintHeader from "./PrintHeader";
 import { DownloadIcon, WarnIcon } from "./icons";
 
 /** Rows shown before "show more" — the same for both tables. */
@@ -26,7 +27,12 @@ function ShowMore({ hidden, onMore }: { hidden: number; onMore: () => void }) {
   );
 }
 
-export default function TaxView() {
+export default function TaxView({
+  /** Open the as-of / period view (§4.3), which lives under this page. */
+  onOpenPointInTime,
+}: {
+  onOpenPointInTime?: () => void;
+} = {}) {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
   // Holdings follow the display unit (BTC or sats, §6.3); the EUR figures
@@ -110,21 +116,39 @@ export default function TaxView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <PrintHeader
+        title={t("tax.title")}
+        subtitle={year === "" ? t("tx.filterAll") : year}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex items-center gap-2">
           <SectionTitle level={1}>{t("tax.title")}</SectionTitle>
           <HelpButton anchor="tax-disclaimer" label={t("tax.title")} className="mb-3" />
         </div>
-        <Button
-          variant="ghost"
-          onClick={exportCsv}
-          disabled={disposals.length === 0}
-          title={t("tax.exportHint")}
-        >
-          <DownloadIcon /> {t("tax.export")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {/* The other question a tax return asks: what was held on 31
+              December, and what a year realised (§4.3). It belongs on this
+              page rather than in the navigation — it is opened when that
+              question comes up, which is not often enough for a permanent
+              slot in a row of seven. */}
+          {onOpenPointInTime && (
+            <Button onClick={onOpenPointInTime} title={t("tax.openPointInTimeHint")}>
+              {t("tax.openPointInTime")}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            onClick={exportCsv}
+            disabled={disposals.length === 0}
+            title={t("tax.exportHint")}
+          >
+            <DownloadIcon /> {t("tax.export")}
+          </Button>
+        </div>
       </div>
       <p className="text-xs text-muted">{t("tax.disclaimer", { days: holdingDays })}</p>
+      {/* Only on paper: a sheet that leaves the app has to carry it. */}
+      <p className="hidden text-[9pt] print:block">{t("print.disclaimer")}</p>
 
       {uncovered.length > 0 && (
         <Card className="border-warning/50">
@@ -157,11 +181,19 @@ export default function TaxView() {
                 </tr>
               </thead>
               <tbody>
-                {fifo.openLots.slice(0, lotLimit).map((lot, i) => {
+                {fifo.openLots.map((lot, i) => {
                   const free = isLotTaxFree(lot);
                   const days = daysUntilTaxFree(lot);
                   return (
-                    <tr key={`${lot.txId}-${i}`} className="border-b border-border-c/50">
+                    <tr
+                      key={`${lot.txId}-${i}`}
+                      // Rendered but hidden past the limit: a report that
+                      // stopped after fifty lots would not be a report, and
+                      // print cannot un-hide a row that was never rendered.
+                      className={`border-b border-border-c/50 ${
+                        i >= lotLimit ? "hidden print:table-row" : ""
+                      }`}
+                    >
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {formatDate(lot.acquiredDate, loc)}
                       </td>
@@ -210,7 +242,7 @@ export default function TaxView() {
                         )}
                       </td>
                       <td
-                        className="max-w-40 truncate py-2 text-xs text-muted"
+                        className="max-w-40 truncate py-2 text-xs text-muted print:max-w-none print:overflow-visible print:whitespace-normal"
                         title={lot.note || undefined}
                       >
                         {lot.note || "—"}
@@ -283,8 +315,13 @@ export default function TaxView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {disposals.slice(0, disposalLimit).map((d) => (
-                    <tr key={d.txId} className="border-b border-border-c/50">
+                  {disposals.map((d, i) => (
+                    <tr
+                      key={d.txId}
+                      className={`border-b border-border-c/50 ${
+                        i >= disposalLimit ? "hidden print:table-row" : ""
+                      }`}
+                    >
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {formatDate(d.date, loc)}
                       </td>
@@ -325,7 +362,7 @@ export default function TaxView() {
                         <Amount>{formatFiat(d.taxableGainEur, "EUR", loc)}</Amount>
                       </td>
                       <td
-                        className="max-w-40 truncate py-2 text-xs text-muted"
+                        className="max-w-40 truncate py-2 text-xs text-muted print:max-w-none print:overflow-visible print:whitespace-normal"
                         title={d.note || undefined}
                       >
                         {d.note || "—"}
@@ -385,7 +422,7 @@ export default function TaxView() {
                         </span>
                       )}
                     </td>
-                    <td className="max-w-40 truncate py-2 text-xs text-muted" title={g.note || undefined}>
+                    <td className="max-w-40 truncate py-2 text-xs text-muted print:max-w-none print:overflow-visible print:whitespace-normal" title={g.note || undefined}>
                       {g.note || "—"}
                     </td>
                   </tr>
@@ -430,7 +467,7 @@ export default function TaxView() {
                         <Amount>{formatFiat(r.valueEur, "EUR", loc)}</Amount>
                       )}
                     </td>
-                    <td className="max-w-40 truncate py-2 text-xs text-muted" title={r.note || undefined}>
+                    <td className="max-w-40 truncate py-2 text-xs text-muted print:max-w-none print:overflow-visible print:whitespace-normal" title={r.note || undefined}>
                       {r.note || "—"}
                     </td>
                   </tr>
