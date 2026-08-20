@@ -614,6 +614,7 @@ const de = {
     empty: "Noch keine Wallets. Lege zuerst ein Wallet mit einem Konto an.",
   },
   celebration: {
+    buyTitle: "Gestapelt.",
     wholecoinerTitle: "Ein ganzer Coin.",
     wholecoinerBody: "Dein Bestand hat 1,00000000 BTC erreicht.",
   },

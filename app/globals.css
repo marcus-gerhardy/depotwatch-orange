@@ -91,6 +91,120 @@ h6 {
   }
 }
 
+/* The buy flash (§5.1). A firework behind the bitcoin sign when a purchase is
+   entered by hand — see components/BuyCelebration.tsx, which is also where the
+   rule is written down that keeps it out of an import's way.
+
+   Everything here is transform and opacity only (no layout, and no repaint of
+   the page behind it), the whole overlay is pointer-events-none, and the burst
+   is gone entirely for anyone who asked for less motion — the component checks
+   that too, so this is the second belt. The one colour is the theme's accent,
+   which is what makes the effect work in all nine themes. */
+.buy-spark {
+  position: absolute;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, var(--accent), transparent);
+  animation-name: buy-spark-fly;
+  animation-timing-function: cubic-bezier(0.15, 0.7, 0.3, 1);
+  animation-fill-mode: forwards;
+  opacity: 0;
+}
+
+@keyframes buy-spark-fly {
+  0% {
+    transform: rotate(var(--spark-angle, 0deg)) translateY(-8px) scaleY(0.4);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--spark-angle, 0deg))
+      translateY(calc(-1 * var(--spark-distance, 120px))) scaleY(1);
+    opacity: 0;
+  }
+}
+
+/* The shockwave that goes out with each wave of sparks. */
+.buy-ring {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  border-radius: 9999px;
+  border: 2px solid var(--accent);
+  animation: buy-ring-out 900ms cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+@keyframes buy-ring-out {
+  0% {
+    transform: scale(0.35);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+/* The coin itself: in with an overshoot, a settle, and away. The heat around
+   it is the laser-eyes idea again — a drop-shadow in the accent, nothing
+   else, so it burns in the light themes as well. */
+.buy-coin-glow {
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+
+/* The percentages are read against the 4600 ms the flash lasts: in with an
+   overshoot inside the first ~700 ms, then standing still while the confetti
+   comes down, then away over the last half second. */
+@keyframes buy-coin {
+  0% {
+    transform: scale(0.2) rotate(-25deg);
+    opacity: 0;
+  }
+  8% {
+    transform: scale(1.18) rotate(6deg);
+    opacity: 1;
+  }
+  15% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  88% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.94) translateY(-10px);
+    opacity: 0;
+  }
+}
+
+@keyframes buy-label {
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  10% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buy-spark,
+  .buy-ring {
+    display: none;
+  }
+}
+
 /* Laser eyes (§5.1). The face and its flares are drawn in LaserAvatar.tsx;
    what is left here is the heat around them — a bloom in the active theme's
    accent, which is also the only colour the effect uses, so it works in all

@@ -8,7 +8,7 @@ import { useAppStore } from "@/lib/store";
 import { useEasterEggs } from "@/lib/easterEggs";
 import { totalBalance } from "@/lib/portfolio";
 import { flattenLedger } from "@/lib/types";
-import { useThemeColors } from "@/lib/appearance";
+import Confetti from "./Confetti";
 
 /** Everything about the animation, so it can be tuned in one place. */
 const PIECES = 60;
@@ -81,51 +81,13 @@ export default function Celebration() {
       role="status"
       aria-live="polite"
     >
-      {!reduced && <Confetti />}
+      {!reduced && <Confetti pieces={PIECES} durationMs={DURATION_MS} />}
       <div className="rounded-xl border border-accent/50 bg-surface/95 px-4 py-3 text-center shadow-2xl">
         <p className="font-heading text-sm font-semibold text-accent">
           {t("celebration.wholecoinerTitle")}
         </p>
         <p className="mt-0.5 text-xs text-muted">{t("celebration.wholecoinerBody")}</p>
       </div>
-    </div>
-  );
-}
-
-/** Orange confetti, CSS only — no library, no canvas, no layout impact. */
-function Confetti() {
-  const accent = useThemeColors().accent;
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: PIECES }, (_, i) => ({
-        left: (i * 97) % 100,
-        delay: ((i * 37) % 100) / 100,
-        drift: ((i * 53) % 60) - 30,
-        size: 5 + ((i * 13) % 5),
-        spin: ((i * 71) % 2 === 0 ? 1 : -1) * (180 + ((i * 29) % 360)),
-      })),
-    [],
-  );
-
-  return (
-    <div aria-hidden className="absolute inset-0">
-      {pieces.map((p, i) => (
-        <span
-          key={i}
-          className="confetti-piece"
-          style={{
-            left: `${p.left}%`,
-            width: p.size,
-            height: p.size * 1.6,
-            background: accent,
-            opacity: 0.85,
-            animationDelay: `${p.delay}s`,
-            animationDuration: `${DURATION_MS}ms`,
-            ["--confetti-drift" as string]: `${p.drift}px`,
-            ["--confetti-spin" as string]: `${p.spin}deg`,
-          }}
-        />
-      ))}
     </div>
   );
 }

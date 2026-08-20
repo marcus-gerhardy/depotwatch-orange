@@ -106,6 +106,7 @@ export default function TransactionForm({
   const locked = useReadOnly();
   const addTransaction = useAppStore((s) => s.addTransaction);
   const updateTransaction = useAppStore((s) => s.updateTransaction);
+  const celebrateBuy = useAppStore((s) => s.celebrateBuy);
 
   const accounts = useMemo(
     () =>
@@ -480,8 +481,16 @@ export default function TransactionForm({
           : {}),
         ...(lotAllocations && lotAllocations.length > 0 ? { lotAllocations } : {}),
       };
-      if (existing) updateTransaction(existing.id, tx, accountId);
-      else addTransaction(accountId, tx);
+      if (existing) {
+        updateTransaction(existing.id, tx, accountId);
+      } else {
+        addTransaction(accountId, tx);
+        // A purchase entered by hand earns its firework (§5.1). Said here and
+        // nowhere else on purpose: this is the one place a buy is recorded one
+        // at a time, so an import can never set it off, and an edit — which
+        // stacks nothing — never reaches it either.
+        if (tx.type === "buy") celebrateBuy(tx.amountBtc, tx.totalFiatEur ?? null);
+      }
       onClose();
       return;
     }

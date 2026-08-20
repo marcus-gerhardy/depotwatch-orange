@@ -10,6 +10,7 @@ import { useOnline, useServiceWorker } from "@/lib/serviceWorker";
 import dynamic from "next/dynamic";
 import AutoLock from "./AutoLock";
 import Celebration from "./Celebration";
+import BuyCelebration from "./BuyCelebration";
 import MilestoneToast from "./MilestoneToast";
 import MilestonesView from "./MilestonesView";
 import YearInReview from "./YearInReview";
@@ -375,6 +376,7 @@ export default function AppShell() {
   return (
     <div className="flex flex-1 flex-col">
       <Celebration />
+      <BuyCelebration />
       <AutoLock />
       <HelpPanel />
       <Toast message={toast} onDone={() => setToast(null)} />

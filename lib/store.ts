@@ -104,6 +104,20 @@ import {
   pickFileForCreate,
 } from "./fileStorage";
 
+/**
+ * A buy just recorded by hand — what the celebration needs to say (§5.1).
+ *
+ * The figures are the transaction's own, taken at the moment it was created:
+ * nothing here is read back out of the ledger, so the animation can never
+ * disagree with the row that caused it.
+ */
+export interface BuyFlash {
+  /** Counts up per buy; the animation's key, so a second buy replays it. */
+  id: number;
+  amountBtc: string;
+  totalFiatEur: string | null;
+}
+
 interface AppState {
   // File session
   fileMode: FileMode;
@@ -224,6 +238,19 @@ interface AppState {
 
   // UI state (not persisted)
   privacyMode: boolean;
+  /**
+   * A buy that was just entered by hand, for the short celebration it earns
+   * (§5.1). Session state and deliberately *pushed* rather than derived: the
+   * animation belongs to the act of recording a purchase, not to the ledger
+   * containing one — so an import of five hundred rows, an edit, or merely
+   * opening a file never reaches it. The id counts up, so two buys in a row
+   * restart the animation instead of the second one going unnoticed.
+   */
+  buyFlash: BuyFlash | null;
+  /** Play it once, for a buy the user just created. */
+  celebrateBuy: (amountBtc: string, totalFiatEur: string | null) => void;
+  /** The flash has been shown (or was refused); drop it. */
+  clearBuyFlash: () => void;
   /**
    * The help panel (§8): the section (or topic) it is showing, or null when it
    * is closed. Session state — where somebody last read is not a property of
@@ -1012,6 +1039,7 @@ export const useAppStore = create<AppState>((set, get) => {
     lastBackupRun: null,
     integrityWarning: null,
     privacyMode: false,
+    buyFlash: null,
     helpTarget: null,
     uiLocale: "de",
     appearance: DEFAULT_APPEARANCE,
@@ -1159,6 +1187,12 @@ export const useAppStore = create<AppState>((set, get) => {
     },
 
     togglePrivacyMode: () => set((s) => ({ privacyMode: !s.privacyMode })),
+
+    celebrateBuy: (amountBtc, totalFiatEur) =>
+      set((s) => ({
+        buyFlash: { id: (s.buyFlash?.id ?? 0) + 1, amountBtc, totalFiatEur },
+      })),
+    clearBuyFlash: () => set({ buyFlash: null }),
 
     /**
      * Read-only is a session state, so this is all there is to it: nothing is

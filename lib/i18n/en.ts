@@ -612,6 +612,7 @@ const en: typeof de = {
     empty: "No wallets yet. Create a wallet with an account first.",
   },
   celebration: {
+    buyTitle: "Stacked.",
     wholecoinerTitle: "One whole coin.",
     wholecoinerBody: "Your holding has reached 1.00000000 BTC.",
   },
