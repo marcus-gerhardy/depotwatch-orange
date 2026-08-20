@@ -1448,6 +1448,8 @@ const de = {
     goToTable: "Zur Transaktionstabelle",
   },
   tax: {
+    disposalCount: "{count} Veräußerung(en)",
+    lotCount: "{count} Position(en)",
     openPointInTime: "Stichtag & Zeitraum",
     openPointInTimeHint:
       "Bestand an einem vergangenen Tag, und was in einem Zeitraum passiert ist: etwa der Bestand zum 31.12. für die Steuererklärung.",
@@ -1847,6 +1849,8 @@ const de = {
     hint: "Eine neue Version steht bereit. Sie wird erst geladen, wenn du es sagst; laufende Eingaben gehen dabei verloren.",
   },
   print: {
+    fromFile: "Aus der Datei",
+    partOf: "Teil {part} von {total}",
     generated: "Erstellt am {time}",
     disclaimer:
       "Erstellt mit DepotWatch Orange aus der oben genannten Portfolio-Datei. Unverbindlich und ohne Gewähr; ersetzt keine Steuerberatung.",

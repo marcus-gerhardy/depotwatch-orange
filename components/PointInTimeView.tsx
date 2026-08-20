@@ -27,6 +27,8 @@ import { loadDailyCloses, peekDailyCloses } from "@/lib/marketData";
 import { useNowDate } from "@/lib/clock";
 import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
 import PrintHeader from "./PrintHeader";
+import PrintCover from "./PrintCover";
+import PagedTable from "./PagedTable";
 import { DownloadIcon, WarnIcon } from "./icons";
 
 /** Open lots shown before "show more" — the same figure the tax view uses. */
@@ -204,8 +206,75 @@ export default function PointInTimeView({
 
   return (
     <div className="space-y-4">
-      {/* The sheet identifies itself; the screen's own header does that job
-          on screen and is gone here (§5.4). */}
+      {/* On paper this report opens with a cover sheet carrying the figures
+          somebody actually keeps; the running header repeats on every sheet
+          behind it (§5.4). */}
+      <PrintCover
+        title={t("pit.title")}
+        subtitle={asOfLabel}
+        figures={[
+          // Read across, then down: the two ends of the period next to each
+          // other, then what moved between them, then what it is worth.
+          ...(period
+            ? [
+                {
+                  label: t("pit.opening"),
+                  value: amountFmt.formatWithUnit(period.opening.balanceBtc),
+                },
+                {
+                  label: t("pit.closing"),
+                  value: amountFmt.formatWithUnit(period.closing.balanceBtc),
+                },
+                {
+                  label: t("pit.change"),
+                  value: amountFmt.formatWithUnit(period.changeBtc),
+                  note: t("pit.boughtSold", {
+                    bought: amountFmt.format(period.boughtBtc),
+                    sold: amountFmt.format(period.disposedBtc),
+                  }),
+                },
+                {
+                  label: t("pit.realized"),
+                  value: formatFiat(period.realizedGainEur, "EUR", loc),
+                  note: t("pit.realizedSplit", {
+                    taxable: formatFiat(period.realizedTaxableGainEur, "EUR", loc),
+                    free: formatFiat(period.realizedTaxFreeGainEur, "EUR", loc),
+                  }),
+                },
+              ]
+            : [
+                {
+                  label: t("pit.holding"),
+                  value: amountFmt.formatWithUnit(at.balanceBtc),
+                },
+              ]),
+          {
+            label: t("pit.costBasis"),
+            value: formatFiat(at.costBasisEur, "EUR", loc),
+            note: at.basisBtc.lt(at.balanceBtc)
+              ? t("pit.basisPartial", {
+                  amount: amountFmt.formatWithUnit(at.balanceBtc.minus(at.basisBtc)),
+                })
+              : undefined,
+          },
+          ...(marketValue !== null
+            ? [
+                {
+                  label: t("pit.marketValue"),
+                  value: formatFiat(marketValue, "EUR", loc),
+                  note: t("pit.atPrice", { price: formatFiat(priceAt ?? 0, "EUR", loc) }),
+                },
+              ]
+            : []),
+          {
+            label: t("pit.taxFreeThen"),
+            value: amountFmt.formatWithUnit(at.taxFreeBtc),
+            note: t("pit.lockedThen", {
+              amount: amountFmt.formatWithUnit(at.lockedBtc),
+            }),
+          },
+        ]}
+      />
       <PrintHeader title={t("pit.title")} subtitle={asOfLabel} />
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div className="flex items-center gap-2">
@@ -471,13 +540,19 @@ export default function PointInTimeView({
       </Card>
 
       <Card>
-        <SectionTitle level={2}>{t("pit.openLots")}</SectionTitle>
+        {/* Print gets this heading from the table itself, once per sheet and
+            with the part number on it (PagedTable) — twice would be noise. */}
+        <span className="print:hidden">
+          <SectionTitle level={2}>{t("pit.openLots")}</SectionTitle>
+        </span>
         {at.openLots.length === 0 ? (
           <p className="text-sm text-muted">{t("tax.emptyLots")}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
+          <>
+            <PagedTable
+              caption={t("pit.openLots")}
+              columns={["14%", "40%", "16%", "16%", "14%"]}
+              head={
                 <tr className="border-b border-border-c text-left text-xs text-muted">
                   <th className="py-2 pr-4 font-normal">{t("tax.acquired")}</th>
                   <th className="py-2 pr-4 font-normal">
@@ -487,52 +562,52 @@ export default function PointInTimeView({
                   <th className="py-2 pr-4 text-right font-normal">{t("tax.costPerBtc")}</th>
                   <th className="py-2 font-normal">Status</th>
                 </tr>
-              </thead>
-              <tbody>
-                {at.openLots.map((lot, i) => (
-                  <tr
-                    key={`${lot.txId}-${i}`}
-                    className={`border-b border-border-c/50 ${
-                      i >= lotLimit ? "hidden print:table-row" : ""
-                    }`}
-                  >
-                    <td className="py-2 pr-4 whitespace-nowrap">
-                      {formatDate(lot.acquiredDate, loc)}
-                    </td>
-                    <td className="py-2 pr-4 whitespace-nowrap text-muted">
-                      {lot.walletName} / {lot.accountName}
-                    </td>
-                    <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
-                      <Amount>{amountFmt.format(lot.remainingBtc)}</Amount>
-                    </td>
-                    <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
-                      {lot.costPerBtcEur ? (
-                        <Amount>{formatFiat(lot.costPerBtcEur, "EUR", loc)}</Amount>
-                      ) : (
-                        <span className="cursor-help text-muted" title={t("tax.unknownBasis")}>
-                          ?
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 whitespace-nowrap">
-                      {lot.originUnresolved ? (
-                        <span className="rounded bg-warning/15 px-2 py-0.5 text-xs text-warning">
-                          {t("tx.origin.badge")}
-                        </span>
-                      ) : isLotTaxFree(lot, at.asOf) ? (
-                        <span className="rounded bg-gain/15 px-2 py-0.5 text-xs text-gain">
-                          {t("tax.taxFreeNow")}
-                        </span>
-                      ) : (
-                        <span className="rounded bg-warning/15 px-2 py-0.5 text-xs text-warning">
-                          {t("pit.stillLocked")}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              }
+              rows={at.openLots.map((lot, i) => (
+                <tr
+                  key={`${lot.txId}-${i}`}
+                  className={`border-b border-border-c/50 ${
+                    i >= lotLimit ? "hidden print:table-row" : ""
+                  }`}
+                >
+                  <td className="py-2 pr-4 whitespace-nowrap">
+                    {formatDate(lot.acquiredDate, loc)}
+                  </td>
+                  {/* Truncated on screen, wrapped on paper: an ellipsis in a
+                      printed report is information the sheet cannot get back. */}
+                  <td className="truncate py-2 pr-4 text-muted print:overflow-visible print:whitespace-normal">
+                    {lot.walletName} / {lot.accountName}
+                  </td>
+                  <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
+                    <Amount>{amountFmt.format(lot.remainingBtc)}</Amount>
+                  </td>
+                  <td className="py-2 pr-4 text-right font-mono whitespace-nowrap">
+                    {lot.costPerBtcEur ? (
+                      <Amount>{formatFiat(lot.costPerBtcEur, "EUR", loc)}</Amount>
+                    ) : (
+                      <span className="cursor-help text-muted" title={t("tax.unknownBasis")}>
+                        ?
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 whitespace-nowrap">
+                    {lot.originUnresolved ? (
+                      <span className="rounded bg-warning/15 px-2 py-0.5 text-xs text-warning">
+                        {t("tx.origin.badge")}
+                      </span>
+                    ) : isLotTaxFree(lot, at.asOf) ? (
+                      <span className="rounded bg-gain/15 px-2 py-0.5 text-xs text-gain">
+                        {t("tax.taxFreeNow")}
+                      </span>
+                    ) : (
+                      <span className="rounded bg-warning/15 px-2 py-0.5 text-xs text-warning">
+                        {t("pit.stillLocked")}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            />
             {at.openLots.length > lotLimit && (
               <div className="pt-3 text-center print:hidden">
                 <Button onClick={() => setLotLimit((n) => n + PAGE_SIZE)}>
@@ -542,7 +617,7 @@ export default function PointInTimeView({
                 </Button>
               </div>
             )}
-          </div>
+          </>
         )}
       </Card>
 

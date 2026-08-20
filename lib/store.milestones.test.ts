@@ -170,7 +170,10 @@ describe("an event raised before any file was open", () => {
   // The whitepaper is reached from "how it works", a page one reads *before*
   // opening a portfolio — so the click used to land in a store with no file
   // and was dropped, which made the milestone unreachable in practice.
-  const WHEN = new Date("2026-08-18T09:00:00.000Z");
+  // Relative to now, not a fixed date: entries expire after 24 hours (§5.2),
+  // so a literal timestamp turns this into a test that passes on the day it
+  // was written and fails a week later.
+  const WHEN = new Date(Date.now() - 60 * 60 * 1000);
   const recordOf = (id: string) =>
     (useAppStore.getState().portfolio?.milestones ?? []).find((m) => m.id === id);
 

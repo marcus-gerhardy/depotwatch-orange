@@ -11,6 +11,8 @@ import { useAmountFormat } from "@/lib/displayUnit";
 import { downloadAsFile } from "@/lib/fileStorage";
 import { Amount, Button, Card, PnlValue, SectionTitle, inputCls } from "./ui";
 import PrintHeader from "./PrintHeader";
+import PrintCover from "./PrintCover";
+import PagedTable from "./PagedTable";
 import { DownloadIcon, WarnIcon } from "./icons";
 
 /** Rows shown before "show more" — the same for both tables. */
@@ -116,6 +118,56 @@ export default function TaxView({
 
   return (
     <div className="space-y-4">
+      <PrintCover
+        title={t("tax.title")}
+        subtitle={year === "" ? t("tx.filterAll") : year}
+        figures={[
+          {
+            label: t("tax.totalRealized"),
+            value: formatFiat(totals.gain, "EUR", loc),
+            note: t("tax.disposalCount", { count: disposals.length }),
+          },
+          {
+            label: t("tax.taxableGain"),
+            value: formatFiat(totals.taxable, "EUR", loc),
+          },
+          {
+            label: t("tax.taxFreeGain"),
+            value: formatFiat(totals.free, "EUR", loc),
+          },
+          {
+            label: t("tax.openLots"),
+            value: amountFmt.formatWithUnit(
+              fifo.openLots.reduce((sum, l) => sum.plus(l.remainingBtc), dec(0)),
+            ),
+            note: t("tax.lotCount", { count: fifo.openLots.length }),
+          },
+          ...(fifo.giftsOut.length > 0
+            ? [
+                {
+                  label: t("tax.giftsOut"),
+                  value: formatFiat(
+                    fifo.giftsOut.reduce((sum, g) => sum.plus(g.costBasisEur), dec(0)),
+                    "EUR",
+                    loc,
+                  ),
+                },
+              ]
+            : []),
+          ...(fifo.incomeReceipts.length > 0
+            ? [
+                {
+                  label: t("tax.income"),
+                  value: formatFiat(
+                    fifo.incomeReceipts.reduce((sum, r) => sum.plus(r.valueEur ?? 0), dec(0)),
+                    "EUR",
+                    loc,
+                  ),
+                },
+              ]
+            : []),
+        ]}
+      />
       <PrintHeader
         title={t("tax.title")}
         subtitle={year === "" ? t("tx.filterAll") : year}
@@ -161,102 +213,106 @@ export default function TaxView({
       )}
 
       <Card>
-        <SectionTitle level={2}>{t("tax.openLots")}</SectionTitle>
+        <span className="print:hidden">
+          <SectionTitle level={2}>{t("tax.openLots")}</SectionTitle>
+        </span>
         {fifo.openLots.length === 0 ? (
           <p className="text-sm text-muted">{t("tax.emptyLots")}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
+          <>
+            <PagedTable
+              caption={t("tax.openLots")}
+              columns={["11%", "22%", "13%", "13%", "11%", "12%", "18%"]}
+              // Seven columns, and two of them wrap to a second line on A4 —
+              // so a row is about twice as tall as in the five-column as-of
+              // view, and half as many fit on a sheet.
+              rowsPerPage={16}
+              head={
                 <tr className="border-b border-border-c text-left text-xs text-muted">
                   <th className="py-2 pr-4 font-normal">{t("tax.acquired")}</th>
-                  <th className="py-2 pr-4 font-normal">
+                  <th className="hidden py-2 pr-4 font-normal md:table-cell">
                     {t("tx.wallet")} / {t("tx.account")}
                   </th>
                   <th className="py-2 pr-4 text-right font-normal">{t("tax.remaining")}</th>
-                  <th className="py-2 pr-4 text-right font-normal">{t("tax.costPerBtc")}</th>
-                  <th className="py-2 pr-4 font-normal">{t("tax.taxFreeFrom")}</th>
+                  <th className="hidden py-2 pr-4 text-right font-normal sm:table-cell">{t("tax.costPerBtc")}</th>
+                  <th className="hidden py-2 pr-4 font-normal md:table-cell">{t("tax.taxFreeFrom")}</th>
                   <th className="py-2 pr-4 font-normal">Status</th>
-                  <th className="py-2 font-normal">{t("tx.note")}</th>
+                  <th className="hidden py-2 font-normal lg:table-cell">{t("tx.note")}</th>
                 </tr>
-              </thead>
-              <tbody>
-                {fifo.openLots.map((lot, i) => {
-                  const free = isLotTaxFree(lot);
-                  const days = daysUntilTaxFree(lot);
-                  return (
-                    <tr
-                      key={`${lot.txId}-${i}`}
-                      // Rendered but hidden past the limit: a report that
-                      // stopped after fifty lots would not be a report, and
-                      // print cannot un-hide a row that was never rendered.
-                      className={`border-b border-border-c/50 ${
-                        i >= lotLimit ? "hidden print:table-row" : ""
-                      }`}
+              }
+              rows={fifo.openLots.map((lot, i) => {
+                const free = isLotTaxFree(lot);
+                const days = daysUntilTaxFree(lot);
+                return (
+                  <tr
+                    key={`${lot.txId}-${i}`}
+                    className={`border-b border-border-c/50 ${
+                      i >= lotLimit ? "hidden print:table-row" : ""
+                    }`}
+                  >
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {formatDate(lot.acquiredDate, loc)}
+                    </td>
+                    <td className="hidden truncate py-2 pr-4 text-muted md:table-cell print:overflow-visible print:whitespace-normal">
+                      {lot.walletName} / {lot.accountName}
+                    </td>
+                    <td className="py-2 pr-4 text-right font-mono">
+                      <Amount>{amountFmt.format(lot.remainingBtc)}</Amount>
+                    </td>
+                    <td className="hidden py-2 pr-4 text-right font-mono sm:table-cell">
+                      {lot.costPerBtcEur ? (
+                        <Amount>{formatFiat(lot.costPerBtcEur, "EUR", loc)}</Amount>
+                      ) : (
+                        <span className="cursor-help text-muted" title={t("tax.unknownBasis")}>
+                          ?
+                        </span>
+                      )}
+                    </td>
+                    <td className="hidden py-2 pr-4 whitespace-nowrap md:table-cell">
+                      {/* An unresolved origin leaves the arrival date as the
+                          only date there is, and that one says nothing about
+                          a holding period (CLAUDE.md §3.2). */}
+                      {lot.originUnresolved ? "?" : formatDate(lot.taxFreeDate, loc)}
+                    </td>
+                    <td className="py-2 pr-4 whitespace-nowrap">
+                      {lot.originUnresolved ? (
+                        <span
+                          className="cursor-help rounded bg-warning/15 px-2 py-0.5 text-xs text-warning"
+                          title={t("tx.origin.unlinkedHint")}
+                        >
+                          {t("tx.origin.badge")}
+                        </span>
+                      ) : free ? (
+                        <span className="rounded bg-gain/15 px-2 py-0.5 text-xs text-gain">
+                          {t("tax.taxFreeNow")}
+                        </span>
+                      ) : (
+                        <span className="rounded bg-warning/15 px-2 py-0.5 text-xs text-warning">
+                          {t("tax.daysLeft", { days })}
+                        </span>
+                      )}
+                    </td>
+                    <td
+                      className="hidden max-w-40 truncate py-2 text-xs text-muted lg:table-cell print:table-cell print:max-w-none print:overflow-visible print:whitespace-normal"
+                      title={lot.note || undefined}
                     >
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {formatDate(lot.acquiredDate, loc)}
-                      </td>
-                      {/* Not wrapped into three lines to save width the row
-                          does not have to save: the table scrolls sideways. */}
-                      <td className="py-2 pr-4 whitespace-nowrap text-muted">
-                        {lot.walletName} / {lot.accountName}
-                      </td>
-                      <td className="py-2 pr-4 text-right font-mono">
-                        <Amount>{amountFmt.format(lot.remainingBtc)}</Amount>
-                      </td>
-                      <td className="py-2 pr-4 text-right font-mono">
-                        {lot.costPerBtcEur ? (
-                          <Amount>{formatFiat(lot.costPerBtcEur, "EUR", loc)}</Amount>
-                        ) : (
-                          <span
-                            className="cursor-help text-muted"
-                            title={t("tax.unknownBasis")}
-                          >
-                            ?
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {/* An unresolved origin leaves the arrival date as the
-                            only date there is, and that one says nothing about
-                            a holding period (CLAUDE.md §3.2). */}
-                        {lot.originUnresolved ? "?" : formatDate(lot.taxFreeDate, loc)}
-                      </td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {lot.originUnresolved ? (
-                          <span
-                            className="cursor-help rounded bg-warning/15 px-2 py-0.5 text-xs text-warning"
-                            title={t("tx.origin.unlinkedHint")}
-                          >
-                            {t("tx.origin.badge")}
-                          </span>
-                        ) : free ? (
-                          <span className="rounded bg-gain/15 px-2 py-0.5 text-xs text-gain">
-                            {t("tax.taxFreeNow")}
-                          </span>
-                        ) : (
-                          <span className="rounded bg-warning/15 px-2 py-0.5 text-xs text-warning">
-                            {t("tax.daysLeft", { days })}
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className="max-w-40 truncate py-2 text-xs text-muted print:max-w-none print:overflow-visible print:whitespace-normal"
-                        title={lot.note || undefined}
-                      >
-                        {lot.note || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      {/* The clamp sits on a span, not on the cell: print
+                          forces every `td` to `display: table-cell` so no
+                          column can be dropped by a breakpoint (§5.4), and
+                          `line-clamp` needs a display of its own. Capped
+                          because an unbounded row height makes every "rows per
+                          sheet" figure a guess. */}
+                      <span className="print:line-clamp-2">{lot.note || "—"}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            />
             <ShowMore
               hidden={fifo.openLots.length - lotLimit}
               onMore={() => setLotLimit((n) => n + PAGE_SIZE)}
             />
-          </div>
+          </>
         )}
       </Card>
 
