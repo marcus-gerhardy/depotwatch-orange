@@ -167,57 +167,75 @@ describe("nextInstanceId", () => {
 });
 
 describe("defaultDashboard", () => {
-  it("has no overlapping widgets", () => {
-    const seen = new Set<string>();
-    for (const p of defaultDashboard()) {
-      for (let y = p.y; y < p.y + p.h; y++) {
-        for (let x = p.x; x < p.x + p.w; x++) {
-          expect(seen.has(`${x}:${y}`)).toBe(false);
-          seen.add(`${x}:${y}`);
+  // Both variants of the layout have to hold up: the complete one, and the one
+  // a file gets that cannot fill a conditional widget (the savings goal, §4.4
+  // — laid out through the band's `fallback` rather than as a hole the grid
+  // would compact away, which would rewrite the file on mount).
+  const variants: [string, WidgetPlacement[]][] = [
+    ["complete", defaultDashboard()],
+    ["without the savings goal", defaultDashboard((id) => id !== "savingsGoal")],
+  ];
+
+  it("leaves a widget out only where the file cannot fill it", () => {
+    const [, withoutGoal] = variants[1];
+    expect(defaultDashboard().map((p) => p.widgetId)).toContain("savingsGoal");
+    expect(withoutGoal.map((p) => p.widgetId)).not.toContain("savingsGoal");
+  });
+
+  for (const [name, layout] of variants) {
+    describe(name, () => {
+      it("has no overlapping widgets", () => {
+        const seen = new Set<string>();
+        for (const p of layout) {
+          for (let y = p.y; y < p.y + p.h; y++) {
+            for (let x = p.x; x < p.x + p.w; x++) {
+              expect(seen.has(`${x}:${y}`)).toBe(false);
+              seen.add(`${x}:${y}`);
+            }
+          }
         }
-      }
-    }
-  });
+      });
 
-  it("uses unique instance ids", () => {
-    const ids = defaultDashboard().map((p) => p.i);
-    expect(new Set(ids).size).toBe(ids.length);
-  });
+      it("uses unique instance ids", () => {
+        const ids = layout.map((p) => p.i);
+        expect(new Set(ids).size).toBe(ids.length);
+      });
 
-  it("fills every row of the grid completely", () => {
-    // "Fits the grid perfectly" is this: no row is part empty, so there is no
-    // ragged edge and no gap a widget could be pulled into.
-    const layout = defaultDashboard();
-    const perRow = new Map<number, number>();
-    for (const p of layout) {
-      for (let y = p.y; y < p.y + p.h; y++) {
-        perRow.set(y, (perRow.get(y) ?? 0) + p.w);
-      }
-    }
-    const bottom = Math.max(...layout.map((p) => p.y + p.h));
-    for (let y = 0; y < bottom; y++) {
-      expect(perRow.get(y), `row ${y} is not full`).toBe(DASHBOARD_COLS);
-    }
-  });
+      it("fills every row of the grid completely", () => {
+        // "Fits the grid perfectly" is this: no row is part empty, so there is
+        // no ragged edge and no gap a widget could be pulled into.
+        const perRow = new Map<number, number>();
+        for (const p of layout) {
+          for (let y = p.y; y < p.y + p.h; y++) {
+            perRow.set(y, (perRow.get(y) ?? 0) + p.w);
+          }
+        }
+        const bottom = Math.max(...layout.map((p) => p.y + p.h));
+        for (let y = 0; y < bottom; y++) {
+          expect(perRow.get(y), `row ${y} is not full`).toBe(DASHBOARD_COLS);
+        }
+      });
 
-  it("is a compaction fixed point: nothing could float upwards", () => {
-    // react-grid-layout compacts on mount and reports the result. If anything
-    // could rise, merely opening the dashboard would rewrite the file (§4.1).
-    // DashboardGrid.test.tsx asserts the same thing through the real grid;
-    // this one states the property directly, so a broken band says why.
-    const layout = defaultDashboard();
-    const occupied = new Set<string>();
-    for (const p of layout) {
-      for (let y = p.y; y < p.y + p.h; y++) {
-        for (let x = p.x; x < p.x + p.w; x++) occupied.add(`${x}:${y}`);
-      }
-    }
-    for (const p of layout) {
-      if (p.y === 0) continue;
-      const restsOnSomething = Array.from({ length: p.w }, (_, k) =>
-        occupied.has(`${p.x + k}:${p.y - 1}`),
-      ).some(Boolean);
-      expect(restsOnSomething, `${p.widgetId} could float up`).toBe(true);
-    }
-  });
+      it("is a compaction fixed point: nothing could float upwards", () => {
+        // react-grid-layout compacts on mount and reports the result. If
+        // anything could rise, merely opening the dashboard would rewrite the
+        // file (§4.1). DashboardGrid.test.tsx asserts the same thing through
+        // the real grid; this one states the property directly, so a broken
+        // band says why.
+        const occupied = new Set<string>();
+        for (const p of layout) {
+          for (let y = p.y; y < p.y + p.h; y++) {
+            for (let x = p.x; x < p.x + p.w; x++) occupied.add(`${x}:${y}`);
+          }
+        }
+        for (const p of layout) {
+          if (p.y === 0) continue;
+          const restsOnSomething = Array.from({ length: p.w }, (_, k) =>
+            occupied.has(`${p.x + k}:${p.y - 1}`),
+          ).some(Boolean);
+          expect(restsOnSomething, `${p.widgetId} could float up`).toBe(true);
+        }
+      });
+    });
+  }
 });

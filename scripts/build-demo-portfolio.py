@@ -630,23 +630,27 @@ for acc, bal in L.balance.items():
 print("balances:", {k: str(v) for k, v in L.balance.items()})
 print("total:", sum(L.balance.values()))
 
-# The dashboard the demo ships. It mirrors DEFAULT_BANDS in
+# The dashboard the demo ships. It carries the savings-goal tile, which means
+# the demo has to carry a savings goal (see settings below): the widget is only
+# available once one is set, and a tile the file cannot fill would leave a hole
+# the grid compacts away. It mirrors DEFAULT_BANDS in
 # lib/dashboardLayout.ts — bands exactly 12 columns wide and uniform in height,
 # which is what makes the arrangement a fixed point of the grid's compaction
 # (otherwise merely looking at the demo would mark it as edited). A test
 # compares the result against defaultDashboard(), so the two cannot drift.
 BANDS = [
     (4, [("portfolioValue", 4), ("pnl", 4), ("btcPrice", 4)]),
-    (5, [("satsStack", 4), ("avgCost", 4), ("custody", 4)]),
+    (5, [("satsStack", 6), ("savingsGoal", 6)]),
+    (5, [("avgCost", 6), ("custody", 6)]),
     (8, [("portfolioChart", 8), ("whatIf", 4)]),
     (8, [("priceEntries", 8), ("holdingPeriod", 4)]),
     (6, [("buyHeatmap", 8), ("dca", 4)]),
     (7, [("stackHistory", 6), ("holdingComposition", 6)]),
     (6, [("walletBreakdown", 6), ("feeBalance", 3), ("dataQuality", 3)]),
     (7, [("taxFreeProceeds", 6), ("exemptionLimit", 6)]),
-    (6, [("utxoOverview", 4), ("watchlistStatus", 4), ("blockClock", 4)]),
-    (6, [("milestones", 6), ("yearInReview", 6)]),
-    (6, [("networkFees", 4), ("halving", 4), ("timeInMarket", 4)]),
+    (6, [("utxoOverview", 6), ("watchlistStatus", 6)]),
+    (6, [("milestones", 4), ("yearInReview", 4), ("timeInMarket", 4)]),
+    (6, [("networkFees", 4), ("halving", 4), ("blockClock", 4)]),
 ]
 
 WIDGETS = []
@@ -693,6 +697,10 @@ def build(lang):
             "holdingPeriodDays": 365,
             "costBasisMethod": "FIFO",
             "autosaveDebounceMs": 1500,
+            # A target the demo is short of, with a date still ahead: that is
+            # what makes the widget show a remaining amount and a required
+            # rate rather than "reached" (§4.4).
+            "savingsGoal": {"targetBtc": "1.00000000", "targetDate": "2027-12-31"},
         },
         "wallets": wallets,
         "watchedAddresses": [

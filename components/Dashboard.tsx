@@ -139,17 +139,24 @@ function DashboardBody({ openBackups }: { openBackups: () => void }) {
   const storedLayout = portfolio.uiSettings?.dashboardLayout;
   const saveDashboardLayout = useAppStore((s) => s.saveDashboardLayout);
 
+  // Whether a widget has anything to show for *this* file (§4.4). The default
+  // layout needs it too: a band holding a widget the file cannot fill is laid
+  // out without it rather than with a hole the grid would compact away.
+  const available = useCallback(
+    (widgetId: string) => isWidgetAvailable(widgetId, portfolio),
+    [portfolio],
+  );
   // The file's layout seeds the state; from there the state is the working
   // copy until it is committed back (see commit below).
   const [widgets, setWidgets] = useState<WidgetPlacement[]>(() =>
-    dashboardFor({ dashboardLayout: storedLayout }, WIDGET_IDS),
+    dashboardFor({ dashboardLayout: storedLayout }, WIDGET_IDS, available),
   );
   // A widget whose subject the file does not have (a savings goal that was
   // removed) is skipped rather than rendered empty — without dropping it from
   // the stored layout, so putting the goal back brings the tile back too.
   const visible = useMemo(
-    () => widgets.filter((w) => isWidgetAvailable(w.widgetId, portfolio)),
-    [widgets, portfolio],
+    () => widgets.filter((w) => available(w.widgetId)),
+    [widgets, available],
   );
   const [editing, setEditing] = useState(false);
   /** Cell the picker will place into; null while the picker is closed. */
@@ -205,7 +212,7 @@ function DashboardBody({ openBackups }: { openBackups: () => void }) {
 
   function resetLayout() {
     if (!confirm(t("dashboard.widgets.resetConfirm"))) return;
-    setWidgets(defaultDashboard());
+    setWidgets(defaultDashboard(available));
   }
 
   return (
@@ -278,7 +285,7 @@ function DashboardBody({ openBackups }: { openBackups: () => void }) {
             setWidgets((prev) => {
               const moved = new Map(next.map((w) => [w.i, w]));
               return prev
-                .filter((w) => moved.has(w.i) || !isWidgetAvailable(w.widgetId, portfolio))
+                .filter((w) => moved.has(w.i) || !available(w.widgetId))
                 .map((w) => moved.get(w.i) ?? w);
             })
           }

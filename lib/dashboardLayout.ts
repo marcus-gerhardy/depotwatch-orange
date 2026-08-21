@@ -40,13 +40,33 @@ interface LayoutBand {
   widgets: [string, number][];
   /** Dropped entirely when the tax features are off (§4). */
   taxOnly?: boolean;
+  /**
+   * Id of a widget whose availability this band's shape depends on.
+   *
+   * A widget whose subject the user has to configure first (`available` in the
+   * registry — the savings goal, §4.4) is absent from most files, and an
+   * absent widget would leave a hole the grid compacts away, rewriting the
+   * layout on mount. So the band says what it looks like without it in
+   * `fallback` instead. The dependency is named rather than read off
+   * `widgets`, because the answer can reshape more than the one band the
+   * widget sits in: with a savings goal the four tiles about the stack want a
+   * row each, without one they fit in a single row of three.
+   */
+  requires?: string;
+  /**
+   * This band when `requires` is not available — an empty list (or none at
+   * all) meaning the band does not exist then, and the bands below simply move
+   * up with it. These widths must add up to DASHBOARD_COLS as well.
+   */
+  fallback?: [string, number][];
 }
 
 /**
- * Default dashboard: **every** registered widget, in reading order — the
- * figures a portfolio owner looks at first (value, P/L, price), then the
- * holding, the charts, the ledger panels, the on-chain tiles, the data-quality
- * strip and finally the tax figures.
+ * Default dashboard: **every** registered widget, ordered by what a portfolio
+ * owner needs first — what it is worth right now, then what the stack is made
+ * of and where it is headed, then the curves, then buying behaviour, then the
+ * ledger panels, then tax, then the watchlist, then the record of what the
+ * owner has decided, and finally the ambient chain facts.
  *
  * Widths are chosen so each band fills the grid exactly; a widget's size here
  * always stays inside the min/max its registry entry declares, which a test
@@ -56,23 +76,42 @@ const DEFAULT_BANDS: LayoutBand[] = [
   // 1. What is it worth, right now. The three figures somebody opens the app
   //    for, and the only band that never needs scrolling to.
   { h: 4, widgets: [["portfolioValue", 4], ["pnl", 4], ["btcPrice", 4]] },
-  // 2. What it is made of, what it cost, and whether it is actually yours.
-  { h: 5, widgets: [["satsStack", 4], ["avgCost", 4], ["custody", 4]] },
-  // 3. The value over time, with the scenario tool beside it: "and if the
+  // 2.–3. The stack itself: how much of it there is, how far it is towards
+  //    where it is meant to go, what it cost, and whether it is actually
+  //    yours. The savings goal belongs here because it is a statement about
+  //    the holding — but it is a fourth tile, and four across leaves each of
+  //    them three columns, which is too narrow for the two that carry a table
+  //    of amounts (custody) or a list of labelled figures (the goal itself).
+  //    So a file with a goal gets two roomy rows of two, and the far more
+  //    common file without one keeps the single row of three it always had.
+  {
+    h: 5,
+    requires: "savingsGoal",
+    widgets: [["satsStack", 6], ["savingsGoal", 6]],
+    fallback: [["satsStack", 4], ["avgCost", 4], ["custody", 4]],
+  },
+  {
+    h: 5,
+    requires: "savingsGoal",
+    widgets: [["avgCost", 6], ["custody", 6]],
+    // Without a goal these two are up in the band above; this one is gone.
+    fallback: [],
+  },
+  // 4. The value over time, with the scenario tool beside it: "and if the
   //    price were X" is the question that follows from looking at the curve.
   { h: 8, widgets: [["portfolioChart", 8], ["whatIf", 4]] },
-  // 4. Own entries and exits in the market's context, next to the tax clock
+  // 5. Own entries and exits in the market's context, next to the tax clock
   //    that decides what selling them would cost.
   { h: 8, widgets: [["priceEntries", 8], ["holdingPeriod", 4]] },
-  // 5. Buying behaviour. The heatmap gets eight columns because a year of days
+  // 6. Buying behaviour. The heatmap gets eight columns because a year of days
   //    is 53 week columns wide and only fits from there on.
   { h: 6, widgets: [["buyHeatmap", 8], ["dca", 4]] },
-  // 6. The stack itself over time, and what it is composed of.
+  // 7. The stack over time, and what it is composed of.
   { h: 7, widgets: [["stackHistory", 6], ["holdingComposition", 6]] },
-  // 7. Where it sits, what it cost in fees, and whether the numbers above can
+  // 8. Where it sits, what it cost in fees, and whether the numbers above can
   //    be trusted at all.
   { h: 6, widgets: [["walletBreakdown", 6], ["feeBalance", 3], ["dataQuality", 3]] },
-  // 8. Tax. Its own band, so switching the tax features off removes it whole
+  // 9. Tax. Its own band, so switching the tax features off removes it whole
   //    and the bands above simply keep their positions (no hole to compact
   //    away) — a tax widget in a shared band would leave one.
   {
@@ -80,35 +119,52 @@ const DEFAULT_BANDS: LayoutBand[] = [
     taxOnly: true,
     widgets: [["taxFreeProceeds", 6], ["exemptionLimit", 6]],
   },
-  // 9. The watchlist: on-chain, and the only tiles that talk to the explorer
-  //    about addresses.
-  { h: 6, widgets: [["utxoOverview", 4], ["watchlistStatus", 4], ["blockClock", 4]] },
-  // 10. The record of what the owner has decided so far: the milestones (§5.2)
-  //     and the last completed year (§4.2). Both look backwards, so they read
-  //     as one band rather than as two tiles among the ambient facts below.
-  { h: 6, widgets: [["milestones", 6], ["yearInReview", 6]] },
-  // 11. Ambient chain and portfolio facts. Interesting, rarely urgent.
+  // 10. The watchlist: on-chain, and the only tiles that talk to the explorer
+  //     about addresses. Two of them, so they get half the grid each.
+  { h: 6, widgets: [["utxoOverview", 6], ["watchlistStatus", 6]] },
+  // 11. The record of what the owner has decided so far: the milestones
+  //     (§5.2), the last completed year (§4.2) and how long the money has been
+  //     in the market. All three look backwards, which is why time in the
+  //     market is here rather than among the ambient facts below — it is a
+  //     figure about this portfolio, not about the chain.
+  { h: 6, widgets: [["milestones", 4], ["yearInReview", 4], ["timeInMarket", 4]] },
+  // 12. Ambient chain facts. Interesting, rarely urgent, and true for
+  //     everybody — nothing here reads the ledger.
   {
     h: 6,
     widgets: [
       ["networkFees", 4],
       ["halving", 4],
-      ["timeInMarket", 4],
+      ["blockClock", 4],
     ],
   },
 ];
 
-export function defaultDashboard(): WidgetPlacement[] {
+/**
+ * The shipped layout: every registered widget, in reading order.
+ *
+ * `isAvailable` answers, per widget id, whether the open file gives that
+ * widget anything to show (`isWidgetAvailable` in the registry). It is passed
+ * rather than looked up here so this module stays free of the widget
+ * components; omitting it yields the complete layout, which is what the demo
+ * generator and the tests mirror.
+ */
+export function defaultDashboard(
+  isAvailable?: (widgetId: string) => boolean,
+): WidgetPlacement[] {
   const out: WidgetPlacement[] = [];
   let y = 0;
   for (const band of DEFAULT_BANDS) {
     if (band.taxOnly && !TAX_FEATURES_ENABLED) continue;
+    const complete =
+      !isAvailable || !band.requires || isAvailable(band.requires);
+    const widgets = complete ? band.widgets : (band.fallback ?? []);
     let x = 0;
-    for (const [widgetId, w] of band.widgets) {
+    for (const [widgetId, w] of widgets) {
       out.push({ i: `${widgetId}-1`, widgetId, x, y, w, h: band.h });
       x += w;
     }
-    y += band.h;
+    if (widgets.length) y += band.h;
   }
   return out;
 }
@@ -155,11 +211,12 @@ export function sanitizeDashboard(
 export function dashboardFor(
   uiSettings: UiSettings | undefined,
   knownWidgetIds: Set<string>,
+  isAvailable?: (widgetId: string) => boolean,
 ): WidgetPlacement[] {
   return (
     sanitizeDashboard(uiSettings?.dashboardLayout, knownWidgetIds) ??
     sanitizeDashboard(legacyDashboardLayout(), knownWidgetIds) ??
-    defaultDashboard()
+    defaultDashboard(isAvailable)
   );
 }
 

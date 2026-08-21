@@ -291,6 +291,19 @@ describe("demo portfolio: every feature has an example", () => {
     expect(de.uiSettings?.dashboardLayout).toEqual(defaultDashboard());
   });
 
+  it("has a savings goal, which is what the layout's goal tile needs", () => {
+    // The complete layout carries the savings-goal tile, and that tile only
+    // exists for a file that has a goal (§4.4). Without one the demo would
+    // ship a layout with a hole in it, which the grid would compact away and
+    // the demo would count as edited the moment it is looked at.
+    const goal = de.settings.savingsGoal;
+    expect(goal).toBeDefined();
+    // Short of the target and dated ahead, so the tile shows a remaining
+    // amount and a required rate rather than "reached".
+    expect(dec(goal!.targetBtc).gt(totalBalance(entries))).toBe(true);
+    expect(goal!.targetDate).toBeTruthy();
+  });
+
   it("has enough history for the widgets that need volume", () => {
     // A handful of buys tells a heatmap, a DCA overview or a marker
     // aggregation nothing at all.

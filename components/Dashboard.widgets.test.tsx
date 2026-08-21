@@ -12,7 +12,7 @@ import {
 } from "@/lib/dashboardLayout";
 import { clearMarketDataCache } from "@/lib/marketData";
 import Dashboard from "./Dashboard";
-import { WIDGETS, WIDGETS_BY_ID } from "./widgets/registry";
+import { isWidgetAvailable, WIDGETS, WIDGETS_BY_ID } from "./widgets/registry";
 
 // jsdom has no matchMedia, so the dashboard renders its single-column stack.
 // That keeps these tests on the widgets themselves rather than on the drag
@@ -97,12 +97,60 @@ describe("widget registry", () => {
   it("places every registered widget in the default layout, exactly once", () => {
     // The default dashboard is meant to show all of them, so a new registry
     // entry that nobody added to a band fails here rather than going
-    // unnoticed. The exception is a widget that only exists once the user has
-    // configured its subject (`available`): putting a "no target set" tile on
-    // everybody's dashboard is exactly what that flag exists to avoid.
+    // unnoticed.
     const placed = defaultDashboard().map((p) => p.widgetId);
-    const expected = WIDGETS.filter((w) => !w.available).map((w) => w.id);
-    expect([...placed].sort()).toEqual(expected.sort());
+    expect([...placed].sort()).toEqual(WIDGETS.map((w) => w.id).sort());
+  });
+
+  it("drops a conditional widget for a file that cannot fill it", () => {
+    // A widget that only exists once the user configured its subject
+    // (`available`) is absent from most files, and putting a "no target set"
+    // tile on everybody's dashboard is what that flag exists to avoid. The
+    // band it sits in is laid out without it — not with a hole (§4.4).
+    const portfolio = emptyPortfolio();
+    const placed = defaultDashboard((id) => isWidgetAvailable(id, portfolio));
+    const conditional = WIDGETS.filter((w) => w.available).map((w) => w.id);
+    expect(conditional.length).toBeGreaterThan(0);
+    for (const id of conditional) {
+      expect(isWidgetAvailable(id, portfolio)).toBe(false);
+      expect(placed.map((p) => p.widgetId)).not.toContain(id);
+    }
+    expect(placed.map((p) => p.widgetId).sort()).toEqual(
+      WIDGETS.filter((w) => !w.available)
+        .map((w) => w.id)
+        .sort(),
+    );
+  });
+
+  it("stays a full, compaction-proof grid without any conditional widget", () => {
+    // The generic version of the two checks in dashboardLayout.test.ts: a
+    // widget with an `available` predicate is missing from most files, and if
+    // its band did not declare how it looks without it (`requires`/`fallback`)
+    // the layout would have a hole — which the grid compacts away on mount,
+    // dirtying the file for nothing (§4.1). This is what catches the *next*
+    // conditional widget, which this test file cannot know the name of.
+    for (const conditional of WIDGETS.filter((w) => w.available)) {
+      const layout = defaultDashboard((id) => id !== conditional.id);
+      const perRow = new Map<number, number>();
+      const occupied = new Set<string>();
+      for (const p of layout) {
+        for (let y = p.y; y < p.y + p.h; y++) {
+          perRow.set(y, (perRow.get(y) ?? 0) + p.w);
+          for (let x = p.x; x < p.x + p.w; x++) occupied.add(`${x}:${y}`);
+        }
+      }
+      const bottom = Math.max(...layout.map((p) => p.y + p.h));
+      for (let y = 0; y < bottom; y++) {
+        expect(perRow.get(y), `row ${y} without ${conditional.id}`).toBe(DASHBOARD_COLS);
+      }
+      for (const p of layout) {
+        if (p.y === 0) continue;
+        const rests = Array.from({ length: p.w }, (_, k) =>
+          occupied.has(`${p.x + k}:${p.y - 1}`),
+        ).some(Boolean);
+        expect(rests, `${p.widgetId} could float up without ${conditional.id}`).toBe(true);
+      }
+    }
   });
 
   it("has a unique id per entry", () => {

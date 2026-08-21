@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { useAppStore } from "@/lib/store";
-import { emptyPortfolio } from "@/lib/types";
+import { emptyPortfolio, type PortfolioFile } from "@/lib/types";
 import { defaultDashboard, type WidgetPlacement } from "@/lib/dashboardLayout";
 import { clearMarketDataCache } from "@/lib/marketData";
 import Dashboard from "./Dashboard";
+import { isWidgetAvailable } from "./widgets/registry";
 
 // The grid path (react-grid-layout, loaded through next/dynamic) only runs on a
 // wide viewport and only with a measured container, neither of which jsdom
@@ -146,12 +147,20 @@ describe("DashboardGrid", () => {
   it("leaves the demo portfolio's layout alone for the same reason", async () => {
     // The demo file ships its own arrangement; if the grid compacted it on
     // mount, simply looking at the dashboard would mark the demo as edited.
-    const demo = JSON.parse(
-      readFileSync("public/demo-portfolio.json", "utf8"),
-    ) as { uiSettings: { dashboardLayout: WidgetPlacement[] } };
+    const demo = JSON.parse(readFileSync("public/demo-portfolio.json", "utf8")) as {
+      settings: PortfolioFile["settings"];
+      uiSettings: { dashboardLayout: WidgetPlacement[] };
+    };
     const p = useAppStore.getState().portfolio!;
     useAppStore.setState({
-      portfolio: { ...p, uiSettings: { dashboardLayout: demo.uiSettings.dashboardLayout } },
+      portfolio: {
+        ...p,
+        // Its settings come along: a tile the file cannot fill (the savings
+        // goal, §4.4) would be filtered out and leave the hole this test is
+        // about.
+        settings: { ...p.settings, savingsGoal: demo.settings.savingsGoal },
+        uiSettings: { dashboardLayout: demo.uiSettings.dashboardLayout },
+      },
       dirty: false,
     });
 
@@ -166,8 +175,12 @@ describe("DashboardGrid", () => {
     // react-grid-layout compacts on mount and reports the result. If that
     // differed from what was stored, merely opening the dashboard would dirty
     // the file, so the shipped default has to be a compaction fixed point.
+    // This portfolio has no savings goal, so what is checked here is the
+    // variant with that band's `fallback` in it (§4.4) — the one nearly every
+    // file gets.
     const p = useAppStore.getState().portfolio!;
-    const stored = defaultDashboard();
+    const stored = defaultDashboard((id) => isWidgetAvailable(id, p));
+    expect(stored.some((w) => w.widgetId === "savingsGoal")).toBe(false);
     useAppStore.setState({
       portfolio: { ...p, uiSettings: { dashboardLayout: stored } },
       dirty: false,
