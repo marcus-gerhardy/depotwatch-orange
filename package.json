@@ -15,7 +15,8 @@
     "icons:build": "node scripts/build-icons.mjs",
     "help:screenshots": "npm run build && node scripts/help-screenshots.mjs",
     "test": "vitest run",
-    "sw:build": "node scripts/build-sw.mjs"
+    "sw:build": "node scripts/build-sw.mjs",
+    "portfolio:check": "jiti scripts/validate-portfolio.ts"
   },
   "dependencies": {
     "decimal.js": "^10.6.0",
