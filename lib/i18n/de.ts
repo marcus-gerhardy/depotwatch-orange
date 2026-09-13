@@ -613,6 +613,29 @@ const de = {
       "Konto „{name}“ inkl. aller Transaktionen löschen?",
     empty: "Noch keine Wallets. Lege zuerst ein Wallet mit einem Konto an.",
   },
+  feeRepair: {
+    title: "Netzwerkgebühren zuordnen",
+    intro:
+      "Bei diesen Abgängen decken die zugeordneten Käufe nur die Menge ab, nicht die Netzwerkgebühr obendrauf. Dadurch schließt die FIFO-Berechnung weniger, als vom Konto abgegangen ist, und im Quell-Wallet bleibt ein Restbestand in genau dieser Höhe stehen. Die Korrektur ergänzt die fehlende Menge, bevorzugt aus denselben Lots, sonst aus den nächstälteren Lots desselben Kontos.",
+    widgetTitle: "Gebühr nicht zugeordnet",
+    widgetLine: "{count} Abgänge, bei denen genau die Netzwerkgebühr fehlt",
+    open: "Ansehen und korrigieren",
+    missing: "Fehlt",
+    from: "Wird entnommen aus",
+    sameLot: "(bereits zugeordnetes Lot)",
+    otherLot: "(nächstältestes Lot)",
+    noLotLeft: "Kein Lot mit freiem Bestand",
+    shortfall: "{amount} BTC bleiben offen",
+    summary: "{count} Transaktionen werden angepasst, insgesamt {amount} BTC.",
+    incomplete:
+      "{count} Transaktionen lassen sich nicht vollständig korrigieren: Im Konto ist kein freier Lot-Bestand mehr. Diese Zeilen bleiben unverändert und in der Datenqualität stehen.",
+    apply: "Backup anlegen und korrigieren",
+    applyAnyway: "Ohne Backup korrigieren",
+    backupFailed:
+      "Das Backup ist fehlgeschlagen: {reason} Die Korrektur wurde deshalb nicht ausgeführt.",
+    done: "{count} Transaktionen korrigiert.",
+    nothingToDo: "Hier ist nichts zu tun: Alle Abgänge decken Menge und Gebühr ab.",
+  },
   arcade: {
     title: "Block Stacker",
     show: "Block Stacker spielen",
@@ -1201,7 +1224,7 @@ const de = {
       diffFee:
         "{amount} BTC Differenz, plausibel als Netzwerkgebühr ({percent} der Menge).",
       diffAdopt:
-        "Differenz als Netzwerkgebühr übernehmen (die Ausgangsmenge wird dabei auf die Eingangsmenge gesetzt, die Gebühr steht daneben)",
+        "Beim Zuordnen wird die Ausgangsmenge auf die angekommenen {arrived} BTC gesetzt und die Differenz von {amount} BTC als Netzwerkgebühr daneben geschrieben. Die Summe aus Menge und Gebühr bleibt gleich, bestehende Lot-Zuordnungen gelten unverändert weiter.",
       diffTooLarge:
         "{amount} BTC Differenz ({percent} der Menge). Das ist zu viel für eine Netzwerkgebühr, vermutlich passen die beiden Transaktionen nicht zusammen.",
       diffNegative:

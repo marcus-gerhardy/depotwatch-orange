@@ -208,7 +208,6 @@ export function OutLegPicker({
     desc: false,
   });
   const [selectedId, setSelectedId] = useState("");
-  const [adoptFee, setAdoptFee] = useState(true);
 
   const candidates = useMemo(
     () => rankOutLegCandidates(entry, entries, filter),
@@ -262,20 +261,18 @@ export function OutLegPicker({
     if (!selectedId) return null;
     // Keyed on the id, not on the candidate object: the candidate list is
     // rebuilt whenever a filter changes, which would otherwise recompute this.
-    const linked = linkTransferLegs(portfolio, entry.id, selectedId, {
-      adoptFeeBtc: adoptFee,
-    });
+    const linked = linkTransferLegs(portfolio, entry.id, selectedId);
     const next = flattenLedger(linked.wallets);
     return {
       entries: next,
       entry: next.find((e) => e.id === entry.id)!,
     };
-  }, [portfolio, entry.id, selectedId, adoptFee]);
+  }, [portfolio, entry.id, selectedId]);
 
   function assign() {
     if (!selected) return;
     update((p) =>
-      linkTransferLegs(p, entry.id, selected.entry.id, { adoptFeeBtc: adoptFee }),
+      linkTransferLegs(p, entry.id, selected.entry.id),
     );
     onClose();
   }
@@ -481,19 +478,22 @@ export function OutLegPicker({
                 })}
               </p>
             )}
-            {/* Not offered when joining an existing pairing: the difference to
-                *this* arrival is not the transfer's fee, and rewriting the
-                amount would falsify the arrival that is already there. */}
-            {diff.diffBtc.gt(0) && selected.linkedInLegs.length === 0 && (
-              <label className="flex cursor-pointer items-start gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 accent-accent"
-                  checked={adoptFee}
-                  onChange={(e) => setAdoptFee(e.target.checked)}
-                />
-                <span>{t("tx.outLeg.diffAdopt")}</span>
-              </label>
+            {/* Said, not asked. A difference that *is* plausibly a fee gets
+                written as one (§3.2) — declining that was only ever a way to
+                produce a pair whose two legs disagree about the amount. A
+                difference too large for a fee is left alone: the warning above
+                already says the two probably do not belong together, and
+                inventing a fee that size would be worse than the mismatch.
+                Nor when joining an existing pairing: the difference to *this*
+                arrival is not the transfer's fee, and rewriting the amount
+                would falsify the arrival that is already there. */}
+            {diff.plausibleFee && selected.linkedInLegs.length === 0 && (
+              <p className="text-xs text-muted">
+                {t("tx.outLeg.diffAdopt", {
+                  amount: formatBtc(diff.diffBtc, loc),
+                  arrived: formatBtc(entry.amountBtc, loc),
+                })}
+              </p>
             )}
           </div>
         )}

@@ -25,6 +25,8 @@ Gebühren stehen **neben** dem Betrag, nicht darin:
 
 Diese Regel gilt überall gleich; der CSV-Import rechnet abweichende Konventionen aus Exportdateien darauf um.
 
+Bei Verkäufen, Ausgaben und Überträgen entscheidet das auch darüber, **wie viel zugeordnet werden muss**: Die zugeordneten Käufe müssen Betrag *plus* Gebühr abdecken, denn genau so viel hat das Konto verlassen. Deckt die Zuordnung nur den Betrag, bleibt im Quell-Wallet ein Restbestand in Höhe der Gebühr stehen. Die Datenqualität auf dem Dashboard weist solche Fälle aus und bietet an, sie in einem Zug zu schließen.
+
 ## In anderer Währung abgerechnet {#tx-currency}
 Hast du gegen USDT oder Dollar gekauft, kannst du das dokumentieren: Währung, Betrag und Kurs in der Originalwährung stehen in einem eigenen Abschnitt des Dialogs.
 

@@ -9,7 +9,8 @@
 // Everything here is a pure function over the ledger or the portfolio file, so
 // the dialogs stay rendering code and the rules stay testable.
 
-import { Decimal, dec, ZERO } from "./decimal";
+import { Decimal, btcString, dec, ZERO } from "./decimal";
+import { totalCredit, totalDebit } from "./portfolio";
 import { flattenLedger } from "./types";
 import type {
   LedgerEntry,
@@ -22,29 +23,23 @@ import type {
 const MS_PER_DAY = 86_400_000;
 
 /**
- * What a transfer_out's allocations have to add up to: the coins that actually
- * left the account, which is `amountBtc` **plus** the BTC network fee charged
- * on top of it (§3.2 fee convention, and what the FIFO engine consumes). Using
- * `amountBtc` alone would leave every transfer with a BTC fee permanently
- * short by exactly that fee.
+ * What an outgoing transaction's allocations have to add up to: the coins that
+ * actually left the account.
+ *
+ * That is `totalDebit` and nothing else — the one implementation of the fee
+ * convention (lib/portfolio.ts). Assigning only `amountBtc` leaves every
+ * transaction with a BTC fee permanently short by exactly that fee, which the
+ * FIFO engine then keeps as an open lot in the source account: a ghost holding
+ * the size of the network fee.
  */
-export function allocationTargetBtc(tx: Pick<Transaction, "amountBtc" | "feeBtc">): Decimal {
-  return dec(tx.amountBtc).plus(dec(tx.feeBtc));
-}
+export const allocationTargetBtc = totalDebit;
 
 export function allocationSumBtc(allocations: LotAllocation[] | undefined): Decimal {
   return (allocations ?? []).reduce((s, a) => s.plus(dec(a.amountBtc)), ZERO);
 }
 
-/** BTC a lot-creating transaction credited to its account (§3.2). */
-export function lotCreditedBtc(e: Pick<Transaction, "type" | "amountBtc" | "feeBtc">): Decimal {
-  // A BTC fee comes off what a buy or an income receipt credits; a gift and a
-  // transfer arrive as recorded (§3.2).
-  if (e.type === "buy" || e.type === "income") {
-    return dec(e.amountBtc).minus(dec(e.feeBtc));
-  }
-  return dec(e.amountBtc);
-}
+/** BTC a lot-creating transaction credited to its account — `totalCredit`. */
+export const lotCreditedBtc = totalCredit;
 
 export interface LotAvailability {
   entry: LedgerEntry;
@@ -326,23 +321,46 @@ function mapTransactions(
  * and point their `counterpartyAccountId` at each other, which is what makes
  * the FIFO engine carry the source lots over instead of starting a new one.
  *
- * `adoptFeeBtc` turns the amount difference into the out-leg's network fee.
- * That also sets the out-leg's amount to what actually arrived, because the
- * ledger's fee sits *next to* the amount, not inside it (§3.2): recording the
- * fee without shrinking the amount would debit the source account twice for it.
- * `amountBtc + feeBtc` stays the same either way, so existing lot allocations
- * remain exactly as valid as they were.
+ * **The amounts are normalised to the convention, always** (§3.2). Under it an
+ * out-leg's `amountBtc` is what reaches the other side and the network fee
+ * sits next to it, so two paired legs carry the same amount and the difference
+ * between what was sent and what arrived *is* the fee. Linking therefore sets
+ * the out-leg's amount to what arrived and writes the difference into
+ * `feeBtc`. `amountBtc + feeBtc` is unchanged by that, so existing lot
+ * allocations stay exactly as valid as they were.
  *
- * An out-leg that already has an arrival keeps its group and gains a second one
- * (one send can arrive in several pieces, §3.2) — minting a fresh id would tear
- * the existing arrival off it. In that case the out-leg's amount is never
- * touched either: the difference to *this* arrival is not the transfer's fee.
+ * This used to be an offer ("adopt the difference as a fee?"), which is how a
+ * pair could end up with one leg saying 1 BTC left and the other saying 0.9999
+ * arrived, with the missing satoshis recorded nowhere: the engine burned them
+ * silently and the fee figures under-reported by the same amount. Declining it
+ * was never a meaningful choice, only a way to produce a file that contradicts
+ * its own convention.
+ *
+ * Three cases are left alone, and in all of them the legs keep their amounts:
+ *
+ *   * a **negative** difference (more arrived than left) is not a fee and
+ *     cannot be made into one. It is a wrong match or a wrong amount, and it
+ *     is reported as such rather than papered over.
+ *   * a difference **too large to be a fee** (`FEE_PLAUSIBILITY_LIMIT`, 1 % of
+ *     the amount). Writing it into `feeBtc` would invent a network fee of a
+ *     size no transaction ever paid, and that invention would then flow into
+ *     every fee figure in the app. The dialog already says such a pair is
+ *     probably a wrong match; the honest record is the mismatch, which the
+ *     origin resolver reports, not a fabricated fee. Linking is still allowed
+ *     — the amounts are the user's to correct.
+ *   * an out-leg that already has an arrival keeps its group and gains a
+ *     second one (one send can arrive in several pieces, §3.2) — the
+ *     difference to *this* arrival is not the transfer's fee.
+ *
+ * Nothing here is undone by unlinking: `unlinkTransferLeg` releases the
+ * pairing, it cannot know what an amount was before. That is the second reason
+ * the rewrite is confined to a plausible fee — at that size it is what the
+ * convention says the record should have been anyway.
  */
 export function linkTransferLegs(
   portfolio: PortfolioFile,
   inLegId: string,
   outLegId: string,
-  opts: { adoptFeeBtc?: boolean } = {},
 ): PortfolioFile {
   const entries = flattenLedger(portfolio.wallets);
   const inLeg = entries.find((e) => e.id === inLegId);
@@ -354,7 +372,7 @@ export function linkTransferLegs(
   const joins = isLegPaired(outLeg, pairedGroupIds(entries));
   const transferGroupId = joins ? outLeg.transferGroupId! : crypto.randomUUID();
   const diff = amountDifference(outLeg, inLeg);
-  const adopt = !joins && opts.adoptFeeBtc === true && diff.diffBtc.gt(0);
+  const adopt = !joins && diff.plausibleFee;
 
   // Both legs describe the same send, and typically only one side recorded it
   // (a hardware wallet exports txid and address, an exchange rarely does), so
@@ -388,7 +406,7 @@ export function linkTransferLegs(
           ...(adopt
             ? {
                 amountBtc: inLeg.amountBtc,
-                feeBtc: dec(t.feeBtc).plus(diff.diffBtc).toString(),
+                feeBtc: btcString(dec(t.feeBtc).plus(diff.diffBtc)),
               }
             : {}),
         };

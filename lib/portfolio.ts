@@ -1,37 +1,76 @@
 // Balance math over the ledger (independent of FIFO/tax logic).
 
 import { Decimal, dec, ZERO } from "./decimal";
-import type { LedgerEntry } from "./types";
+import { isOutflow } from "./types";
+import type { LedgerEntry, Transaction } from "./types";
 
 /**
- * Signed BTC delta a transaction applies to its own account (CLAUDE.md §3.2).
+ * **The fee convention, in one function** (CLAUDE.md §3.2).
  *
- * `amountBtc` is what reaches the other side — the coins received on a buy or
- * transfer_in, the coins sold/spent/sent on the outgoing types. `feeBtc` is
- * always on top of that: a buy credits `amountBtc − feeBtc`, every outgoing
- * type (including an internal transfer_out) debits `amountBtc + feeBtc`. For a
- * transfer that sum is exactly what its lot allocations add up to.
+ * `amountBtc` is always what reaches the other side — the coins received on a
+ * buy or a transfer_in, the coins sold, spent or sent on the outgoing types.
+ * A BTC network fee is **on top of that**, never inside it. So what actually
+ * leaves the account on an outgoing transaction is `amountBtc + feeBtc`, and
+ * this is the only place that addition is written down.
+ *
+ * Everything that has to know it reads this: the balance of an account
+ * (`balanceDelta` below), what a disposal's `lotAllocations` have to add up to
+ * (`allocationTargetBtc` in lib/transferLink.ts), and what the FIFO engine
+ * consumes from the lots (`consumeLeaving` in lib/fifo.ts). Repeating the
+ * addition at each of those was how the same transfer could leave a ledger
+ * balance of zero and a remaining lot the size of its fee — the source wallet
+ * keeping a ghost holding worth exactly the network fee.
+ *
+ * Takes just the two fields rather than a whole transaction, because the
+ * transaction form asks it of values still being typed. It answers for an
+ * *outgoing* transaction; `balanceDelta` decides which transactions are that.
  */
-export function balanceDelta(e: LedgerEntry): Decimal {
-  const amount = dec(e.amountBtc);
-  const fee = dec(e.feeBtc);
-  switch (e.type) {
-    // A BTC fee comes off what a buy credits; income is bought with work
-    // rather than money but arrives the same way.
-    case "buy":
-    case "income":
-      return amount.minus(fee);
-    // Nothing is charged on a gift arriving, and a transfer_in records what
-    // the out-leg sent — its fee was already paid over there.
-    case "transfer_in":
-    case "gift_in":
-      return amount;
-    case "sell":
-    case "spend":
-    case "transfer_out":
-    case "gift_out":
-      return amount.plus(fee).neg();
-  }
+export function totalDebit(tx: Pick<Transaction, "amountBtc" | "feeBtc">): Decimal {
+  return dec(tx.amountBtc).plus(dec(tx.feeBtc));
+}
+
+/**
+ * The other half of the same convention: what an *incoming* transaction
+ * credits to its account.
+ *
+ * A BTC fee comes off what a buy or an income receipt credits — those coins
+ * never arrived. A gift and a transfer arrive exactly as recorded: a
+ * transfer_in carries the out-leg's `amountBtc` unchanged, because the fee was
+ * paid on the other side and is gone before the coins get here.
+ */
+export function totalCredit(
+  tx: Pick<Transaction, "type" | "amountBtc" | "feeBtc">,
+): Decimal {
+  return creditIsNetOfFee(tx.type)
+    ? dec(tx.amountBtc).minus(dec(tx.feeBtc))
+    : dec(tx.amountBtc);
+}
+
+/**
+ * Does a BTC fee come off what this type credits?
+ *
+ * Only where the fee was paid on *this* side of the transaction: a buy and an
+ * income receipt lose it out of what arrives. A transfer_in and a gift_in do
+ * not — a transfer's fee was paid by the out-leg and the coins are already
+ * gone when they get here, and nothing is charged on a gift arriving.
+ *
+ * Exported so the CSV import can convert an export's amounts onto exactly this
+ * rule rather than its own copy of it (§3.4 fee modes): the two disagreeing is
+ * how an imported row ends up crediting the wrong amount by exactly its fee.
+ */
+export function creditIsNetOfFee(type: Transaction["type"]): boolean {
+  return type === "buy" || type === "income";
+}
+
+/**
+ * Signed BTC delta a transaction applies to its own account.
+ *
+ * Nothing but the two functions above, split by direction: an outgoing type
+ * debits `totalDebit`, every other type credits `totalCredit`. A transfer pair
+ * therefore costs the portfolio precisely the network fee.
+ */
+export function balanceDelta(e: Pick<Transaction, "type" | "amountBtc" | "feeBtc">): Decimal {
+  return isOutflow(e.type) ? totalDebit(e).neg() : totalCredit(e);
 }
 
 /**

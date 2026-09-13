@@ -22,6 +22,12 @@ import {
   type Appearance,
 } from "./appearance";
 import { deleteAndRelease } from "./deletion";
+// Re-exported: the fee-convention migration is a pure function over the file
+// and lives in lib/migrations.ts, but everything that opens a portfolio knows
+// it from here.
+export { migrateTransferFeeConvention } from "./migrations";
+import { migrateTransferFeeConvention } from "./migrations";
+import { applyFeeAllocationRepair, planFeeAllocationRepair } from "./feeAllocation";
 import {
   DEFAULT_LOCK_SETTINGS,
   lockSettingsOf,
@@ -49,7 +55,6 @@ import {
   type FileFingerprint,
 } from "./fileWatch";
 import { computeFifo } from "./fifo";
-import { Decimal, dec, ZERO } from "./decimal";
 import {
   decryptPortfolio,
   encryptPortfolio,
@@ -346,8 +351,26 @@ interface AppState {
    * counterpartyAccountId retargeted so the pair remains consistent.
    */
   moveTransactions: (txIds: string[], targetAccountId: string) => void;
+  /**
+   * Close the assignments that stop short of the BTC network fee (§3.2).
+   *
+   * The plan is recomputed from the live portfolio rather than taken from the
+   * dialog: the preview is a picture of a moment, and what gets written has to
+   * be derived from the file as it stands. Returns how many transactions it
+   * changed, so the caller can say so.
+   */
+  repairFeeAllocations: () => number;
   addWatchedAddress: (a: WatchedAddress) => void;
   deleteWatchedAddress: (id: string) => void;
+  /**
+   * Change a watchlist entry in place — what the wallet assignment (§3.3) is
+   * set and cleared with. A patch rather than a whole entry, so a caller can
+   * never accidentally drop the fields it did not mean to touch.
+   */
+  updateWatchedAddress: (
+    id: string,
+    patch: Partial<Omit<WatchedAddress, "id">>,
+  ) => void;
   setUtxoLabel: (label: UtxoLabel) => void;
   /** Insert, or overwrite by id if it already exists. */
   saveImportPreset: (preset: UserImportPreset) => void;
@@ -523,68 +546,6 @@ function sameJson(a: unknown, b: unknown): boolean {
 
 export function serializePortfolio(p: PortfolioFile): string {
   return JSON.stringify(p, null, 2);
-}
-
-/**
- * Files written before the fee convention was unified (CLAUDE.md §3.2) stored
- * an internal transfer_out *including* its network fee: `amountBtc` was the
- * gross amount that left the account and the lot allocations summed to exactly
- * that, while the in-leg recorded `amountBtc − feeBtc`. Now `amountBtc` is what
- * arrives and `feeBtc` sits on top (allocations sum to `amountBtc + feeBtc`),
- * so such a leg has to give up the fee from its amount — otherwise the fee
- * would be charged twice.
- *
- * Detection is exact: a leg written under the current convention has
- * allocations summing to `amountBtc + feeBtc`, never to `amountBtc`. Legs
- * without allocations are only touched when their in-leg confirms the old
- * shape. The in-leg itself already holds the right value either way.
- */
-export function migrateTransferFeeConvention(p: PortfolioFile): PortfolioFile {
-  const inLegByGroup = new Map<string, Decimal>();
-  for (const w of p.wallets) {
-    for (const a of w.accounts) {
-      for (const t of a.transactions) {
-        if (t.type === "transfer_in" && t.transferGroupId) {
-          inLegByGroup.set(
-            t.transferGroupId,
-            (inLegByGroup.get(t.transferGroupId) ?? ZERO).plus(dec(t.amountBtc)),
-          );
-        }
-      }
-    }
-  }
-
-  const isLegacyGross = (t: Transaction): boolean => {
-    if (t.type !== "transfer_out" || !t.counterpartyAccountId) return false;
-    const fee = dec(t.feeBtc);
-    if (!fee.gt(0)) return false;
-    const amount = dec(t.amountBtc);
-    if (t.lotAllocations?.length) {
-      const allocated = t.lotAllocations.reduce(
-        (s, a) => s.plus(dec(a.amountBtc)),
-        ZERO,
-      );
-      return allocated.eq(amount);
-    }
-    const arrived = t.transferGroupId
-      ? inLegByGroup.get(t.transferGroupId)
-      : undefined;
-    return arrived !== undefined && arrived.eq(amount.minus(fee));
-  };
-
-  let changed = false;
-  const wallets = p.wallets.map((w) => ({
-    ...w,
-    accounts: w.accounts.map((a) => ({
-      ...a,
-      transactions: a.transactions.map((t) => {
-        if (!isLegacyGross(t)) return t;
-        changed = true;
-        return { ...t, amountBtc: dec(t.amountBtc).minus(dec(t.feeBtc)).toString() };
-      }),
-    })),
-  }));
-  return changed ? { ...p, wallets } : p;
 }
 
 /** Merge a parsed file with the defaults so older minor versions keep working. */
@@ -1462,6 +1423,19 @@ export const useAppStore = create<AppState>((set, get) => {
         kind: "delete",
       }),
 
+    repairFeeAllocations: () => {
+      const p = get().portfolio;
+      if (!p) return 0;
+      const entries = flattenLedger(p.wallets);
+      const plan = planFeeAllocationRepair(entries);
+      if (plan.repairableCount === 0) return 0;
+      mutate((current) => applyFeeAllocationRepair(current, plan, entries), {
+        kind: "update",
+        note: `feeAllocations:${plan.repairableCount}`,
+      });
+      return plan.repairableCount;
+    },
+
     addWatchedAddress: (a) =>
       mutate((p) => ({ ...p, watchedAddresses: [...p.watchedAddresses, a] })),
 
@@ -1469,6 +1443,14 @@ export const useAppStore = create<AppState>((set, get) => {
       mutate((p) => ({
         ...p,
         watchedAddresses: p.watchedAddresses.filter((a) => a.id !== id),
+      })),
+
+    updateWatchedAddress: (id, patch) =>
+      mutate((p) => ({
+        ...p,
+        watchedAddresses: p.watchedAddresses.map((a) =>
+          a.id === id ? { ...a, ...patch } : a,
+        ),
       })),
 
     setUtxoLabel: (label) =>

@@ -3,7 +3,8 @@
 // Widgets that only read the ledger: custody split, wallet breakdown, how the
 // holding is composed, the holding-period timeline and the data-quality list.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "@/lib/store";
 import { Decimal, ZERO, formatInt, formatPercent } from "@/lib/decimal";
 import { formatDate } from "@/lib/i18n";
@@ -14,9 +15,11 @@ import { feeTotals, maxDrawdown, timeInMarket } from "@/lib/dashboardStats";
 import { MILESTONES } from "@/lib/milestones";
 import { daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
 import { countIssues, DATA_ISSUES } from "@/lib/dataQuality";
+import { feeAllocationGaps } from "@/lib/feeAllocation";
 import { useEasterEggs } from "@/lib/easterEggs";
 import type { WalletType } from "@/lib/types";
 import MilestoneIcon from "../MilestoneIcon";
+import FeeRepairDialog from "../FeeRepairDialog";
 import { Amount, PnlValue } from "../ui";
 import { useDashboardData } from "./context";
 import { CheckIcon, KeyIcon, StarIcon, WarnIcon } from "../icons";
@@ -377,6 +380,12 @@ export function DataQualityWidget() {
   const { t, loc, entries, openTransactions } = useDashboardData();
   const counts = useMemo(() => countIssues(entries), [entries]);
   const clean = DATA_ISSUES.every((issue) => counts[issue] === 0);
+  // The one gap that has a right answer the app may fill in by itself (§3.2):
+  // the lots are assigned, only the network fee on top of them is missing. It
+  // gets its own line because it is the only issue here with a repair rather
+  // than a place to go and decide something.
+  const feeGaps = useMemo(() => feeAllocationGaps(entries), [entries]);
+  const [repairing, setRepairing] = useState(false);
   // The backup state belongs here rather than in a tile of its own: "can this
   // file be trusted" and "does it still exist tomorrow" are the same question
   // asked twice (§6.5).
@@ -416,6 +425,31 @@ export function DataQualityWidget() {
           ))}
         </ul>
       )}
+
+      {feeGaps.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[0.65rem] leading-relaxed text-warning">
+          <p>
+            <WarnIcon /> {t("feeRepair.widgetLine", { count: feeGaps.length })}
+          </p>
+          <button
+            type="button"
+            className="mt-1 font-medium text-accent hover:underline"
+            onClick={() => setRepairing(true)}
+          >
+            {t("feeRepair.open")} →
+          </button>
+        </div>
+      )}
+      {/* Through a portal, not in place: react-grid-layout positions every tile
+          with a CSS transform, and a transformed ancestor becomes the
+          containing block of any `position: fixed` descendant. A modal opened
+          from inside a widget would otherwise be laid out inside that tile
+          instead of over the page. */}
+      {repairing &&
+        createPortal(
+          <FeeRepairDialog onClose={() => setRepairing(false)} />,
+          document.body,
+        )}
 
       <p
         className={`mt-auto border-t border-border-c/40 pt-1.5 text-[0.65rem] leading-relaxed ${

@@ -22,6 +22,7 @@
 // fall back to dynamic FIFO consumption.
 
 import { Decimal, dec, ZERO } from "./decimal";
+import { totalCredit, totalDebit } from "./portfolio";
 import type { LedgerEntry, LotAllocation } from "./types";
 
 const MS_PER_DAY = 86_400_000;
@@ -42,7 +43,8 @@ export function buyLotBasis(e: {
   totalFiatEur?: string | null;
 }): { netBtc: Decimal; costPerBtcEur: Decimal | null } {
   const amount = dec(e.amountBtc);
-  const netBtc = amount.minus(dec(e.feeBtc));
+  // What the buy actually credited, per the one fee convention (§3.2).
+  const netBtc = totalCredit({ type: "buy", ...e });
   const price = e.pricePerBtcEur === null ? null : dec(e.pricePerBtcEur);
   const gross =
     e.totalFiatEur != null ? dec(e.totalFiatEur) : price === null ? null : amount.mul(price);
@@ -378,7 +380,6 @@ export function computeFifo(
 
   for (const e of entries) {
     const amount = dec(e.amountBtc);
-    const feeBtc = dec(e.feeBtc);
     const price = e.pricePerBtcEur === null ? null : dec(e.pricePerBtcEur);
 
     switch (e.type) {
@@ -437,7 +438,7 @@ export function computeFifo(
         // Received as payment: taxed on receipt at that day's market value,
         // and *that* value is the cost basis of the coins from then on. The
         // holding period starts here, because this is the acquisition.
-        const net = amount.minus(feeBtc);
+        const net = totalCredit(e);
         if (net.lte(0)) break;
         const gross =
           e.totalFiatEur != null
@@ -471,7 +472,7 @@ export function computeFifo(
         // are no proceeds and therefore no gain: it is not a disposal (§23
         // EStG) and must not land among the realised ones. What it leaves
         // behind is a cost basis, which is where a gift tax return starts.
-        const closed = consumeLeaving(amount.plus(feeBtc), e);
+        const closed = consumeLeaving(totalDebit(e), e);
         addOtherConsumption(closed.parts);
         giftsOut.push({
           txId: e.id,
@@ -576,8 +577,9 @@ export function computeFifo(
       case "transfer_out": {
         // What actually left the account: the transferred amount plus the
         // network fee on top (CLAUDE.md §3.2) — exactly what the lot
-        // allocations of a transfer add up to.
-        const leaving = amount.plus(feeBtc);
+        // allocations of a transfer add up to (`allocationTargetBtc` is this
+        // same function).
+        const leaving = totalDebit(e);
         if (e.counterpartyAccountId && e.transferGroupId) {
           // Lot-moving transfer: close the allocated source-account lots and
           // stash them for the in-leg(s) of the same group. No disposal — the
@@ -617,7 +619,7 @@ export function computeFifo(
         // The persisted allocations are the only source: a sell without them
         // closes no lots and is reported as uncovered (§3.2). They cover what
         // actually left the account, i.e. the amount plus the BTC fee.
-        const closed = consumeLeaving(amount.plus(feeBtc), e);
+        const closed = consumeLeaving(totalDebit(e), e);
         const { sold: parts, fee: feeParts } = splitAtAmount(closed.parts, amount);
         // Whatever is missing is missing from the sale first — the fee tail is
         // the last thing the allocations cover.

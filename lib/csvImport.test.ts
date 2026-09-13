@@ -1037,14 +1037,7 @@ describe("BTC fee mode: what ends up in the portfolio", () => {
     const tx = rowToTransaction(values, { dateFormat: "iso", timeFormat: "hms" });
     return { values, tx };
   };
-  const holding = (tx: Transaction) =>
-    balanceDelta({
-      ...tx,
-      walletId: "w",
-      walletName: "W",
-      accountId: "a",
-      accountName: "A",
-    }).toFixed(8);
+  const holding = (tx: Transaction) => balanceDelta(tx).toFixed(8);
 
   it("credits exactly the file's amount when the fee was already deducted", () => {
     const { values, tx } = importedBuy("deducted");
@@ -1058,6 +1051,31 @@ describe("BTC fee mode: what ends up in the portfolio", () => {
     const { values, tx } = importedBuy("notDeducted");
     expect(values.amountBtc).toBe("0.00099900");
     expect(holding(tx)).toBe("0.00099800");
+  });
+
+  it("treats an income receipt exactly like a buy", () => {
+    // Income credits net of a BTC fee too (`creditIsNetOfFee`), so the import
+    // has to convert it the same way. Reading the rule off the type name alone
+    // left such a row crediting the wrong amount by exactly its fee.
+    const values = buildImportRows(
+      [["reward", "2024-07-05", "12:00", "0.000999", "0.000001", "50000"]],
+      ["Type", "Date", "Time", "Amount", "Fee", "Price"],
+      {
+        type: "Type",
+        date: "Date",
+        time: "Time",
+        amountBtc: "Amount",
+        feeBtc: "Fee",
+        pricePerBtcEur: "Price",
+      },
+      ".",
+      { feeBtcModeIn: "deducted" },
+    )[0].values;
+    const tx = rowToTransaction(values, { dateFormat: "iso", timeFormat: "hms" });
+
+    expect(tx.type).toBe("income");
+    expect(values.amountBtc).toBe("0.00100000");
+    expect(holding(tx)).toBe("0.00099900");
   });
 });
 
@@ -1085,19 +1103,7 @@ describe("one file, two fee conventions (Exchange 2)", () => {
   const holding = (options: Parameters<typeof buildImportRows>[4]) =>
     buildImportRows(rows, headers, mapping, ".", options)
       .map((r) => rowToTransaction(r.values, { dateFormat: "iso", timeFormat: "hms" }))
-      .reduce(
-        (sum, tx) =>
-          sum.plus(
-            balanceDelta({
-              ...tx,
-              walletId: "w",
-              walletName: "W",
-              accountId: "a",
-              accountName: "A",
-            }),
-          ),
-        ZERO,
-      )
+      .reduce((sum, tx) => sum.plus(balanceDelta(tx)), ZERO)
       .toFixed(8);
 
   it("reaches zero when each direction is read the way the file means it", () => {

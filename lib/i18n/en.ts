@@ -611,6 +611,29 @@ const en: typeof de = {
       "Delete account “{name}” including all transactions?",
     empty: "No wallets yet. Create a wallet with an account first.",
   },
+  feeRepair: {
+    title: "Assign the network fees",
+    intro:
+      "On these outgoing transactions the assigned purchases cover the amount only, not the network fee charged on top. The FIFO calculation then closes less than actually left the account, and a remainder of exactly that size stays behind in the source wallet. The repair adds the missing amount, preferably from the same lots and otherwise from the next-oldest lots of the same account.",
+    widgetTitle: "Fee left unassigned",
+    widgetLine: "{count} outgoing transactions short by exactly the network fee",
+    open: "Review and repair",
+    missing: "Missing",
+    from: "Taken from",
+    sameLot: "(lot already assigned)",
+    otherLot: "(next-oldest lot)",
+    noLotLeft: "No lot with anything left",
+    shortfall: "{amount} BTC stay open",
+    summary: "{count} transactions would change, {amount} BTC in total.",
+    incomplete:
+      "{count} transactions cannot be repaired in full: no lot in that account has anything left. Those rows stay as they are and keep their data-quality issue.",
+    apply: "Back up and repair",
+    applyAnyway: "Repair without a backup",
+    backupFailed:
+      "The backup failed: {reason} The repair was therefore not carried out.",
+    done: "{count} transactions repaired.",
+    nothingToDo: "Nothing to do here: every outgoing transaction covers amount and fee.",
+  },
   arcade: {
     title: "Block Stacker",
     show: "Play Block Stacker",
@@ -1197,7 +1220,7 @@ const en: typeof de = {
       diffFee:
         "{amount} BTC difference, plausible as a network fee ({percent} of the amount).",
       diffAdopt:
-        "Adopt the difference as the network fee (the outgoing amount is set to the amount that arrived, with the fee next to it)",
+        "Assigning sets the outgoing amount to the {arrived} BTC that arrived and writes the difference of {amount} BTC next to it as the network fee. Amount plus fee stays the same, so existing lot assignments remain valid.",
       diffTooLarge:
         "{amount} BTC difference ({percent} of the amount). That is too much for a network fee; these two transactions probably do not belong together.",
       diffNegative:

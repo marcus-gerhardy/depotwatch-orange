@@ -2,6 +2,7 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { useAppStore } from "@/lib/store";
+import { dec } from "@/lib/decimal";
 import { emptyPortfolio, type PortfolioFile, type Transaction } from "@/lib/types";
 import TransactionsView from "./TransactionsView";
 
@@ -300,7 +301,7 @@ describe("editing an arrival's out-leg link", () => {
     expect(currentTx("out1").counterpartyAccountId).toBeUndefined();
   });
 
-  it("offers the unlinked out-leg and adopts the difference as the fee", () => {
+  it("offers the unlinked out-leg and writes the difference as the fee", () => {
     // The out-leg records 0.5 leaving while 0.4999 arrived: the 0.0001
     // difference is the network fee.
     const p = seed();
@@ -324,9 +325,11 @@ describe("editing an arrival's out-leg link", () => {
 
     const outLeg = currentTx("out1");
     expect(outLeg.transferGroupId).toBe(currentTx("in1").transferGroupId);
-    // The fee sits next to the amount, not on top of it (§3.2).
+    // The fee sits next to the amount, not on top of it (§3.2), and it is
+    // written without being asked for — declining used to leave a pair whose
+    // legs disagreed about the amount.
     expect(outLeg.amountBtc).toBe("0.4999");
-    expect(outLeg.feeBtc).toBe("0.0001");
+    expect(dec(outLeg.feeBtc).toString()).toBe("0.0001");
   });
 
   it("offers an out-leg whose group id pairs it with nothing", () => {

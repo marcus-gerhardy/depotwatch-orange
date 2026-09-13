@@ -11,6 +11,7 @@ import {
   setLotAllocations,
   unlinkTransferLeg,
 } from "./transferLink";
+import { dec } from "./decimal";
 import { computeFifo } from "./fifo";
 import { indexLedger, resolveProvenance } from "./provenance";
 import { emptyPortfolio, flattenLedger } from "./types";
@@ -312,11 +313,13 @@ describe("linkTransferLegs", () => {
     expect(prov.origins[0].acquiredDate).toBe("2024-01-01T00:00:00.000Z");
   });
 
-  it("adopting the fee moves the difference out of the amount, not on top of it", () => {
-    const p = linkTransferLegs(linkable(), "in1", "o1", { adoptFeeBtc: true });
+  it("moves the difference out of the amount, not on top of it", () => {
+    const p = linkTransferLegs(linkable(), "in1", "o1");
     const outLeg = find(p, "o1");
+    // The spelling of a stored amount is the writer's business (btcString
+    // pads to the satoshi); what matters is the value.
     expect(outLeg.amountBtc).toBe("0.4999");
-    expect(outLeg.feeBtc).toBe("0.0001");
+    expect(dec(outLeg.feeBtc).toString()).toBe("0.0001");
     // The lots this transfer closes are unchanged, so the allocations still fit.
     expect(allocationTargetBtc(outLeg).toString()).toBe("0.5");
     expect(allocationSumBtc(outLeg.lotAllocations).toString()).toBe("0.5");
@@ -325,10 +328,29 @@ describe("linkTransferLegs", () => {
     expect(fifo.openLotsBtc.toString()).toBe("0.4999");
   });
 
-  it("leaves the amounts alone when the fee is not adopted", () => {
+  it("normalises without being asked", () => {
+    // This used to be an offer, and declining it left a pair whose two legs
+    // disagreed about the amount while the missing satoshis were recorded
+    // nowhere (§3.2). Linking is the moment the convention is established.
     const p = linkTransferLegs(linkable(), "in1", "o1");
-    expect(find(p, "o1").amountBtc).toBe("0.5");
-    expect(find(p, "o1").feeBtc).toBeUndefined();
+    expect(find(p, "o1").amountBtc).toBe(find(p, "in1").amountBtc);
+    expect(dec(find(p, "o1").feeBtc).gt(0)).toBe(true);
+  });
+
+  it("leaves a difference too large to be a fee exactly where it is", () => {
+    // 10 % of the amount is not a network fee. Writing it into `feeBtc` would
+    // invent a figure no transaction ever paid, and that invention would then
+    // be counted in every fee total the app shows. The pair is linked, the
+    // amounts stay as recorded, and the mismatch stays visible.
+    const p = portfolio(
+      [tx({ id: "o1", type: "transfer_out", amountBtc: "1" })],
+      [tx({ id: "in1", type: "transfer_in", amountBtc: "0.9" })],
+    );
+    const linked = linkTransferLegs(p, "in1", "o1");
+    expect(find(linked, "o1").amountBtc).toBe("1");
+    expect(find(linked, "o1").feeBtc).toBeUndefined();
+    // Linking itself still happened.
+    expect(find(linked, "o1").transferGroupId).toBe(find(linked, "in1").transferGroupId);
   });
 
   it("joins an existing pairing instead of tearing it apart", () => {
@@ -354,13 +376,14 @@ describe("linkTransferLegs", () => {
       ),
     };
 
-    const p = linkTransferLegs(withSecond, "in2", "o1", { adoptFeeBtc: true });
+    const p = linkTransferLegs(withSecond, "in2", "o1");
     expect(find(p, "in2").transferGroupId).toBe(group);
     expect(find(p, "in1").transferGroupId).toBe(group);
     // The amount belongs to the whole transfer, not to this one arrival, so
-    // the difference to it is never adopted as a fee.
-    expect(find(p, "o1").amountBtc).toBe("0.5");
-    expect(find(p, "o1").feeBtc).toBeUndefined();
+    // the difference to it is never taken as a fee: the leg keeps what the
+    // first pairing normalised it to.
+    expect(find(p, "o1").amountBtc).toBe("0.4999");
+    expect(dec(find(p, "o1").feeBtc).toString()).toBe("0.0001");
   });
 
   it("gives a leg with a counterpart-less group id a fresh one", () => {
@@ -381,7 +404,7 @@ describe("linkTransferLegs", () => {
       [tx({ id: "o1", type: "transfer_out", amountBtc: "0.4" })],
       [tx({ id: "in1", type: "transfer_in", amountBtc: "0.5" })],
     );
-    const linked = linkTransferLegs(p, "in1", "o1", { adoptFeeBtc: true });
+    const linked = linkTransferLegs(p, "in1", "o1");
     expect(find(linked, "o1").amountBtc).toBe("0.4");
     expect(find(linked, "o1").feeBtc).toBeUndefined();
   });

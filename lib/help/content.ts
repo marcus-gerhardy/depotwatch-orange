@@ -434,9 +434,13 @@ export const HELP_CONTENT: HelpContent = {
             {
               "kind": "p",
               "text": "Diese Regel gilt überall gleich; der CSV-Import rechnet abweichende Konventionen aus Exportdateien darauf um."
+            },
+            {
+              "kind": "p",
+              "text": "Bei Verkäufen, Ausgaben und Überträgen entscheidet das auch darüber, **wie viel zugeordnet werden muss**: Die zugeordneten Käufe müssen Betrag *plus* Gebühr abdecken, denn genau so viel hat das Konto verlassen. Deckt die Zuordnung nur den Betrag, bleibt im Quell-Wallet ein Restbestand in Höhe der Gebühr stehen. Die Datenqualität auf dem Dashboard weist solche Fälle aus und bietet an, sie in einem Zug zu schließen."
             }
           ],
-          "text": "Gebühren stehen neben dem Betrag, nicht darin: Eine BTC-Gebühr kommt oben drauf. Ein Kauf über 0,1 BTC mit 0,001 BTC Gebühr schreibt dem Konto 0,099 BTC gut. Ein Verkauf oder Übertrag über 0,1 BTC mit 0,001 BTC Gebühr belastet es mit 0,101 BTC. Eine Euro-Gebühr erhöht beim Kauf den Einstand und mindert beim Verkauf den Erlös. Diese Regel gilt überall gleich; der CSV-Import rechnet abweichende Konventionen aus Exportdateien darauf um."
+          "text": "Gebühren stehen neben dem Betrag, nicht darin: Eine BTC-Gebühr kommt oben drauf. Ein Kauf über 0,1 BTC mit 0,001 BTC Gebühr schreibt dem Konto 0,099 BTC gut. Ein Verkauf oder Übertrag über 0,1 BTC mit 0,001 BTC Gebühr belastet es mit 0,101 BTC. Eine Euro-Gebühr erhöht beim Kauf den Einstand und mindert beim Verkauf den Erlös. Diese Regel gilt überall gleich; der CSV-Import rechnet abweichende Konventionen aus Exportdateien darauf um. Bei Verkäufen, Ausgaben und Überträgen entscheidet das auch darüber, wie viel zugeordnet werden muss: Die zugeordneten Käufe müssen Betrag *plus* Gebühr abdecken, denn genau so viel hat das Konto verlassen. Deckt die Zuordnung nur den Betrag, bleibt im Quell-Wallet ein Restbestand in Höhe der Gebühr stehen. Die Datenqualität auf dem Dashboard weist solche Fälle aus und bietet an, sie in einem Zug zu schließen."
         },
         {
           "id": "tx-currency",
@@ -1862,9 +1866,13 @@ export const HELP_CONTENT: HelpContent = {
             {
               "kind": "p",
               "text": "This rule holds everywhere; the CSV import converts other conventions found in export files onto it."
+            },
+            {
+              "kind": "p",
+              "text": "On sales, spends and transfers that also decides **how much has to be assigned**: the assigned purchases have to cover the amount *plus* the fee, because that is what left the account. An assignment covering the amount alone leaves a remainder the size of the fee behind in the source wallet. The data-quality tile on the dashboard lists such cases and offers to close them in one go."
             }
           ],
-          "text": "Fees sit next to the amount, not inside it: A BTC fee comes on top. A buy of 0.1 BTC with a 0.001 BTC fee credits the account with 0.099 BTC. A sale or transfer of 0.1 BTC with a 0.001 BTC fee debits it 0.101 BTC. A euro fee raises the acquisition cost on a buy and reduces the proceeds on a sale. This rule holds everywhere; the CSV import converts other conventions found in export files onto it."
+          "text": "Fees sit next to the amount, not inside it: A BTC fee comes on top. A buy of 0.1 BTC with a 0.001 BTC fee credits the account with 0.099 BTC. A sale or transfer of 0.1 BTC with a 0.001 BTC fee debits it 0.101 BTC. A euro fee raises the acquisition cost on a buy and reduces the proceeds on a sale. This rule holds everywhere; the CSV import converts other conventions found in export files onto it. On sales, spends and transfers that also decides how much has to be assigned: the assigned purchases have to cover the amount *plus* the fee, because that is what left the account. An assignment covering the amount alone leaves a remainder the size of the fee behind in the source wallet. The data-quality tile on the dashboard lists such cases and offers to close them in one go."
         },
         {
           "id": "tx-currency",

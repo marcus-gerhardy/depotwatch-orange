@@ -11,6 +11,7 @@ import {
   normalizeTxid,
 } from "./bitcoin";
 import type { EurValuationSource, Transaction, TransactionType } from "./types";
+import { creditIsNetOfFee } from "./portfolio";
 import { isOutflow, isPriced } from "./types";
 
 export type CsvDelimiter = "," | ";";
@@ -1289,7 +1290,9 @@ export function btcAmountAdjustment(
   if (fee === "" || !NUMBER.test(fee) || !NUMBER.test(v.amountBtc)) return null;
   const type = normalizeType(v.type);
   const amount = dec(v.amountBtc);
-  if (type === "buy" && feeBtcModeIn === "deducted") {
+  // Whatever credits net of its fee (a buy, and an income receipt on the same
+  // footing — `creditIsNetOfFee`), never a transfer_in or a gift.
+  if (type !== null && creditIsNetOfFee(type) && feeBtcModeIn === "deducted") {
     return { fileAmount: btcString(amount.minus(fee)), fee, added: true };
   }
   const isOutgoing = type !== null && isOutflow(type);
@@ -1380,7 +1383,7 @@ export function buildImportRows(
     fee: string,
   ): string => {
     if (fee === "" || !NUMBER.test(fee) || !NUMBER.test(amount)) return amount;
-    if (type === "buy" && feeBtcModeIn === "deducted") {
+    if (type !== null && creditIsNetOfFee(type) && feeBtcModeIn === "deducted") {
       return btcString(dec(amount).plus(fee));
     }
     const isOutgoing = type !== null && isOutflow(type);

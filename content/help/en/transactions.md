@@ -25,6 +25,8 @@ Fees sit **next to** the amount, not inside it:
 
 This rule holds everywhere; the CSV import converts other conventions found in export files onto it.
 
+On sales, spends and transfers that also decides **how much has to be assigned**: the assigned purchases have to cover the amount *plus* the fee, because that is what left the account. An assignment covering the amount alone leaves a remainder the size of the fee behind in the source wallet. The data-quality tile on the dashboard lists such cases and offers to close them in one go.
+
 ## Settled in another currency {#tx-currency}
 If you bought against USDT or dollars, you can document that: currency, amount and price in the original currency have their own section in the dialog.
 
