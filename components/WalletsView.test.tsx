@@ -26,7 +26,7 @@ const wallets = () => useAppStore.getState().portfolio!.wallets;
 
 describe("adding a wallet", () => {
   it("gives it an account, so it can be used the moment it exists", () => {
-    render(<WalletsView />);
+    render(<WalletsView onOpenWallet={() => {}} />);
     fireEvent.click(screen.getAllByRole("button", { name: /wallets.addWallet/ })[0]);
     fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "Cold" } });
     fireEvent.click(screen.getByRole("button", { name: "common.save" }));
@@ -37,7 +37,7 @@ describe("adding a wallet", () => {
   });
 
   it("takes the account name the user typed", () => {
-    render(<WalletsView />);
+    render(<WalletsView onOpenWallet={() => {}} />);
     fireEvent.click(screen.getAllByRole("button", { name: /wallets.addWallet/ })[0]);
     const [walletField, accountField] = screen.getAllByRole("textbox");
     fireEvent.change(walletField, { target: { value: "Exchange" } });
@@ -48,7 +48,7 @@ describe("adding a wallet", () => {
   });
 
   it("falls back to a name rather than creating none", () => {
-    render(<WalletsView />);
+    render(<WalletsView onOpenWallet={() => {}} />);
     fireEvent.click(screen.getAllByRole("button", { name: /wallets.addWallet/ })[0]);
     const [walletField, accountField] = screen.getAllByRole("textbox");
     fireEvent.change(walletField, { target: { value: "Exchange" } });

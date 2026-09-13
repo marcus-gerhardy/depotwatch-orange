@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { useAppStore } from "@/lib/store";
 import { emptyPortfolio, type PortfolioFile } from "@/lib/types";
 import TransactionsView from "./TransactionsView";
@@ -162,13 +162,17 @@ describe("TransactionsView: column persistence", () => {
 describe("TransactionsView: value formatting", () => {
   it("shows BTC with 8 decimals and fiat without a currency symbol", () => {
     render(<TransactionsView />);
+    // Scoped to the table: the holding summary above it states the same
+    // figures, and it is a set of labelled values rather than a column, so it
+    // names its currency the way the dashboard does.
+    const table = within(screen.getByRole("table"));
 
     // The seeded buy is 0.5 BTC at 40 000 EUR.
-    expect(screen.getByText("0,50000000")).toBeTruthy();
-    expect(screen.getByText("40.000,00")).toBeTruthy();
-    expect(screen.getByText("20.000,00")).toBeTruthy();
+    expect(table.getByText("0,50000000")).toBeTruthy();
+    expect(table.getByText("40.000,00")).toBeTruthy();
+    expect(table.getByText("20.000,00")).toBeTruthy();
     // The column headers name the currency, so no symbol in the cells.
-    expect(document.body.textContent).not.toContain("€");
+    expect(screen.getByRole("table").textContent).not.toContain("€");
   });
 });
 

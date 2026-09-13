@@ -275,6 +275,14 @@ describe("demo portfolio: every feature has an example", () => {
   it("comes with a watchlist, UTXO labels, import presets and a layout", () => {
     expect(new Set(de.watchedAddresses.map((a) => a.type)).size).toBeGreaterThan(1);
     expect(de.watchedAddresses.every((a) => a.tags.length > 0)).toBe(true);
+    // Every entry names the wallet it belongs to (§3.3), and that wallet
+    // exists: the wallet detail page puts the chain's view of those addresses
+    // next to the book balance, and an assignment pointing nowhere would
+    // leave the comparison silently empty instead of wrong.
+    const walletIds = new Set(de.wallets.map((w) => w.id));
+    expect(
+      de.watchedAddresses.every((a) => a.walletId && walletIds.has(a.walletId)),
+    ).toBe(true);
     expect(de.utxoLabels.length).toBeGreaterThan(1);
     // Two presets that disagree about everything the wizard can ask.
     expect(de.importPresets.length).toBeGreaterThan(1);

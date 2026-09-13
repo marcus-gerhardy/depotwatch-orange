@@ -171,7 +171,8 @@ Both dialogs preview the resulting origin list before saving, computed by runnin
       "type": "address | xpub | ypub | zpub",
       "value": "bc1q... or xpub...",
       "label": "e.g. Ledger Account 1",
-      "tags": ["kyc", "hardware-wallet"]
+      "tags": ["kyc", "hardware-wallet"],
+      "walletId": "optional: the wallet this address belongs to, said by the user"
     }
   ],
   "explorerSettings": {
@@ -182,6 +183,8 @@ Both dialogs preview the resulting origin list before saving, computed by runnin
 ```
 
 Live data (current UTXOs, address history, pubkey exposure) is fetched at runtime from the configured explorer source, not stored in the file (only the watchlist itself is persisted).
+
+**`walletId` is a label the user attaches, never a derivation.** The separation of §3.1 is about *data flow*: nothing may read an address out of a transaction or a transaction out of an address, because the two cannot be mapped onto each other reliably. Saying "this address belongs to my hardware wallet" is not that mapping, it is the one thing only the owner knows, and it is what lets the wallet detail page (§4.5) put the book balance next to what the chain says. Optional, like every field added later, and set in the watchlist view, where the entry lives. An entry assigned to nothing belongs to no wallet and simply appears on no detail page.
 
 ### 3.4 CSV Import Presets
 
@@ -425,6 +428,27 @@ An optional target: an amount, and optionally a date (`settings.savingsGoal`, so
 **It reports, it does not urge.** No streak to lose, no "you are behind", no suggestion to buy — the same rule the milestones are written under (§5.2), and for the same reason: this is somebody's money, not a game with a scoreboard, and a target the user set themselves is a measure rather than a promise the app gets to hold them to. Past the date and not there, it says the date has passed, once, in the neutral colour, and stops.
 
 What it says is what is true (`lib/savingsGoal.ts`, pure functions, Decimal throughout): how far along, what is left, the rate the remaining months would need when a date is set, the rate saved so far, and where that rate would arrive. Each of those has a way of being wrong that a plausible-looking number would hide, and each is pinned by a test: an overshot target is *reached*, not 130 % reached; past the date there is **no** required rate, because "save the rest in no time" is a division by zero dressed up as advice; and with nothing saved yet there is no projection, because "never" is not information. The holding it measures is the ledger's (§11), not the engine's open lots.
+
+### 4.5 Holdings per Wallet and Account
+
+"How much is in here" was answerable only on the dashboard, from a widget that lists every account at once. It is asked about *one* place, usually while doing something with it, so it is answered where that place is named.
+
+**One computation, read by everything** (`lib/holdings.ts`): the wallet/account detail view, the wallet management list, the transaction table's summary row and its wallet-cell popover, and the balance hints in the transfer dialog and the lot picker. Several implementations of "the holding" would drift, and a balance that differs between two screens is worse than one that exists on a single screen.
+
+It takes its two halves from what each is the authority on (§11):
+
+- the **quantity** from the ledger (`balanceDelta`), never from the FIFO engine, which can only account for disposals that carry a lot assignment;
+- everything **about** those coins — acquisition date, cost basis, holding period — from the engine's open lots, which is where lot identity is resolved across internal transfers (transferGroupId → out-leg → `lotAllocations` → the original buy, §3.2). `lib/provenance.ts` is that same resolution read backwards for one transaction; walking it a third time here would be a third implementation free to disagree with the other two. A test holds the two together for a lot moved twice.
+
+The gap between them is **reported, not hidden**: while disposals are unassigned the open lots exceed the balance by exactly the unassigned amount (§3.2), and `unassignedBtc` says so on every surface that shows both figures. For the same reason the unrealized result is valued over `basisBtc` and never over the whole holding (§4.1), and the amount with no known cost is named rather than averaged in. The tax split has **three** buckets, not two: a lot whose origin never resolved is reported as "not judgeable" instead of being dated from an arrival, which would be a guess that happens to be the most favourable one available.
+
+**The detail view** (`components/WalletDetailView.tsx`) is reached from the wallet list, from the summary above the transaction table and from the popover on a row, and it carries its own way back — like the year in review and the as-of view it earns no permanent slot in a row of seven. It shows the holding, then the accounts under it (each linking one level deeper), then the open lots it is made of with their resolved purchase date and holding-period status, then the addresses of this wallet, then the last few transactions with the way into the filtered table. Recording a transaction, renaming, and adding an account are done from here rather than by going back to the list; a new transaction starts in the account one is standing in (`initialAccountId`), which is where defaulting to the portfolio's first account would book it somewhere else entirely.
+
+**The comparison with the chain** is part of that page and hidden until it can be made: it needs watchlist entries assigned to this wallet (§3.3), and it reads them through the same shared, throttled scan the dashboard uses (`lib/watchlistScan.ts`), against the explorer the user configured. Book balance, on-chain balance, and the deviation, with a sentence saying which of the two it is — a difference below one satoshi is none, and above it the causes are named rather than resolved, because only the owner knows whether a transaction is missing from the ledger or an address is missing from the watchlist. xpub entries cannot be queried by address and are counted out loud instead of quietly making the chain side look too small.
+
+**The summary above the transaction table** states the holding of whatever the filters select — a wallet, one of its accounts, or nothing at all, which is the whole portfolio. A holding belongs to a *place*, so the moment a filter selects transactions instead (a type, a data-quality issue, a period, the tax-free switch) there is no balance to state: the bar falls back to the sums of the rows on screen (`rowTotals`) and says in so many words that this is what they are. Those sums are taken over the filtered rows rather than the visible page, which is an accident of the page size. A transfer leg's EUR value is left out of them, because it is derived from the buys behind it (§3.2) and adding it to those buys would count the same euros twice.
+
+**Balances where a decision is made**: the transfer dialog shows what both accounts hold and what the move leaves them with, and the lot picker and the assignment table show the same pair for the account being drawn on. Both are measured *without* the transaction being edited, so the figure reads the same whether the dialog was opened on a new transaction or on one already in the ledger — asking for the plain balance instead would answer two different questions depending on how the dialog was reached.
 
 ## 5. Design
 

@@ -185,6 +185,20 @@ export interface WatchedAddress {
   value: string;
   label: string;
   tags: string[];
+  /**
+   * The wallet this address belongs to, if the user said so.
+   *
+   * A label the user attaches by hand, never something derived: the watchlist
+   * stays strictly separate from the ledger (§3.1), so nothing reads an
+   * address out of a transaction or a transaction out of an address. What it
+   * buys is the one place both are on screen together — the wallet detail
+   * view, which can then put the book balance next to what the chain says
+   * about the addresses of that wallet, and name the deviation.
+   *
+   * Optional, like every field added later: a file written before it existed
+   * stays valid, and an entry without one simply belongs to no wallet.
+   */
+  walletId?: string;
 }
 
 export type ExplorerProvider = "mempool.space" | "blockstream" | "custom-electrum";

@@ -703,40 +703,45 @@ def build(lang):
             "savingsGoal": {"targetBtc": "1.00000000", "targetDate": "2027-12-31"},
         },
         "wallets": wallets,
+        # Every entry names the wallet it belongs to (§3.3): that is what puts
+        # the chain's view next to the book balance on the wallet detail page.
+        # A label the user sets by hand — nothing is derived from the ledger,
+        # and the xpub entries are assigned too, where they are counted as
+        # "not queryable" rather than silently missing from the comparison.
         "watchedAddresses": [
             {
-                "id": "wa-cold-1", "type": "address", "value": ADDR["cold1"],
+                "walletId": "w-hardware", "id": "wa-cold-1", "type": "address", "value": ADDR["cold1"],
                 "label": "Hardware-Wallet – Empfangsadresse 1" if lang == "de" else "Hardware wallet – receiving address 1",
                 "tags": ["hardware-wallet", "non-kyc"],
             },
             {
-                "id": "wa-software-xpub", "type": "zpub",
+                "walletId": "w-software", "id": "wa-software-xpub", "type": "zpub",
                 "value": "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
                 "label": "Software-Wallet – Konto 1 (zpub)" if lang == "de" else "Software wallet – account 1 (zpub)",
                 "tags": ["software-wallet"],
             },
             {
-                "id": "wa-taproot", "type": "address", "value": ADDR["software"],
+                "walletId": "w-software", "id": "wa-taproot", "type": "address", "value": ADDR["software"],
                 "label": "Software-Wallet – Taproot-Empfang" if lang == "de" else "Software wallet – taproot receive",
                 "tags": ["software-wallet", "non-kyc", "taproot"],
             },
             {
-                "id": "wa-legacy", "type": "address", "value": ADDR["paper"],
+                "walletId": "w-paper", "id": "wa-legacy", "type": "address", "value": ADDR["paper"],
                 "label": "Papier-Backup (P2SH, altes Format)" if lang == "de" else "Paper backup (P2SH, legacy format)",
                 "tags": ["paper-wallet", "legacy"],
             },
             {
-                "id": "wa-cold-2", "type": "address", "value": ADDR["cold2"],
+                "walletId": "w-hardware", "id": "wa-cold-2", "type": "address", "value": ADDR["cold2"],
                 "label": "Hardware-Wallet – Empfangsadresse 2" if lang == "de" else "Hardware wallet – receiving address 2",
                 "tags": ["hardware-wallet", "non-kyc"],
             },
             {
-                "id": "wa-second", "type": "address", "value": ADDR["second"],
+                "walletId": "w-hardware2", "id": "wa-second", "type": "address", "value": ADDR["second"],
                 "label": "Hardware-Wallet – Zweitkonto" if lang == "de" else "Hardware wallet – second account",
                 "tags": ["hardware-wallet"],
             },
             {
-                "id": "wa-exchange-xpub", "type": "xpub",
+                "walletId": "w-exchange", "id": "wa-exchange-xpub", "type": "xpub",
                 "value": "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",
                 "label": "Börsen-Auszahlungen (xpub, KYC)" if lang == "de" else "Exchange withdrawals (xpub, KYC)",
                 "tags": ["kyc", "exchange"],

@@ -42,9 +42,16 @@ import {
   issueContext,
   type DataIssue,
 } from "@/lib/dataQuality";
+import { feeAllocationGaps } from "@/lib/feeAllocation";
 import { effectiveOnChain, isLegPaired, pairedGroupIds } from "@/lib/transferLink";
 import { useEasterEggs } from "@/lib/easterEggs";
-import { useAmountFormat } from "@/lib/displayUnit";
+import { useAmountFormat, useValueFormat } from "@/lib/displayUnit";
+import {
+  accountBalanceBtc,
+  portfolioHoldings,
+  rowTotals,
+  type Holding,
+} from "@/lib/holdings";
 import {
   derivedTransferValues,
   recordedShareValue,
@@ -56,9 +63,13 @@ import { Amount, Button, Card, Field, Modal, SectionTitle, Switch, inputCls } fr
 import TransactionForm, { type SellLotTarget } from "./TransactionForm";
 import ProvenanceList from "./ProvenanceList";
 import { OutLegPicker } from "./OutLegLink";
+import { AccountHoldingPopover, HoldingSummaryBar } from "./HoldingSummary";
+import FeeRepairDialog from "./FeeRepairDialog";
+import { AccountBalanceLine } from "./HoldingFigures";
+import type { WalletDetailTarget } from "./WalletDetailView";
 import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import CsvImportWizard from "./CsvImportWizard";
-import { TargetIcon, UploadIcon } from "./icons";
+import { TargetIcon, UploadIcon, WarnIcon } from "./icons";
 
 export type ColumnKey =
   | "date"
@@ -1077,6 +1088,24 @@ function TransferDialog({
       : false;
 
   const targetConflict = targetAccountId !== "" && targetAccountId === sourceAccountId;
+
+  /**
+   * What both sides hold, and what this transfer leaves them with (§6 of the
+   * holdings feature).
+   *
+   * Measured without the legs this dialog is about to write or rewrite: a leg
+   * that is being linked is already in the ledger and already counted, so
+   * subtracting the move again would report the source account twice as empty
+   * as it will be. The source loses the lots plus the network fee, the target
+   * gains what actually arrives (§3.2).
+   */
+  const sourceBefore = sourceAccountId
+    ? accountBalanceBtc(all, sourceAccountId, { excludeTxId: selectedOutTx?.id })
+    : null;
+  const targetBefore = targetAccountId
+    ? accountBalanceBtc(all, targetAccountId, { excludeTxId: selectedInTx?.id })
+    : null;
+
   const outReady =
     outMode === "new" || (!!selectedOutTxId && (!outMismatch || confirmOutMismatch));
   const inReady =
@@ -1452,6 +1481,36 @@ function TransferDialog({
           <p className="text-xs text-loss">{t("tx.transferSameAccount")}</p>
         )}
 
+        {/* The two balances this transfer moves between, before and after. */}
+        {(sourceBefore !== null || targetBefore !== null) && (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {sourceBefore !== null && (
+              <div>
+                <p className="mb-1 text-xs text-muted">
+                  {t("holdings.balanceSource")}
+                  {sourceName !== "" && `: ${sourceName}`}
+                </p>
+                <AccountBalanceLine
+                  beforeBtc={sourceBefore}
+                  afterBtc={sourceBefore.minus(totalBtc)}
+                />
+              </div>
+            )}
+            {targetBefore !== null && (
+              <div>
+                <p className="mb-1 text-xs text-muted">
+                  {t("holdings.balanceTarget")}
+                  {targetName !== "" && `: ${targetName}`}
+                </p>
+                <AccountBalanceLine
+                  beforeBtc={targetBefore}
+                  afterBtc={targetBefore.plus(netBtc)}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Out-leg: source account, fixed by the selected lots — shown once a target is chosen */}
         {targetAccountId && (
           <div className="space-y-2 rounded-lg border border-border-c/60 p-3">
@@ -1627,6 +1686,7 @@ function TransferDialog({
 
 export default function TransactionsView({
   initialFilter,
+  onOpenWallet,
 }: {
   /**
    * Pre-set filter when coming from a dashboard widget: a wallet/account, or
@@ -1637,6 +1697,12 @@ export default function TransactionsView({
     accountId?: string;
     issue?: DataIssue;
   } | null;
+  /**
+   * Open the wallet/account detail view (§2 of the holdings feature) — from
+   * the summary above the table and from the popover on a row's wallet cell.
+   * Optional, so the table can also be rendered without anywhere to send them.
+   */
+  onOpenWallet?: (target: WalletDetailTarget) => void;
 }) {
   const { t, locale } = useI18n();
   const loc = intlLocale(locale);
@@ -1670,6 +1736,8 @@ export default function TransactionsView({
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [showMove, setShowMove] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  /** The repair for assignments that stop short of the network fee (§3.2). */
+  const [showFeeRepair, setShowFeeRepair] = useState(false);
   /** Incoming legs whose origin list is unfolded (CLAUDE.md §3.2). */
   const [expandedOrigins, setExpandedOrigins] = useState<ReadonlySet<string>>(new Set());
   /** Arrival to be linked to its source lots via the transfer dialog. */
@@ -1758,11 +1826,42 @@ export default function TransactionsView({
   }
   useEffect(() => cancelTransferPopoverClose, []);
 
+  // The same popover contract for the wallet/account cell (§5): opaque, itself
+  // hoverable, closed after a delay so the pointer can travel into it. Only one
+  // can be open, so one piece of state keyed by row id is enough.
+  const [accountPopover, setAccountPopover] = useState<{
+    rowId: string;
+    top: number;
+    left: number;
+  } | null>(null);
+  const accountPopoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function cancelAccountPopoverClose() {
+    if (accountPopoverCloseTimer.current) {
+      clearTimeout(accountPopoverCloseTimer.current);
+      accountPopoverCloseTimer.current = null;
+    }
+  }
+  function scheduleAccountPopoverClose() {
+    cancelAccountPopoverClose();
+    accountPopoverCloseTimer.current = setTimeout(
+      () => setAccountPopover(null),
+      POPOVER_CLOSE_DELAY_MS,
+    );
+  }
+  function openAccountPopover(rowId: string, rect: DOMRect) {
+    cancelAccountPopoverClose();
+    setAccountPopover({ rowId, top: rect.bottom + 6, left: rect.left });
+  }
+  useEffect(() => cancelAccountPopoverClose, []);
+
   const all = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
 
   // Ledger-wide data-quality facts (origin resolution walks every link), so the
   // filter and the per-row badge read one shared computation.
   const issueCtx = useMemo(() => issueContext(all), [all]);
+  // The repairable subset of `incompleteAllocation`: the lots are assigned and
+  // only the network fee on top of them is missing (§3.2).
+  const feeGaps = useMemo(() => feeAllocationGaps(all), [all]);
   const eggs = useEasterEggs();
   const amountFmt = useAmountFormat();
 
@@ -1778,6 +1877,19 @@ export default function TransactionsView({
   const fifoResult = useMemo(
     () => computeFifo(all, portfolio.settings.holdingPeriodDays),
     [all, portfolio.settings.holdingPeriodDays],
+  );
+
+  // Holdings per wallet and per account, from the same computation every other
+  // surface uses (lib/holdings.ts): what the summary above the table states,
+  // and what the popover on a wallet/account cell shows.
+  const valueFmt = useValueFormat();
+  const holdings = useMemo(
+    () =>
+      portfolioHoldings(
+        { entries: all, fifo: fifoResult, priceEur: valueFmt.priceEur },
+        portfolio.wallets,
+      ),
+    [all, fifoResult, valueFmt.priceEur, portfolio.wallets],
   );
 
   const lotByTxId = useMemo(() => {
@@ -2085,6 +2197,37 @@ export default function TransactionsView({
       onlyTaxFree,
   );
 
+  /**
+   * What the summary above the table can honestly say.
+   *
+   * A holding belongs to a *place*, so it only exists while the filters select
+   * one: a wallet, one of its accounts, or nothing at all (the whole
+   * portfolio). The moment a type, a data-quality issue, a period or the
+   * tax-free switch is involved, the selection is a set of transactions rather
+   * than a set of coins — there is no balance to state, and the row totals
+   * take over instead, labelled as exactly that (§4 of the feature).
+   */
+  const scopeOnly = !filterType && !filterIssue && !filterFrom && !filterTo && !onlyTaxFree;
+  const scopeAccount = filterAccount
+    ? wallet?.accounts.find((a) => a.id === filterAccount)
+    : undefined;
+  const scopeHolding: Holding | null = !scopeOnly
+    ? null
+    : filterAccount
+      ? (holdings.byAccount.get(filterAccount) ?? null)
+      : filterWallet
+        ? (holdings.byWallet.get(filterWallet) ?? null)
+        : holdings.total;
+  const scopeName =
+    filterAccount && wallet && scopeAccount
+      ? `${wallet.name} / ${scopeAccount.name}`
+      : filterWallet && wallet
+        ? wallet.name
+        : null;
+  // Over the filtered rows, not the visible page: a page is an accident of the
+  // page size, and a sum that changed when paging would answer nothing.
+  const visibleTotals = useMemo(() => rowTotals(filtered), [filtered]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2295,6 +2438,40 @@ export default function TransactionsView({
           </div>
         </div>
 
+        {/* Filtering for unfinished assignments is how somebody arrives at
+            this defect, so the repair is offered here as well as on the
+            dashboard tile — a widget the user may have taken off their
+            dashboard must not be the only way to reach it. */}
+        {filterIssue === "incompleteAllocation" && feeGaps.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
+            <WarnIcon />
+            <span>{t("feeRepair.widgetLine", { count: feeGaps.length })}</span>
+            <Button className="ml-auto" {...locked.props} onClick={() => setShowFeeRepair(true)}>
+              {t("feeRepair.open")}
+            </Button>
+          </div>
+        )}
+
+        {/* What the current selection holds, above the rows it is made of. An
+            empty ledger gets the table's own empty state instead: a row of
+            zeroes above "nothing here yet" is noise, not an answer. */}
+        {all.length > 0 && (
+          <HoldingSummaryBar
+            scopeName={scopeName}
+            holding={scopeHolding}
+            totals={visibleTotals}
+            onOpenDetail={
+              onOpenWallet && filterWallet
+                ? () =>
+                    onOpenWallet({
+                      walletId: filterWallet,
+                      accountId: filterAccount || undefined,
+                    })
+                : undefined
+            }
+          />
+        )}
+
         {/* Fixed (not sticky) on purpose: this should stay visible at a fixed
             screen position for as long as a selection is active, regardless
             of scroll position — not just while its normal-flow spot happens
@@ -2496,9 +2673,21 @@ export default function TransactionsView({
                     {visibleCols.has("walletAccount") && (
                       <td className="w-full py-2 pr-4 text-muted">
                         <span className="flex items-center gap-1.5">
+                          {/* Hovering the account says what is in it (§5).
+                              A span rather than a button: the row itself is the
+                              click target (it opens the transaction), and the
+                              way to the detail page is the link inside the
+                              popover, which is reachable by pointer. */}
                           <span
-                            className="min-w-0 truncate"
+                            className="min-w-0 cursor-default truncate hover:text-foreground"
                             title={`${r.walletName} / ${r.accountName}`}
+                            onMouseEnter={(e) =>
+                              openAccountPopover(
+                                r.id,
+                                e.currentTarget.getBoundingClientRect(),
+                              )
+                            }
+                            onMouseLeave={scheduleAccountPopoverClose}
                           >
                             {r.walletName} / {r.accountName}
                           </span>
@@ -2709,6 +2898,23 @@ export default function TransactionsView({
                         </svg>
                       </button>
                     </td>
+                    {accountPopover?.rowId === r.id &&
+                      holdings.byAccount.get(r.accountId) !== undefined && (
+                        <AccountHoldingPopover
+                          holding={holdings.byAccount.get(r.accountId)!}
+                          title={`${r.walletName} / ${r.accountName}`}
+                          pos={accountPopover}
+                          onOpenDetail={() => {
+                            setAccountPopover(null);
+                            onOpenWallet?.({
+                              walletId: r.walletId,
+                              accountId: r.accountId,
+                            });
+                          }}
+                          onMouseEnter={cancelAccountPopoverClose}
+                          onMouseLeave={scheduleAccountPopoverClose}
+                        />
+                      )}
                     {transferredLegs && transferPopover?.rowId === r.id && (
                       <TransferredPopover
                         legs={transferredLegs}
@@ -2860,6 +3066,8 @@ export default function TransactionsView({
           }}
         />
       )}
+
+      {showFeeRepair && <FeeRepairDialog onClose={() => setShowFeeRepair(false)} />}
 
       {showTransfer && (
         <TransferDialog

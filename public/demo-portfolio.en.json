@@ -5892,6 +5892,7 @@
   ],
   "watchedAddresses": [
     {
+      "walletId": "w-hardware",
       "id": "wa-cold-1",
       "type": "address",
       "value": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
@@ -5902,6 +5903,7 @@
       ]
     },
     {
+      "walletId": "w-software",
       "id": "wa-software-xpub",
       "type": "zpub",
       "value": "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
@@ -5911,6 +5913,7 @@
       ]
     },
     {
+      "walletId": "w-software",
       "id": "wa-taproot",
       "type": "address",
       "value": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
@@ -5922,6 +5925,7 @@
       ]
     },
     {
+      "walletId": "w-paper",
       "id": "wa-legacy",
       "type": "address",
       "value": "3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy",
@@ -5932,6 +5936,7 @@
       ]
     },
     {
+      "walletId": "w-hardware",
       "id": "wa-cold-2",
       "type": "address",
       "value": "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3",
@@ -5942,6 +5947,7 @@
       ]
     },
     {
+      "walletId": "w-hardware2",
       "id": "wa-second",
       "type": "address",
       "value": "bc1q9d4ywgfnd8h43da5tpcxcn6ajv590cg6d3tg6axemvljvt2k76zs50tv4q",
@@ -5951,6 +5957,7 @@
       ]
     },
     {
+      "walletId": "w-exchange",
       "id": "wa-exchange-xpub",
       "type": "xpub",
       "value": "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz",

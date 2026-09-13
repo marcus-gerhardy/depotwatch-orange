@@ -79,6 +79,7 @@ function toLocalInput(iso: string): string {
 export default function TransactionForm({
   existing,
   sellLot = null,
+  initialAccountId,
   onClose,
   onDelete,
   onJumpToTransaction,
@@ -86,6 +87,12 @@ export default function TransactionForm({
 }: {
   existing: LedgerEntry | null;
   sellLot?: SellLotTarget | null;
+  /**
+   * Account a *new* transaction starts in. The wallet/account detail view
+   * opens this dialog from inside one account, where defaulting to the first
+   * account of the portfolio would book it somewhere else entirely.
+   */
+  initialAccountId?: string;
   onClose: () => void;
   /**
    * Delete this transaction (opens the confirmation, which names what else it
@@ -254,7 +261,7 @@ export default function TransactionForm({
   const [txid, setTxid] = useState(existing?.txid ?? "");
   const [address, setAddress] = useState(existing?.address ?? "");
   const [accountId, setAccountId] = useState(
-    existing?.accountId ?? sellLot?.accountId ?? accounts[0]?.id ?? "",
+    existing?.accountId ?? sellLot?.accountId ?? initialAccountId ?? accounts[0]?.id ?? "",
   );
 
   // Targeted lot sale: prefill the current market price (editable).

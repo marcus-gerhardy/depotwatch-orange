@@ -10,7 +10,8 @@
 import { useMemo } from "react";
 import { useI18n, intlLocale } from "./i18n";
 import { useAppStore } from "./store";
-import { Decimal, dec, formatBtc, formatInt } from "./decimal";
+import { Decimal, dec, formatBtc, formatFiat, formatInt } from "./decimal";
+import { lastKnownPrices, useSpotPrices } from "./marketData";
 import type { Currency } from "./types";
 
 export const SATS_PER_BTC = 100_000_000;
@@ -90,4 +91,72 @@ export function useAmountFormat(): {
       formatWithUnit: (v) => formatAmount(v, loc, currency),
     };
   }, [currency, locale]);
+}
+
+/**
+ * Amounts *and* EUR figures in the display unit, for the surfaces outside the
+ * dashboard that show a holding (the wallet detail view, the wallet list, the
+ * transaction table's summary row and its popover).
+ *
+ * The dashboard builds the same thing once for the whole grid in
+ * `useDashboardData()`; this is the same arithmetic for everything else, so a
+ * balance reads identically wherever it appears. The ledger stays EUR (§3.2) —
+ * `fiat()` only renders what it is given, at the current spot rate, and returns
+ * "—" while there is no price rather than inventing one.
+ */
+export function useValueFormat(): {
+  currency: Currency;
+  unit: "BTC" | "sats";
+  /** BTC spot price in EUR; null while unavailable. */
+  priceEur: number | null;
+  priceLoading: boolean;
+  /**
+   * A BTC amount, number only (for a column whose header names the unit).
+   * `signed` puts a "+" in front of a positive figure, for the places that
+   * show a change or a deviation rather than a level; never write that sign by
+   * hand (see `signDisplay` in lib/decimal.ts).
+   */
+  amount: (v: Decimal | string, signed?: boolean) => string;
+  amountWithUnit: (v: Decimal | string) => string;
+  /** A EUR figure, converted and formatted in the display currency. */
+  fiat: (eur: Decimal | number | null) => string;
+} {
+  const { locale } = useI18n();
+  const currency = useAppStore((s) => s.portfolio?.settings.currencyDisplay) ?? "EUR";
+  const prices = useSpotPrices();
+  // Offline the last price this browser saw beats a dash (§7.2) — the same
+  // fallback the dashboard makes.
+  const stale = prices.error && !prices.data ? lastKnownPrices() : null;
+  const priceEur = prices.data?.eur ?? stale?.eur ?? null;
+  const priceUsd = prices.data?.usd ?? stale?.usd ?? null;
+
+  return useMemo(() => {
+    const loc = intlLocale(locale);
+    const eurToDisplay =
+      currency === "EUR"
+        ? 1
+        : currency === "BTC"
+          ? priceEur
+            ? SATS_PER_BTC / priceEur
+            : null
+          : priceEur && priceUsd
+            ? priceUsd / priceEur
+            : null;
+    return {
+      currency,
+      unit: amountUnit(currency),
+      priceEur,
+      priceLoading: prices.loading,
+      amount: (v: Decimal | string, signed = false) =>
+        currency === "BTC" ? formatSats(v, loc, signed) : formatBtc(v, loc, signed),
+      amountWithUnit: (v: Decimal | string) => formatAmount(v, loc, currency),
+      fiat: (eur: Decimal | number | null) => {
+        if (eur === null || eurToDisplay === null) return "—";
+        const value = (typeof eur === "number" ? eur : eur.toNumber()) * eurToDisplay;
+        return currency === "BTC"
+          ? `${formatInt(Math.round(value), loc)} sats`
+          : formatFiat(value, currency, loc);
+      },
+    };
+  }, [currency, locale, priceEur, priceUsd, prices.loading]);
 }

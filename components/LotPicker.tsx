@@ -6,6 +6,7 @@ import { Decimal, btcString, dec, formatBtc, formatFiatPlain, ZERO } from "@/lib
 import { buyLotBasis } from "@/lib/fifo";
 import type { LotAvailability } from "@/lib/transferLink";
 import type { LedgerEntry, LotAllocation } from "@/lib/types";
+import { AccountBalanceLine } from "./HoldingFigures";
 import { Amount, Button, Field, Modal, inputCls, stopEnterSubmit } from "./ui";
 
 /** Cost per BTC of a lot-creating transaction (§3.2), or null when unknown. */
@@ -36,6 +37,7 @@ type SortKey = "date" | "type" | "available" | "price";
 export default function LotPicker({
   lots,
   neededBtc,
+  accountBalance,
   onCancel,
   onConfirm,
 }: {
@@ -43,6 +45,13 @@ export default function LotPicker({
   lots: LotAvailability[];
   /** What the transaction is still short of; zero or less means "no target". */
   neededBtc: Decimal;
+  /**
+   * What the account holds without this transaction, and what is left once it
+   * has taken its coins out. Picking lots is the moment one wants to know that
+   * (§6 of the holdings feature) — the question "is there enough here" is
+   * asked exactly here and nowhere else.
+   */
+  accountBalance?: { beforeBtc: Decimal; afterBtc: Decimal };
   onCancel: () => void;
   onConfirm: (picks: LotAllocation[]) => void;
 }) {
@@ -201,6 +210,13 @@ export default function LotPicker({
         <p className="text-xs leading-relaxed text-muted">
           {t("tx.allocations.pickIntro")}
         </p>
+
+        {accountBalance && (
+          <AccountBalanceLine
+            beforeBtc={accountBalance.beforeBtc}
+            afterBtc={accountBalance.afterBtc}
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Field label={t("tx.lotPicker.search")}>

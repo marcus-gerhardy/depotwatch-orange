@@ -5,7 +5,7 @@
 // this exists.
 
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { useAppStore } from "@/lib/store";
 import { emptyPortfolio, type PortfolioFile, type Transaction } from "@/lib/types";
 import { LASER_EYES_CLICKS } from "@/lib/easterEggs";
@@ -206,7 +206,9 @@ describe("the BTC display unit is a real feature, not a joke", () => {
     load(withHolding());
     render(<TransactionsView />);
 
-    expect(screen.getByText("61.800.000")).toBeTruthy();
+    // In the table itself: the holding summary above it says the same number,
+    // in the same unit, about the same coins.
+    expect(within(screen.getByRole("table")).getByText("61.800.000")).toBeTruthy();
     // The column says which unit that is.
     expect(
       screen.getAllByRole("columnheader").some((h) => h.textContent?.includes("tx.amountColumn")),
@@ -229,7 +231,7 @@ describe("the BTC display unit is a real feature, not a joke", () => {
     load(p);
     render(<TransactionsView />);
 
-    expect(screen.getByText("61.800.000")).toBeTruthy();
+    expect(within(screen.getByRole("table")).getByText("61.800.000")).toBeTruthy();
   });
 });
 

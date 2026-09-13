@@ -1,15 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { useReadOnly } from "@/lib/readOnly";
-import type { WalletType } from "@/lib/types";
-import { Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
+import { computeFifo } from "@/lib/fifo";
+import { flattenLedger, type WalletType } from "@/lib/types";
+import { useValueFormat } from "@/lib/displayUnit";
+import { portfolioHoldings, type Holding } from "@/lib/holdings";
+import type { WalletDetailTarget } from "./WalletDetailView";
+import { Amount, Button, Card, Field, Modal, SectionTitle, inputCls } from "./ui";
 import { WarnIcon } from "./icons";
 
 const WALLET_TYPES: WalletType[] = ["exchange", "hardware", "software", "paper"];
+
+/**
+ * Amount and value of a holding, the way every row in this list shows the
+ * pair: the quantity in the display unit, the money it is worth underneath.
+ */
+function HoldingCell({ holding }: { holding: Holding }) {
+  const fmt = useValueFormat();
+  return (
+    <span className="shrink-0 text-right font-mono text-xs whitespace-nowrap">
+      <Amount className="block">{`${fmt.amount(holding.btc)} ${fmt.unit}`}</Amount>
+      <Amount className="block text-muted">{fmt.fiat(holding.valueEur)}</Amount>
+    </span>
+  );
+}
 
 type Dialog =
   | { kind: "addWallet" }
@@ -17,11 +35,33 @@ type Dialog =
   | { kind: "addAccount"; walletId: string }
   | { kind: "renameAccount"; walletId: string; accountId: string; current: string };
 
-export default function WalletsView() {
+export default function WalletsView({
+  onOpenWallet,
+}: {
+  /** Open the detail view of a wallet or one of its accounts (§2). */
+  onOpenWallet: (target: WalletDetailTarget) => void;
+}) {
   const { t } = useI18n();
   const portfolio = useAppStore((s) => s.portfolio)!;
   const locked = useReadOnly();
   const store = useAppStore();
+  const fmt = useValueFormat();
+
+  // The same computation every other holding surface reads (lib/holdings.ts),
+  // for the whole portfolio in one pass rather than once per row.
+  const entries = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
+  const holdings = useMemo(
+    () =>
+      portfolioHoldings(
+        {
+          entries,
+          fifo: computeFifo(entries, portfolio.settings.holdingPeriodDays),
+          priceEur: fmt.priceEur,
+        },
+        portfolio.wallets,
+      ),
+    [entries, portfolio.wallets, portfolio.settings.holdingPeriodDays, fmt.priceEur],
+  );
 
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [name, setName] = useState("");
@@ -109,31 +149,42 @@ export default function WalletsView() {
               out of the card. */}
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <span className="truncate font-semibold">{w.name}</span>
+              {/* The name is the way in: a row that shows a balance has to be
+                  able to explain it, and that explanation is the detail page. */}
+              <button
+                className="truncate font-semibold hover:text-accent"
+                title={t("holdings.openDetail")}
+                onClick={() => onOpenWallet({ walletId: w.id })}
+              >
+                {w.name}
+              </button>
               <span className="shrink-0 rounded bg-surface-2 px-2 py-0.5 text-xs whitespace-nowrap text-muted">
                 {t(`wallets.types.${w.type}`)}
               </span>
             </div>
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                {...locked.props}
-                onClick={() =>
-                  openDialog({ kind: "renameWallet", walletId: w.id, current: w.name })
-                }
-              >
-                {t("wallets.rename")}
-              </Button>
-              <Button
-                variant="danger"
-                {...locked.props}
-                onClick={() => {
-                  if (confirm(t("wallets.deleteWalletConfirm", { name: w.name })))
-                    store.deleteWallet(w.id);
-                }}
-              >
-                {t("common.delete")}
-              </Button>
+            <div className="flex items-center gap-3">
+              <HoldingCell holding={holdings.byWallet.get(w.id)!} />
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  {...locked.props}
+                  onClick={() =>
+                    openDialog({ kind: "renameWallet", walletId: w.id, current: w.name })
+                  }
+                >
+                  {t("wallets.rename")}
+                </Button>
+                <Button
+                  variant="danger"
+                  {...locked.props}
+                  onClick={() => {
+                    if (confirm(t("wallets.deleteWalletConfirm", { name: w.name })))
+                      store.deleteWallet(w.id);
+                  }}
+                >
+                  {t("common.delete")}
+                </Button>
+              </div>
             </div>
           </div>
           {/* A wallet can still end up here by having its last account
@@ -146,13 +197,18 @@ export default function WalletsView() {
           )}
           <ul className="divide-y divide-border-c/50">
             {w.accounts.map((a) => (
-              <li key={a.id} className="flex items-center justify-between py-2">
-                <span className="text-sm">
+              <li key={a.id} className="flex flex-wrap items-center gap-2 py-2">
+                <button
+                  className="min-w-0 flex-1 truncate text-left text-sm hover:text-accent"
+                  title={t("holdings.openDetail")}
+                  onClick={() => onOpenWallet({ walletId: w.id, accountId: a.id })}
+                >
                   {a.name}
                   <span className="ml-2 text-xs text-muted">
                     {a.transactions.length} Tx
                   </span>
-                </span>
+                </button>
+                <HoldingCell holding={holdings.byAccount.get(a.id)!} />
                 <span className="flex gap-1">
                   <Button
                     variant="ghost"

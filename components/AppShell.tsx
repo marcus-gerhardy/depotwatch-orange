@@ -19,6 +19,7 @@ import Toast from "./Toast";
 import Dashboard from "./Dashboard";
 import TransactionsView from "./TransactionsView";
 import WalletsView from "./WalletsView";
+import WalletDetailView, { type WalletDetailTarget } from "./WalletDetailView";
 import TaxView from "./TaxView";
 import PointInTimeView from "./PointInTimeView";
 import WatchlistView from "./WatchlistView";
@@ -53,6 +54,7 @@ type Tab =
   | "dashboard"
   | "transactions"
   | "wallets"
+  | "walletDetail"
   | "tax"
   | "pointInTime"
   | "watchlist"
@@ -292,6 +294,13 @@ export default function AppShell() {
   const [txFilter, setTxFilter] = useState<TxJumpFilter | null>(null);
   /** A widget asked for the watchlist's add form, not just the tab. */
   const [watchlistAdd, setWatchlistAdd] = useState(false);
+  /**
+   * Which wallet (and optionally which of its accounts) the detail view shows.
+   * Like the year in review and the as-of view it has no navigation entry of
+   * its own: it is opened from the wallet list, from a transaction row, and
+   * from the popover on one, and it carries its own way back.
+   */
+  const [walletTarget, setWalletTarget] = useState<WalletDetailTarget | null>(null);
   /** Year the review opens at when the dashboard hint sent us there. */
   const [reviewYear, setReviewYear] = useState<number | undefined>(undefined);
   /** Settings group to open at, when something linked into one (§6.5). */
@@ -359,6 +368,12 @@ export default function AppShell() {
     setLaserEyes(true);
     // Said out loud, so an unexplained glow cannot read as a rendering bug.
     setToast(t("easterEggs.laserEyesUnlocked"));
+  }
+
+  /** Open the wallet/account detail view (§2 of the holdings feature). */
+  function openWalletDetail(target: WalletDetailTarget) {
+    setWalletTarget(target);
+    setTab("walletDetail");
   }
 
   const tabs: { id: Tab; label: string }[] = [
@@ -547,6 +562,7 @@ export default function AppShell() {
                   setWatchlistAdd(false);
                   setReviewYear(undefined);
                   setSettingsSection(undefined);
+                  setWalletTarget(null);
                   setTab(item.id);
                   setMenuOpen(false);
                 }}
@@ -585,8 +601,28 @@ export default function AppShell() {
             }}
           />
         )}
-        {tab === "transactions" && <TransactionsView initialFilter={txFilter} />}
-        {tab === "wallets" && <WalletsView />}
+        {tab === "transactions" && (
+          <TransactionsView initialFilter={txFilter} onOpenWallet={openWalletDetail} />
+        )}
+        {tab === "wallets" && <WalletsView onOpenWallet={openWalletDetail} />}
+        {tab === "walletDetail" && walletTarget && (
+          <WalletDetailView
+            target={walletTarget}
+            onBack={() => {
+              setWalletTarget(null);
+              setTab("wallets");
+            }}
+            onOpenTarget={setWalletTarget}
+            onOpenTransactions={(filter) => {
+              setTxFilter(filter);
+              setTab("transactions");
+            }}
+            onOpenWatchlist={() => {
+              setWatchlistAdd(false);
+              setTab("watchlist");
+            }}
+          />
+        )}
         {TAX_FEATURES_ENABLED && tab === "tax" && (
           <TaxView onOpenPointInTime={() => setTab("pointInTime")} />
         )}

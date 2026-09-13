@@ -57,6 +57,8 @@ export default function WatchlistView({
   const [value, setValue] = useState("");
   const [label, setLabel] = useState("");
   const [tags, setTags] = useState("");
+  /** Which wallet this address belongs to (§3.3) — a label, never a derivation. */
+  const [walletId, setWalletId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const detectedType = detectEntryType(value);
@@ -76,11 +78,13 @@ export default function WatchlistView({
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
+      ...(walletId ? { walletId } : {}),
     });
     setShowAdd(false);
     setValue("");
     setLabel("");
     setTags("");
+    setWalletId("");
     setError(null);
   }
 
@@ -156,6 +160,23 @@ export default function WatchlistView({
                 onChange={(e) => setTags(e.target.value)}
               />
             </Field>
+            <Field label={t("watchlist.wallet")}>
+              <select
+                className={inputCls}
+                value={walletId}
+                onChange={(e) => setWalletId(e.target.value)}
+              >
+                <option value="">{t("watchlist.walletNone")}</option>
+                {portfolio.wallets.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs leading-relaxed text-muted">
+                {t("watchlist.walletHint")}
+              </span>
+            </Field>
             {error && <p className="text-sm text-loss">{error}</p>}
             <div className="flex gap-2">
               <Button type="submit" variant="primary">
@@ -183,6 +204,7 @@ function WatchedEntryCard({
   const loc = intlLocale(locale);
   const portfolio = useAppStore((s) => s.portfolio)!;
   const setUtxoLabel = useAppStore((s) => s.setUtxoLabel);
+  const updateWatchedAddress = useAppStore((s) => s.updateWatchedAddress);
 
   const [stats, setStats] = useState<AddressStats | null>(null);
   const [utxos, setUtxos] = useState<Utxo[] | null>(null);
@@ -280,6 +302,27 @@ function WatchedEntryCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* The wallet this address belongs to. Changeable right here because
+              it is a label on the entry, not a property of the chain. */}
+          <select
+            className={`${inputCls} w-auto text-xs`}
+            aria-label={t("watchlist.wallet")}
+            title={t("watchlist.walletHint")}
+            disabled={locked.readOnly}
+            value={entry.walletId ?? ""}
+            onChange={(e) =>
+              updateWatchedAddress(entry.id, {
+                walletId: e.target.value === "" ? undefined : e.target.value,
+              })
+            }
+          >
+            <option value="">{t("watchlist.walletNone")}</option>
+            {portfolio.wallets.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </select>
           {isAddress && (
             <Button variant="ghost" onClick={load} disabled={loading}>
               {loading ? t("common.loading") : t("common.refresh")}

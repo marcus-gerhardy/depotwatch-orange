@@ -8,8 +8,10 @@ import {
   allocationTargetBtc,
   lotAvailability,
 } from "@/lib/transferLink";
+import { accountBalanceBtc } from "@/lib/holdings";
 import type { LedgerEntry, LotAllocation } from "@/lib/types";
 import { Amount, Button, inputCls } from "./ui";
+import { AccountBalanceLine } from "./HoldingFigures";
 import NumberInput, { decimalPlaceholder } from "./NumberInput";
 import LotPicker, { lotPricePerBtc } from "./LotPicker";
 import { CheckIcon, WarnIcon } from "./icons";
@@ -57,6 +59,22 @@ export default function LotAllocationEditor({
   const assigned = allocationSumBtc(allocations);
   const diff = target.minus(assigned);
 
+  /**
+   * What the account holds without this transaction, and what it is left with
+   * once this one has taken its coins out (§6 of the holdings feature).
+   *
+   * Deliberately measured *without* the transaction being edited: that way the
+   * pair reads the same whether the dialog was opened on a new transaction (not
+   * in the ledger yet) or on an existing one (already subtracted from the
+   * balance). Asking for the plain balance instead would answer two different
+   * questions depending on how the dialog was reached.
+   */
+  const balanceBefore = useMemo(
+    () => accountBalanceBtc(entries, entry.accountId, { excludeTxId: entry.id }),
+    [entries, entry.accountId, entry.id],
+  );
+  const accountBalance = { beforeBtc: balanceBefore, afterBtc: balanceBefore.minus(target) };
+
   /** Lots not yet in the list and with something left to give. */
   const pickable = lots.filter(
     (l) =>
@@ -103,6 +121,12 @@ export default function LotAllocationEditor({
   return (
     <div className="space-y-2">
       <p className="text-xs leading-relaxed text-muted">{t("tx.allocations.intro")}</p>
+
+      {/* What this account holds, and what this transaction leaves of it. */}
+      <AccountBalanceLine
+        beforeBtc={accountBalance.beforeBtc}
+        afterBtc={accountBalance.afterBtc}
+      />
 
       {allocations.length === 0 ? (
         <p className="text-xs text-muted">{t("tx.allocations.empty")}</p>
@@ -247,6 +271,7 @@ export default function LotAllocationEditor({
         <LotPicker
           lots={pickable}
           neededBtc={diff}
+          accountBalance={accountBalance}
           onCancel={() => setPicking(false)}
           onConfirm={add}
         />

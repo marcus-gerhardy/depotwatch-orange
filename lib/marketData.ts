@@ -126,8 +126,18 @@ function useResource<T>(
   useEffect(() => {
     if (key === null) return;
     let cancelled = false;
-    const run = (force: boolean) => {
-      fetchCached(key, ttlMs, load, force).then(
+    /**
+     * `maxAgeMs` is what still counts as fresh for this particular call. The
+     * background tick passes `refreshMs` rather than forcing: forcing skips the
+     * cache, so with several components subscribed to the same key (a list of
+     * balances, say) every one of their intervals would fetch again, and a
+     * re-render would have turned into a request storm after all. TTL-guarded,
+     * the first tick fetches and the rest read what it just wrote. An explicit
+     * `reload()` still forces, because that is somebody asking for a fresh
+     * value on purpose.
+     */
+    const run = (force: boolean, maxAgeMs = ttlMs) => {
+      fetchCached(key, maxAgeMs, load, force).then(
         (data) => {
           if (!cancelled) setState({ key, data, error: false });
         },
@@ -148,7 +158,7 @@ function useResource<T>(
         cancelled = true;
       };
     }
-    const id = setInterval(() => run(true), refreshMs);
+    const id = setInterval(() => run(false, refreshMs), refreshMs);
     return () => {
       cancelled = true;
       clearInterval(id);
