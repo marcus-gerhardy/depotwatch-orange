@@ -54,7 +54,7 @@ import { CheckIcon, WarnIcon } from "./icons";
 
 const EXTERNAL = "__external__";
 
-type FormType =
+export type FormType =
   | "buy"
   | "sell"
   | "transfer"
@@ -80,6 +80,7 @@ export default function TransactionForm({
   existing,
   sellLot = null,
   initialAccountId,
+  initialType,
   onClose,
   onDelete,
   onJumpToTransaction,
@@ -93,6 +94,11 @@ export default function TransactionForm({
    * account of the portfolio would book it somewhere else entirely.
    */
   initialAccountId?: string;
+  /**
+   * What a *new* transaction starts as — the wallet list's "start a transfer"
+   * opens this dialog as a transfer rather than as a buy to be switched over.
+   */
+  initialType?: FormType;
   onClose: () => void;
   /**
    * Delete this transaction (opens the confirmation, which names what else it
@@ -224,7 +230,7 @@ export default function TransactionForm({
         : (existing.type as FormType)
       : sellLot
         ? "sell"
-        : "buy",
+        : (initialType ?? "buy"),
   );
   const [date, setDate] = useState(
     toLocalInput(existing?.date ?? new Date().toISOString()),

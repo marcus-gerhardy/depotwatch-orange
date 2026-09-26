@@ -22,6 +22,7 @@ import {
   type Appearance,
 } from "./appearance";
 import { deleteAndRelease } from "./deletion";
+import { orderWallets, type WalletPatch } from "./walletMeta";
 // Re-exported: the fee-convention migration is a pure function over the file
 // and lives in lib/migrations.ts, but everything that opens a portfolio knows
 // it from here.
@@ -336,6 +337,20 @@ interface AppState {
   addAccount: (walletId: string, account: Account) => void;
   renameAccount: (walletId: string, accountId: string, name: string) => void;
   deleteAccount: (walletId: string, accountId: string) => void;
+  /**
+   * Change a wallet's own properties — name, type, look, archive state, KYC,
+   * note, backup check. Never its accounts or transactions. A field given as
+   * `undefined` is removed from the file rather than stored empty.
+   */
+  updateWallet: (walletId: string, patch: WalletPatch) => void;
+  setAccountArchived: (walletId: string, accountId: string, archived: boolean) => void;
+  /**
+   * Put the wallets into this order. The array order *is* the stored order;
+   * ids missing from the list keep their relative place at the end, so a
+   * stale list can never drop a wallet.
+   */
+  reorderWallets: (orderedIds: string[]) => void;
+  saveWalletsView: (view: "cards" | "table") => void;
   addTransaction: (accountId: string, tx: Transaction) => void;
   updateTransaction: (txId: string, tx: Transaction, accountId: string) => void;
   /**
@@ -1319,6 +1334,49 @@ export const useAppStore = create<AppState>((set, get) => {
               : w,
           ),
         { kind: "delete" },
+      ),
+
+    updateWallet: (walletId, patch) =>
+      mutate((p) =>
+        mapWallets(p, (w) => {
+          if (w.id !== walletId) return w;
+          const next: Wallet = { ...w, ...patch };
+          for (const key of Object.keys(patch) as (keyof WalletPatch)[]) {
+            if (patch[key] === undefined) delete next[key];
+          }
+          return next;
+        }),
+      ),
+
+    setAccountArchived: (walletId, accountId, archived) =>
+      mutate((p) =>
+        mapWallets(p, (w) =>
+          w.id === walletId
+            ? {
+                ...w,
+                accounts: w.accounts.map((a) => {
+                  if (a.id !== accountId) return a;
+                  if (archived) return { ...a, archived: true };
+                  const { archived: _dropped, ...rest } = a;
+                  void _dropped;
+                  return rest;
+                }),
+              }
+            : w,
+        ),
+      ),
+
+    reorderWallets: (orderedIds) =>
+      mutate((p) => {
+        const wallets = orderWallets(p.wallets, orderedIds);
+        return wallets.every((w, i) => w === p.wallets[i]) ? p : { ...p, wallets };
+      }),
+
+    saveWalletsView: (view) =>
+      mutateDisplay((p) =>
+        (p.uiSettings?.walletsView ?? "cards") === view
+          ? p
+          : { ...p, uiSettings: { ...p.uiSettings, walletsView: view } },
       ),
 
     addTransaction: (accountId, tx) =>

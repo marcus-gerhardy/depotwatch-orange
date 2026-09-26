@@ -168,13 +168,67 @@ export interface Account {
   id: string;
   name: string;
   transactions: Transaction[];
+  /**
+   * Moved out of the everyday list. Nothing else changes: the transactions
+   * stay, the balance keeps counting in every total, and the tax figures read
+   * it like any other account. Archiving tidies a list, it never hides coins.
+   */
+  archived?: boolean;
 }
+
+/**
+ * The drawn marks a wallet can wear (lib/walletMeta.ts). A fixed set rather
+ * than free input, like the colours, so every theme keeps its look.
+ */
+export type WalletIconId =
+  | "exchange"
+  | "hardware"
+  | "software"
+  | "paper"
+  | "vault"
+  | "piggy"
+  | "shield"
+  | "key";
+
+/**
+ * A wallet's accent, as a name for one of the theme's own chart tokens —
+ * never a colour value, so a theme switch recolours it with everything else.
+ */
+export type WalletColorId = "chart-1" | "chart-2" | "chart-3" | "chart-4" | "muted";
+
+/** Whether the coins held here are tied to the owner's identity. */
+export type KycStatus = "kyc" | "non-kyc" | "unknown";
 
 export interface Wallet {
   id: string;
   name: string;
   type: WalletType;
   accounts: Account[];
+  /**
+   * Everything below is optional and was added later: a file written before
+   * it existed stays valid and simply shows the defaults. The order of the
+   * wallets is the order of this array — the file already keeps it, so a
+   * sort field would only be a second truth to disagree with the first.
+   */
+  /** Chosen mark; absent means the default for the wallet's type. */
+  icon?: WalletIconId;
+  color?: WalletColorId;
+  /** See `Account.archived` — the same promise holds for a whole wallet. */
+  archived?: boolean;
+  kyc?: KycStatus;
+  /**
+   * Free text for things like where a device is kept. Never a secret: the UI
+   * says so next to the field, and nothing reads it but the wallet dialog.
+   */
+  note?: string;
+  /**
+   * The day the owner last checked that their seed backup is readable and
+   * complete (ISO date, YYYY-MM-DD). **Only the date.** Seed words, passphrases
+   * and any other key material have no place anywhere in this file.
+   */
+  backupCheckedAt?: string;
+  /** Remind once a year after `backupCheckedAt`. Off unless chosen. */
+  backupReminder?: boolean;
 }
 
 export type WatchedAddressType = "address" | "xpub" | "ypub" | "zpub";
@@ -343,6 +397,8 @@ export interface UiSettings {
   dashboardLayout?: DashboardWidgetPlacement[];
   /** Visible transaction-table columns, in display order. */
   transactionColumns?: string[];
+  /** How the wallet list is laid out: cards (default) or a dense table. */
+  walletsView?: "cards" | "table";
   /**
    * Appearance (§5). Kept here rather than in `settings`, next to the other
    * things about how the interface is arranged, and mirrored to a device

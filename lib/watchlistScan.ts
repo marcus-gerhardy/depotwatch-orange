@@ -296,3 +296,77 @@ export function useWatchlistScan(
     reload,
   };
 }
+
+/**
+ * Results of scans the user asked for, by explorer and address set. Memory
+ * only, for this session: coming back to the wallet list shows the last
+ * answer instead of an empty button, and nothing about the user's addresses is
+ * ever written anywhere (§1).
+ */
+const onDemandResults = new Map<string, { data: WatchlistScan | null; error: boolean }>();
+
+export interface OnDemandScanResource {
+  data: WatchlistScan | null;
+  loading: boolean;
+  error: boolean;
+  /** Whether a scan was asked for (in this session) at all. */
+  requested: boolean;
+  run: () => void;
+}
+
+/**
+ * The scan, but only when asked for. `useWatchlistScan` starts on mount,
+ * which is right for a widget the user put on the dashboard to watch the
+ * chain; a list of wallets that happens to be opened is not such a request
+ * (§1: external lookups only on a user action). The request goes through the
+ * same module cache, so a second click within minutes costs nothing.
+ */
+export function useOnDemandScan(
+  settings: ExplorerSettings,
+  watched: WatchedAddress[],
+): OnDemandScanResource {
+  const key = `${explorerBase(settings)}|${watched
+    .filter((a) => a.type === "address")
+    .map((a) => a.value)
+    .join(",")}`;
+  const [state, setState] = useState<{
+    key: string;
+    loading: boolean;
+    result: { data: WatchlistScan | null; error: boolean } | undefined;
+  }>(() => ({ key, loading: false, result: onDemandResults.get(key) }));
+  // The address set changed under us: whatever was shown belongs to another
+  // question. Adjusted while rendering, the way React recommends for state
+  // derived from props.
+  if (state.key !== key) {
+    setState({ key, loading: false, result: onDemandResults.get(key) });
+  }
+
+  const watchedRef = useRef(watched);
+  useEffect(() => {
+    watchedRef.current = watched;
+  }, [watched]);
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  const run = useCallback(() => {
+    setState((s) => ({ ...s, loading: true }));
+    const done = (result: { data: WatchlistScan | null; error: boolean }) => {
+      onDemandResults.set(key, result);
+      setState((s) => (s.key === key ? { key, loading: false, result } : s));
+    };
+    scanWatchlist(settingsRef.current, watchedRef.current).then(
+      (data) => done({ data, error: false }),
+      () => done({ data: null, error: true }),
+    );
+  }, [key]);
+
+  return {
+    data: state.result?.data ?? null,
+    loading: state.loading,
+    error: state.result?.error ?? false,
+    requested: state.loading || state.result !== undefined,
+    run,
+  };
+}

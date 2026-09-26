@@ -146,8 +146,14 @@ function makeHeaders(
 export default function CsvImportWizard({
   onClose,
   onShowTransaction,
+  initialTarget,
 }: {
   onClose: () => void;
+  /**
+   * Where the rows land unless the user picks otherwise — set when the import
+   * is started from a wallet, which is then the obvious answer.
+   */
+  initialTarget?: { walletId: string; accountId?: string };
   /**
    * Open an existing transaction, so a row flagged as a duplicate can be
    * compared against the one it collides with instead of being taken on faith.
@@ -192,11 +198,14 @@ export default function CsvImportWizard({
   const [delimiter, setDelimiter] = useState<CsvDelimiter>(",");
   const [decimalSep, setDecimalSep] = useState<DecimalSeparator>(".");
   const [hasHeader, setHasHeader] = useState(true);
-  const [targetWallet, setTargetWallet] = useState(
-    portfolio.wallets[0]?.id ?? NEW,
-  );
+  const initialWallet =
+    portfolio.wallets.find((w) => w.id === initialTarget?.walletId) ??
+    portfolio.wallets[0];
+  const [targetWallet, setTargetWallet] = useState(initialWallet?.id ?? NEW);
   const [targetAccount, setTargetAccount] = useState(
-    portfolio.wallets[0]?.accounts[0]?.id ?? NEW,
+    initialWallet?.accounts.find((a) => a.id === initialTarget?.accountId)?.id ??
+      initialWallet?.accounts[0]?.id ??
+      NEW,
   );
   const [newWalletName, setNewWalletName] = useState("");
   const [newWalletType, setNewWalletType] = useState<WalletType>("exchange");

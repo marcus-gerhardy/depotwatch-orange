@@ -604,7 +604,15 @@ export default function AppShell() {
         {tab === "transactions" && (
           <TransactionsView initialFilter={txFilter} onOpenWallet={openWalletDetail} />
         )}
-        {tab === "wallets" && <WalletsView onOpenWallet={openWalletDetail} />}
+        {tab === "wallets" && (
+          <WalletsView
+            onOpenWallet={openWalletDetail}
+            onOpenTransactions={(filter) => {
+              setTxFilter(filter);
+              setTab("transactions");
+            }}
+          />
+        )}
         {tab === "walletDetail" && walletTarget && (
           <WalletDetailView
             target={walletTarget}
