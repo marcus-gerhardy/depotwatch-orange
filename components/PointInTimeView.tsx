@@ -18,7 +18,20 @@ import HelpButton from "./help/HelpButton";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
-import { periodBetween, portfolioAsOf, yearEndOptions } from "@/lib/pointInTime";
+import {
+  latestPointInTimeDay,
+  periodBetween,
+  portfolioAsOf,
+  yearEndOptions,
+} from "@/lib/pointInTime";
+import {
+  calendarDateOfInstant,
+  formatCalendarDate,
+  isCalendarDate,
+  parseCalendarDate,
+  startOfYear,
+  yearOf,
+} from "@/lib/dates";
 import { isLotTaxFree } from "@/lib/fifo";
 import { formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
@@ -33,12 +46,6 @@ import { DownloadIcon, WarnIcon } from "./icons";
 
 /** Open lots shown before "show more" — the same figure the tax view uses. */
 const PAGE_SIZE = 50;
-
-/** yyyy-mm-dd for a date input, in local time. */
-function inputValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 export default function PointInTimeView({
   /** Back to the tax page, which is where this view is reached from (§4.3). */
@@ -57,8 +64,10 @@ export default function PointInTimeView({
     () => (now ? yearEndOptions(entries, now) : []),
     [entries, now],
   );
-  const [date, setDate] = useState<string>(() =>
-    inputValue(yearEndOptions(entries)[0] ?? new Date()),
+  // Both ends are calendar dates, "YYYY-MM-DD" exactly as the date input
+  // gives them — never turned into a Date on the way (docs/dates.md).
+  const [date, setDate] = useState<string>(
+    () => yearEndOptions(entries)[0] ?? latestPointInTimeDay(),
   );
   /**
    * Optional start of a period (§4.3).
@@ -80,21 +89,13 @@ export default function PointInTimeView({
    */
   const [lotLimit, setLotLimit] = useState(PAGE_SIZE);
 
-  const chosen = useMemo(() => {
-    const parsed = new Date(`${date}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }, [date]);
-
-  const start = useMemo(() => {
-    if (fromDate === "") return null;
-    const parsed = new Date(`${fromDate}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }, [fromDate]);
+  const chosen = isCalendarDate(date) ? date : null;
+  const start = isCalendarDate(fromDate) ? fromDate : null;
 
   /** Set only while a period is asked for *and* it runs the right way round. */
   const period = useMemo(
     () =>
-      chosen && start && start.getTime() <= chosen.getTime()
+      chosen && start && start <= chosen
         ? periodBetween(entries, start, chosen, portfolio.settings.holdingPeriodDays)
         : null,
     [entries, start, chosen, portfolio.settings.holdingPeriodDays],
@@ -123,11 +124,14 @@ export default function PointInTimeView({
   const [loadingPrice, setLoadingPrice] = useState(false);
   const priceAt = useMemo(() => {
     if (!closes || !chosen) return null;
-    const day = Math.floor(chosen.getTime() / 86_400_000) * 86_400_000;
+    // Daily candles are keyed by their UTC day, so the chosen calendar day is
+    // looked up as that UTC day — no local zone involved.
+    const { year, month, day: d } = parseCalendarDate(chosen)!;
+    const day = Date.UTC(year, month - 1, d);
     // The closest close at or before that day: a weekend has no candle, and
     // the last price before it is what the coins were worth.
     let best: number | null = null;
-    for (const c of closes) if (c.time <= day + 86_400_000) best = c.close;
+    for (const c of closes) if (c.time <= day) best = c.close;
     return best;
   }, [closes, chosen]);
 
@@ -141,8 +145,8 @@ export default function PointInTimeView({
     const rows: string[][] = [
       ...(period
         ? [
-            [t("pit.from"), formatDate(period.from, loc)],
-            [t("pit.to"), formatDate(period.to, loc)],
+            [t("pit.from"), formatCalendarDate(period.fromDay, loc)],
+            [t("pit.to"), formatCalendarDate(period.toDay, loc)],
             [t("pit.opening"), de(period.opening.balanceBtc.toFixed(8))],
             [t("pit.closing"), de(period.closing.balanceBtc.toFixed(8))],
             [t("pit.change"), de(period.changeBtc.toFixed(8))],
@@ -151,7 +155,7 @@ export default function PointInTimeView({
             [t("tax.taxFreeGain"), de(period.realizedTaxFreeGainEur.toFixed(2))],
             [],
           ]
-        : [[t("pit.exportAsOf"), formatDate(at.asOf, loc)]]),
+        : [[t("pit.exportAsOf"), formatCalendarDate(at.day, loc)]]),
       [t("pit.holding"), de(at.balanceBtc.toFixed(8))],
       [t("pit.costBasis"), de(at.costBasisEur.toFixed(2))],
       ...(marketValue ? [[t("pit.marketValue"), de(marketValue.toFixed(2))]] : []),
@@ -168,7 +172,7 @@ export default function PointInTimeView({
         "Status",
       ],
       ...at.openLots.map((l) => [
-        l.acquiredDate.slice(0, 10),
+        calendarDateOfInstant(l.acquiredDate) ?? l.acquiredDate,
         l.walletName,
         l.accountName,
         de(l.remainingBtc.toFixed(8)),
@@ -201,8 +205,8 @@ export default function PointInTimeView({
   }
 
   const asOfLabel = period
-    ? `${formatDate(period.from, loc)} – ${formatDate(period.to, loc)}`
-    : formatDate(at.asOf, loc);
+    ? `${formatCalendarDate(period.fromDay, loc)} – ${formatCalendarDate(period.toDay, loc)}`
+    : formatCalendarDate(at.day, loc);
 
   return (
     <div className="space-y-4">
@@ -303,10 +307,10 @@ export default function PointInTimeView({
       <p className="rounded-lg border border-accent/40 bg-accent/5 p-3 text-sm leading-relaxed text-accent print:hidden">
         {period
           ? t("pit.bannerPeriod", {
-              from: formatDate(period.from, loc),
-              to: formatDate(period.to, loc),
+              from: formatCalendarDate(period.fromDay, loc),
+              to: formatCalendarDate(period.toDay, loc),
             })
-          : t("pit.banner", { date: formatDate(at.asOf, loc) })}
+          : t("pit.banner", { date: formatCalendarDate(at.day, loc) })}
       </p>
 
       <Card className="space-y-3 print:hidden">
@@ -331,7 +335,7 @@ export default function PointInTimeView({
               type="date"
               className={inputCls}
               value={date}
-              max={inputValue(new Date())}
+              max={latestPointInTimeDay(now ?? undefined)}
               onChange={(e) => setDate(e.target.value)}
             />
           </label>
@@ -346,18 +350,18 @@ export default function PointInTimeView({
                   one click rather than a date to type. */}
               {yearEnds.slice(0, 6).map((d) => (
                 <Button
-                  key={d.getFullYear()}
-                  variant={date === inputValue(d) ? "primary" : "default"}
+                  key={d}
+                  variant={date === d ? "primary" : "default"}
                   className="px-2 py-1 text-xs"
                   onClick={() => {
-                    setDate(inputValue(d));
+                    setDate(d);
                     // A year is asked about as a whole far more often than as
                     // its last instant, so picking one sets both ends — and
                     // the period cards can still be dropped with one click.
-                    setFromDate(inputValue(new Date(d.getFullYear(), 0, 1)));
+                    setFromDate(startOfYear(yearOf(d)));
                   }}
                 >
-                  {d.getFullYear()}
+                  {yearOf(d)}
                 </Button>
               ))}
             </div>

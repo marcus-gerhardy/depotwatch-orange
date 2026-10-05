@@ -19,6 +19,7 @@ const SOURCE_LABEL: Record<WidgetDataSource, string> = {
   price: "dashboard.widgets.sources.price",
   priceHistory: "dashboard.widgets.sources.priceHistory",
   explorer: "dashboard.widgets.sources.explorer",
+  news: "dashboard.widgets.sources.news",
 };
 
 export default function WidgetPicker({

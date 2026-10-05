@@ -13,6 +13,7 @@
 // work out *when* a milestone was reached when it meets a file that already
 // has years of history in it (see `achievedAtOf`).
 
+import { serializeInstant, startOfCalendarDate, startOfYear, yearOfInstant } from "./dates";
 import { Decimal, dec, ZERO } from "./decimal";
 import { SATS_PER_BTC } from "./displayUnit";
 import { isLotTaxFree, type FifoResult } from "./fifo";
@@ -405,7 +406,8 @@ export const MILESTONES: MilestoneDefinition[] = [
     reached: (ctx) => closedTaxYear(ctx) !== null,
     achievedAt: (ctx) => {
       const year = closedTaxYear(ctx);
-      return year === null ? null : `${year + 1}-01-01T00:00:00.000Z`;
+      // The moment the tax year ended: midnight in the reference zone.
+      return year === null ? null : serializeInstant(startOfCalendarDate(startOfYear(year + 1)));
     },
   },
 
@@ -507,16 +509,15 @@ function firstConsolidation(ctx: MilestoneContext): LedgerEntry | null {
 
 /** The most recent calendar year that is over, had disposals, and is complete. */
 function closedTaxYear(ctx: MilestoneContext): number | null {
-  const currentYear = ctx.now.getFullYear();
+  // Tax years, cut in the reference zone like everywhere else (docs/dates.md).
+  const currentYear = yearOfInstant(ctx.now)!;
   const years = new Set(
     ctx.fifo.disposals
-      .map((d) => new Date(d.date).getFullYear())
-      .filter((y) => y < currentYear),
+      .map((d) => yearOfInstant(d.date))
+      .filter((y): y is number => y !== null && y < currentYear),
   );
   for (const year of [...years].sort((a, b) => b - a)) {
-    const ofYear = ctx.fifo.disposals.filter(
-      (d) => new Date(d.date).getFullYear() === year,
-    );
+    const ofYear = ctx.fifo.disposals.filter((d) => yearOfInstant(d.date) === year);
     // "Closed" means the engine could account for all of it: nothing left
     // uncovered, no disposal resting on an unresolved origin.
     if (

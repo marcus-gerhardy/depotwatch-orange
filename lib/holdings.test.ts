@@ -101,9 +101,7 @@ describe("computeHolding", () => {
       h.openLotsBtc.toString(),
     );
     // The lot with no traceable origin is never dated from its arrival.
-    expect(h.nextTaxFreeDate?.toISOString()).toBe(
-      new Date("2026-12-02T00:00:00Z").toISOString(),
-    );
+    expect(h.nextTaxFreeDay).toBe("2026-12-02");
   });
 
   it("values the cost basis over the BTC it covers, not the whole holding", () => {

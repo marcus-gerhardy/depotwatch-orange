@@ -14,6 +14,7 @@
 // file is opened on and comes back for the next year, which is a different
 // year and a different review.
 
+import { yearOfInstant } from "@/lib/dates";
 import { useDashboardData } from "./widgets/context";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
@@ -37,7 +38,7 @@ export default function YearInReviewHint() {
   if (now === null || now.getMonth() >= HINT_MONTHS) return null;
   // Only the year that has just ended, and only when it has something in it.
   const year = latestReviewYear(entries, now);
-  if (year === null || year !== now.getFullYear() - 1) return null;
+  if (year === null || year !== yearOfInstant(now)! - 1) return null;
   if ((dismissed ?? []).includes(year)) return null;
 
   return (

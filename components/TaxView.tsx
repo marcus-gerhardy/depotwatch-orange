@@ -6,6 +6,7 @@ import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { flattenLedger } from "@/lib/types";
 import { computeFifo, daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
+import { calendarDateOfInstant, formatCalendarDate, yearOfInstant } from "@/lib/dates";
 import { dec, formatFiat } from "@/lib/decimal";
 import { useAmountFormat } from "@/lib/displayUnit";
 import { downloadAsFile } from "@/lib/fileStorage";
@@ -51,7 +52,11 @@ export default function TaxView({
   );
 
   const years = useMemo(() => {
-    const ys = new Set(fifo.disposals.map((d) => new Date(d.date).getFullYear()));
+    // Tax years are cut in the reference zone (docs/dates.md): a sale at 00:30
+    // on 1 January in Berlin belongs to the new year wherever it is viewed.
+    const ys = new Set(
+      fifo.disposals.map((d) => yearOfInstant(d.date)).filter((y): y is number => y !== null),
+    );
     return [...ys].sort((a, b) => b - a);
   }, [fifo.disposals]);
   const [year, setYear] = useState<string>("");
@@ -67,7 +72,7 @@ export default function TaxView({
   const disposals = useMemo(
     () =>
       fifo.disposals
-        .filter((d) => !year || new Date(d.date).getFullYear() === Number(year))
+        .filter((d) => !year || yearOfInstant(d.date) === Number(year))
         .sort((a, b) => b.date.localeCompare(a.date)),
     [fifo.disposals, year],
   );
@@ -100,7 +105,7 @@ export default function TaxView({
       t("tax.cost"), t("tax.gain"), t("tax.taxableGain"), t("tax.taxFreeGain"),
     ];
     const lines = disposals.map((d) => [
-      d.date.slice(0, 10),
+      calendarDateOfInstant(d.date) ?? d.date,
       t(`tx.types.${d.type}`),
       de(d.amountBtc.toFixed(8)),
       de(d.proceedsEur.toFixed(2)),
@@ -272,7 +277,7 @@ export default function TaxView({
                       {/* An unresolved origin leaves the arrival date as the
                           only date there is, and that one says nothing about
                           a holding period (CLAUDE.md §3.2). */}
-                      {lot.originUnresolved ? "?" : formatDate(lot.taxFreeDate, loc)}
+                      {lot.originUnresolved ? "?" : formatCalendarDate(lot.taxFreeDay, loc)}
                     </td>
                     <td className="py-2 pr-4 whitespace-nowrap">
                       {lot.originUnresolved ? (

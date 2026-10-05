@@ -6,6 +6,7 @@ import type { MilestoneRecord } from "./milestones";
 import type { BackupSettings, BackupState } from "./backup";
 import type { ChangeLogEntry } from "./changeLog";
 import type { IntegrityStamp } from "./integrity";
+import type { NewsSettings } from "./news/types";
 import { DEFAULT_THEME, type ThemeId, type ThemeMode } from "./theme";
 
 export type WalletType = "exchange" | "hardware" | "software" | "paper";
@@ -368,7 +369,12 @@ export interface AppSettings {
 export interface SavingsGoal {
   /** Target holding in BTC, as a decimal string like every other amount. */
   targetBtc: string;
-  /** Optional ISO date the target is meant for. */
+  /**
+   * Optional day the target is meant for — a calendar date, "YYYY-MM-DD",
+   * never an instant (docs/dates.md). Older files may hold a full ISO instant
+   * here; `readStoredCalendarDate` reads those, `lib/calendarDateRepair.ts`
+   * offers to rewrite them.
+   */
   targetDate?: string;
 }
 
@@ -432,6 +438,17 @@ export interface UiSettings {
    * year and a new review.
    */
   yearInReviewDismissed?: number[];
+  /**
+   * The news widget (docs/news.md): whether the user agreed that it may contact
+   * external sources at all, which sources are on, and the feeds they added
+   * themselves. Here rather than in `settings` because it is a choice about
+   * the interface, and in the file rather than in the browser so the same
+   * sources travel with the portfolio.
+   *
+   * Absent means no consent given, which is what makes "off" the default
+   * state: with none, nothing is ever requested.
+   */
+  news?: NewsSettings;
 }
 
 export interface PortfolioFile {

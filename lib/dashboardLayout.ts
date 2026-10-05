@@ -128,14 +128,30 @@ const DEFAULT_BANDS: LayoutBand[] = [
   //     market is here rather than among the ambient facts below — it is a
   //     figure about this portfolio, not about the chain.
   { h: 6, widgets: [["milestones", 4], ["yearInReview", 4], ["timeInMarket", 4]] },
-  // 12. Ambient chain facts. Interesting, rarely urgent, and true for
-  //     everybody — nothing here reads the ledger.
+  // 12.–13. The world outside this portfolio: what the chain is doing, and
+  //     what is being written about it. Interesting, rarely urgent, true for
+  //     everybody, and the only tiles here that read no ledger at all — which
+  //     is why they are last. News sits among them rather than higher up for
+  //     exactly that reason: it is the one tile whose subject is not this
+  //     portfolio, and a headline above somebody's own figures would claim a
+  //     priority it does not have.
+  //
+  //     Two rows of two rather than one row of four: the news tile carries a
+  //     list of headlines, and at three columns a headline is two words and an
+  //     ellipsis. Six columns is the width at which it is readable, and the
+  //     three chain tiles are perfectly legible at six as well.
   {
-    h: 6,
+    h: 7,
     widgets: [
-      ["networkFees", 4],
-      ["halving", 4],
-      ["blockClock", 4],
+      ["news", 6],
+      ["halving", 6],
+    ],
+  },
+  {
+    h: 5,
+    widgets: [
+      ["networkFees", 6],
+      ["blockClock", 6],
     ],
   },
 ];

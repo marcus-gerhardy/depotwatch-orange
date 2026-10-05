@@ -9,8 +9,7 @@ import { useAppStore } from "@/lib/store";
 import { isGenesisDay, isRunningBitcoinDay } from "@/lib/easterEggs";
 import { staticPagePath } from "@/lib/routes";
 import BrandMark from "./BrandMark";
-
-const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
+import { REPOSITORY_URL } from "@/lib/site";
 
 export default function Footer() {
   const { t, locale } = useAppLocale();
@@ -50,7 +49,7 @@ export default function Footer() {
         )}
         <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <a
-            href={GITHUB_URL}
+            href={REPOSITORY_URL}
             target="_blank"
             rel="noopener noreferrer"
             className={linkCls}

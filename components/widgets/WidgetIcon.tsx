@@ -171,6 +171,17 @@ const DRAWINGS: Record<string, ReactNode> = {
       <path d="M8.5 17.5 11 14l2 1.8 3-4.3" />
     </>
   ),
+  // A folded newspaper: the masthead block, a column of text, and the fold.
+  // Not a bell and not a megaphone — this widget informs, it does not announce
+  // (docs/news.md).
+  news: (
+    <>
+      <rect x="3" y="5" width="15" height="14" rx="1.5" />
+      <path d="M18 8.5h2.5a.5.5 0 0 1 .5.5v8a2 2 0 0 1-2 2h-1" />
+      <rect x="5.5" y="7.5" width="5" height="4" rx="0.5" />
+      <path d="M12.5 8h3M12.5 11h3M5.5 14h10M5.5 16.5h10" />
+    </>
+  ),
   // A flag on a rise: a target one is walking towards. Not a trophy and not a
   // podium — nothing here is a competition (§4.4).
   savingsGoal: (

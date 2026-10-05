@@ -14,12 +14,15 @@ import { dailyValueSeries } from "@/lib/portfolio";
 import { feeTotals, maxDrawdown, timeInMarket } from "@/lib/dashboardStats";
 import { MILESTONES } from "@/lib/milestones";
 import { daysUntilTaxFree, isLotTaxFree } from "@/lib/fifo";
+import { formatCalendarDate, type CalendarDate } from "@/lib/dates";
 import { countIssues, DATA_ISSUES } from "@/lib/dataQuality";
 import { feeAllocationGaps } from "@/lib/feeAllocation";
 import { useEasterEggs } from "@/lib/easterEggs";
 import type { WalletType } from "@/lib/types";
 import MilestoneIcon from "../MilestoneIcon";
 import FeeRepairDialog from "../FeeRepairDialog";
+import CalendarDateRepairDialog from "../CalendarDateRepairDialog";
+import { findCalendarDateIssues } from "@/lib/calendarDateRepair";
 import { Amount, PnlValue } from "../ui";
 import { useDashboardData } from "./context";
 import { CheckIcon, KeyIcon, StarIcon, WarnIcon } from "../icons";
@@ -290,7 +293,7 @@ export function HoldingPeriodWidget() {
     let free = ZERO;
     let pending = ZERO;
     let unresolved = ZERO;
-    const upcoming: { date: Date; btc: Decimal; days: number }[] = [];
+    const upcoming: { day: CalendarDate; btc: Decimal; days: number }[] = [];
     for (const lot of fifo.openLots) {
       // Lots whose origin could not be traced have an arrival date, not an
       // acquisition date — they get counted, never dated (CLAUDE.md §3.2).
@@ -304,13 +307,11 @@ export function HoldingPeriodWidget() {
       }
       pending = pending.plus(lot.remainingBtc);
       const days = daysUntilTaxFree(lot, now);
-      const existing = upcoming.find(
-        (u) => u.date.getTime() === lot.taxFreeDate.getTime(),
-      );
+      const existing = upcoming.find((u) => u.day === lot.taxFreeDay);
       if (existing) existing.btc = existing.btc.plus(lot.remainingBtc);
-      else upcoming.push({ date: lot.taxFreeDate, btc: lot.remainingBtc, days });
+      else upcoming.push({ day: lot.taxFreeDay, btc: lot.remainingBtc, days });
     }
-    upcoming.sort((a, b) => a.date.getTime() - b.date.getTime());
+    upcoming.sort((a, b) => a.day.localeCompare(b.day));
     return { free, pending, unresolved, upcoming };
     // `now` is intentionally not a dependency: a new Date on every render would
     // recompute forever. Day-level accuracy is enough here.
@@ -356,8 +357,8 @@ export function HoldingPeriodWidget() {
           </thead>
           <tbody>
             {upcoming.slice(0, 12).map((u) => (
-              <tr key={u.date.getTime()} className="border-b border-border-c/40 last:border-0">
-                <td className="py-1 pr-2 whitespace-nowrap">{formatDate(u.date, loc)}</td>
+              <tr key={u.day} className="border-b border-border-c/40 last:border-0">
+                <td className="py-1 pr-2 whitespace-nowrap">{formatCalendarDate(u.day, loc)}</td>
                 <td className="py-1 pr-2 text-right font-mono whitespace-nowrap">
                   <Amount>{fmtAmountPlain(u.btc)}</Amount>
                 </td>
@@ -386,6 +387,15 @@ export function DataQualityWidget() {
   // than a place to go and decide something.
   const feeGaps = useMemo(() => feeAllocationGaps(entries), [entries]);
   const [repairing, setRepairing] = useState(false);
+  // Calendar dates an earlier version stored as instants (docs/dates.md):
+  // shown here because a day that quietly moved is a data-quality issue, and
+  // corrected only through the dialog's preview and confirmation.
+  const portfolio = useAppStore((s) => s.portfolio);
+  const calendarIssues = useMemo(
+    () => (portfolio ? findCalendarDateIssues(portfolio) : []),
+    [portfolio],
+  );
+  const [repairingDates, setRepairingDates] = useState(false);
   // The backup state belongs here rather than in a tile of its own: "can this
   // file be trusted" and "does it still exist tomorrow" are the same question
   // asked twice (§6.5).
@@ -448,6 +458,26 @@ export function DataQualityWidget() {
       {repairing &&
         createPortal(
           <FeeRepairDialog onClose={() => setRepairing(false)} />,
+          document.body,
+        )}
+
+      {calendarIssues.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-[0.65rem] leading-relaxed text-warning">
+          <p>
+            <WarnIcon /> {t("calendarRepair.widgetLine", { count: calendarIssues.length })}
+          </p>
+          <button
+            type="button"
+            className="mt-1 font-medium text-accent hover:underline"
+            onClick={() => setRepairingDates(true)}
+          >
+            {t("calendarRepair.open")} →
+          </button>
+        </div>
+      )}
+      {repairingDates &&
+        createPortal(
+          <CalendarDateRepairDialog onClose={() => setRepairingDates(false)} />,
           document.body,
         )}
 

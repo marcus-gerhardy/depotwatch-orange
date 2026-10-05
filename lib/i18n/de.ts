@@ -280,6 +280,7 @@ const de = {
         ledger: "nur lokale Daten",
         price: "Kurs (Binance)",
         priceHistory: "Kurshistorie (Binance)",
+        news: "Nachrichten-Feeds",
         explorer: "Explorer",
       },
       change24h: "24 Std.",
@@ -457,6 +458,11 @@ const de = {
       halvingBlock: "Halving bei Block",
       halvingEstimateHint:
         "Schätzung auf Basis von zehn Minuten pro Block. Die tatsächliche Dauer hängt von der Hashrate ab.",
+      news: {
+        title: "Nachrichten",
+        description:
+          "Schlagzeilen aus den Feeds ausgewählter Quellen, rein chronologisch. Muss einmalig bestätigt werden.",
+      },
       savingsGoal: {
         title: "Sparziel",
         description: "Fortschritt zu deinem Sparziel, ohne Bewertung.",
@@ -832,6 +838,33 @@ const de = {
       "Das Backup ist fehlgeschlagen: {reason} Die Korrektur wurde deshalb nicht ausgeführt.",
     done: "{count} Transaktionen korrigiert.",
     nothingToDo: "Hier ist nichts zu tun: Alle Abgänge decken Menge und Gebühr ab.",
+  },
+  calendarRepair: {
+    title: "Kalenderdaten korrigieren",
+    intro:
+      "Eine frühere Version hat Kalenderdaten (Zieldatum des Sparziels, Datum der Backup-Prüfung) als Zeitpunkt in UTC gespeichert. Je nach Zeitzone wurde dadurch der Vortag angezeigt, und jedes erneute Speichern hat das Datum um einen weiteren Tag verschoben. Die Korrektur speichert diese Werte als reines Datum. Transaktionszeitpunkte werden nicht verändert.",
+    widgetLine: "Kalenderdaten möglicherweise um einen Tag verschoben: {count}",
+    goalHint:
+      "Das Zieldatum ist noch im alten Format gespeichert und wurde je nach Zeitzone um einen Tag verschoben angezeigt.",
+    open: "Ansehen und korrigieren",
+    field: "Feld",
+    stored: "Gespeichert",
+    shownBefore: "Bisher angezeigt",
+    corrected: "Nach der Korrektur",
+    shifted: "anderer Tag",
+    formatOnly: "nur Format",
+    fields: {
+      savingsGoalTargetDate: "Sparziel: Zieldatum",
+      walletBackupCheckedAt: "Backup geprüft am",
+    },
+    assumption:
+      "Der korrigierte Tag ist der Kalendertag des gespeicherten Zeitpunkts in Ihrer aktuellen Zeitzone. Haben Sie den Wert in einer anderen Zeitzone eingegeben oder nach der Verschiebung erneut gespeichert, prüfen Sie das Datum anschließend und passen Sie es bei Bedarf an.",
+    apply: "Backup anlegen und korrigieren",
+    applyAnyway: "Ohne Backup korrigieren",
+    backupFailed:
+      "Das Backup ist fehlgeschlagen: {reason} Die Korrektur wurde deshalb nicht ausgeführt.",
+    done: "{count} Kalenderdaten korrigiert.",
+    nothingToDo: "Hier ist nichts zu tun: Alle Kalenderdaten sind als reines Datum gespeichert.",
   },
   arcade: {
     title: "Block Stacker",
@@ -2098,6 +2131,81 @@ const de = {
     disclaimer:
       "Erstellt mit DepotWatch Orange aus der oben genannten Portfolio-Datei. Unverbindlich und ohne Gewähr; ersetzt keine Steuerberatung.",
   },
+  news: {
+    languages: {
+      de: "Deutsch",
+      en: "Englisch",
+    },
+    widget: {
+      consentTitle: "Nachrichten aktivieren?",
+      consentBody:
+        "Dieses Widget lädt Schlagzeilen aus den Feeds der ausgewählten Anbieter. Dafür baut die App Verbindungen zu diesen Anbietern auf. Alles andere in DepotWatch bleibt davon unberührt: Es werden keine Portfoliodaten, Adressen oder sonstigen Angaben über dich übertragen.",
+      consentDetail:
+        "Gespeichert und angezeigt werden nur Überschrift, Quelle, Zeitpunkt, Link und der Anriss, den der Feed selbst liefert. Jeder Eintrag verlinkt auf das Original.",
+      consentAccept: "Verbindungen erlauben",
+      consentManage: "Quellen ansehen",
+      empty: "Keine Quelle aktiv. In den Einstellungen lässt sich das ändern.",
+      emptyItems: "Noch keine Meldungen geladen.",
+      refresh: "Jetzt aktualisieren",
+      asOf: "Stand {time}",
+      never: "noch nicht geladen",
+      offline: "offline, zuletzt geladene Meldungen",
+      noDate: "ohne Datum",
+      unreachable: "Nicht erreichbar: {sources}",
+      noProxy:
+        "Diese Installation ist rein statisch und hat keinen Feed-Proxy. Feeds senden keine CORS-Header, deshalb kann der Browser sie nicht direkt lesen.",
+      mute: "{source} ausblenden",
+      manage: "Quellen verwalten",
+      openOriginal: "Zum Original bei {source}",
+    },
+    settings: {
+      title: "Nachrichten",
+      intro:
+        "Ein optionales Dashboard-Widget mit Schlagzeilen aus RSS- und Atom-Feeds. Standardmäßig inaktiv: Solange nichts bestätigt ist, baut die App keine Verbindung zu einem Anbieter auf.",
+      enabled: "Nachrichten erlauben",
+      enabledHint:
+        "Erlaubt dem Widget, die Feeds der aktiven Quellen zu laden. Übertragen wird dabei nichts außer der Feed-Adresse.",
+      consentedAt: "Bestätigt am {date}",
+      notConsented: "Noch nicht bestätigt.",
+      sourcesTitle: "Quellen",
+      sourcesIntro:
+        "Die Vorauswahl folgt der eingestellten Sprache. Jede Quelle lässt sich einzeln ein- und ausschalten, und diese Entscheidung bleibt auch beim Sprachwechsel bestehen.",
+      website: "Website",
+      terms: "Nutzungsbedingungen",
+      defaultOff: "standardmäßig aus",
+      otherLanguage: "andere Sprache",
+      customTitle: "Eigene Feeds",
+      customIntro:
+        "Adresse eines RSS- oder Atom-Feeds. Nur HTTPS oder HTTP, keine Adressen im lokalen Netz.",
+      customName: "Name",
+      customNamePlaceholder: "z. B. Blog von jemandem",
+      customUrl: "Feed-Adresse",
+      customAdd: "Feed hinzufügen",
+      customRemove: "Entfernen",
+      customEmpty: "Noch keine eigenen Feeds.",
+      customNameRequired: "Bitte einen Namen angeben.",
+      transportTitle: "Abruf",
+      transportProxy:
+        "Diese Installation hat einen Feed-Proxy ({path}). Die Feeds werden vom Server geladen, die Anbieter sehen deine IP-Adresse nicht.",
+      transportDirect:
+        "Diese Installation hat keinen Feed-Proxy. Feeds werden direkt aus dem Browser geladen, sofern der Anbieter das erlaubt (CORS), und deine IP-Adresse ist für ihn sichtbar. Ein Proxy entsteht mit dem Server-Build (siehe docs/deployment.md).",
+      forgetCached: "Zuletzt geladene Meldungen vergessen",
+      forgetCachedHint:
+        "Löscht die für den Offline-Betrieb gespeicherten Schlagzeilen aus diesem Browser.",
+      forgetCachedDone: "Gelöscht.",
+      urlProblem: {
+        empty: "Bitte eine Adresse angeben.",
+        notAUrl: "Das ist keine gültige Adresse.",
+        scheme: "Nur http und https sind erlaubt.",
+        credentials: "Die Adresse darf keine Zugangsdaten enthalten.",
+        port: "Nur die Standardports 80 und 443 sind erlaubt.",
+        privateHost: "Adressen im lokalen Netz sind nicht erlaubt.",
+        tooLong: "Die Adresse ist zu lang.",
+        duplicate: "Dieser Feed ist bereits in der Liste.",
+      },
+    },
+  },
+
   settings: {
     title: "Einstellungen",
     nav: {
@@ -2107,6 +2215,7 @@ const de = {
       backups: "Backups",
       history: "Änderungsverlauf",
       import: "Import",
+      news: "Nachrichten",
       tax: "Steuer",
       explorer: "Explorer",
     },

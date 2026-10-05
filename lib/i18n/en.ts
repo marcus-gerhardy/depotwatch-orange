@@ -284,6 +284,7 @@ const en: typeof de = {
         ledger: "local only",
         price: "price (Binance)",
         priceHistory: "price history (Binance)",
+        news: "news feeds",
         explorer: "explorer",
       },
       change24h: "24 h",
@@ -459,6 +460,11 @@ const en: typeof de = {
       halvingBlock: "Halving at block",
       halvingEstimateHint:
         "Estimated from ten minutes per block. The real duration depends on the hash rate.",
+      news: {
+        title: "News",
+        description:
+          "Headlines from the feeds of selected publishers, strictly chronological. Has to be confirmed once.",
+      },
       savingsGoal: {
         title: "Savings goal",
         description: "Progress towards your savings target, without a verdict.",
@@ -829,6 +835,32 @@ const en: typeof de = {
       "The backup failed: {reason} The repair was therefore not carried out.",
     done: "{count} transactions repaired.",
     nothingToDo: "Nothing to do here: every outgoing transaction covers amount and fee.",
+  },
+  calendarRepair: {
+    title: "Correct calendar dates",
+    intro:
+      "An earlier version stored calendar dates (the savings goal's target date, the date a backup was checked) as a moment in UTC. Depending on the time zone, the day before was shown, and every save moved the date back by another day. The correction stores these values as plain dates. Transaction timestamps are not changed.",
+    widgetLine: "Calendar dates possibly off by one day: {count}",
+    goalHint:
+      "The target date is still stored in the old format and may have been shown one day off, depending on the time zone.",
+    open: "Review and correct",
+    field: "Field",
+    stored: "Stored",
+    shownBefore: "Shown so far",
+    corrected: "After correction",
+    shifted: "different day",
+    formatOnly: "format only",
+    fields: {
+      savingsGoalTargetDate: "Savings goal: target date",
+      walletBackupCheckedAt: "Backup checked on",
+    },
+    assumption:
+      "The corrected day is the calendar day of the stored moment in your current time zone. If you entered the value in another time zone, or saved it again after it had shifted, check the date afterwards and adjust it if needed.",
+    apply: "Create backup and correct",
+    applyAnyway: "Correct without backup",
+    backupFailed: "The backup failed: {reason} The correction was therefore not applied.",
+    done: "{count} calendar dates corrected.",
+    nothingToDo: "Nothing to do here: all calendar dates are stored as plain dates.",
   },
   arcade: {
     title: "Block Stacker",
@@ -2084,6 +2116,81 @@ const en: typeof de = {
     disclaimer:
       "Produced with DepotWatch Orange from the portfolio file named above. Without warranty, and no substitute for tax advice.",
   },
+  news: {
+    languages: {
+      de: "German",
+      en: "English",
+    },
+    widget: {
+      consentTitle: "Turn news on?",
+      consentBody:
+        "This widget loads headlines from the feeds of the publishers you select, which means the app opens connections to them. Nothing else about DepotWatch changes: no portfolio data, no addresses and nothing else about you is ever sent.",
+      consentDetail:
+        "Only the headline, the publisher, the time, the link and the excerpt the feed itself provides are shown or kept. Every entry links to the original.",
+      consentAccept: "Allow connections",
+      consentManage: "Look at the sources",
+      empty: "No source is on. The settings are where that changes.",
+      emptyItems: "Nothing loaded yet.",
+      refresh: "Refresh now",
+      asOf: "As of {time}",
+      never: "not loaded yet",
+      offline: "offline, showing what was loaded last",
+      noDate: "no date",
+      unreachable: "Could not be reached: {sources}",
+      noProxy:
+        "This installation is a plain static build and has no feed proxy. Feeds send no CORS headers, so a browser cannot read them directly.",
+      mute: "Hide {source}",
+      manage: "Manage sources",
+      openOriginal: "Read the original at {source}",
+    },
+    settings: {
+      title: "News",
+      intro:
+        "An optional dashboard widget showing headlines from RSS and Atom feeds. Off by default: as long as nothing is confirmed, the app opens no connection to any publisher.",
+      enabled: "Allow news",
+      enabledHint:
+        "Lets the widget load the feeds of the sources that are on. Nothing but the feed address is ever sent.",
+      consentedAt: "Confirmed on {date}",
+      notConsented: "Not confirmed yet.",
+      sourcesTitle: "Sources",
+      sourcesIntro:
+        "The preselection follows the interface language. Every source can be switched on or off on its own, and that decision survives a change of language.",
+      website: "Website",
+      terms: "Terms of use",
+      defaultOff: "off by default",
+      otherLanguage: "another language",
+      customTitle: "Your own feeds",
+      customIntro:
+        "The address of an RSS or Atom feed. HTTPS or HTTP only, and no addresses inside a local network.",
+      customName: "Name",
+      customNamePlaceholder: "for example somebody's blog",
+      customUrl: "Feed address",
+      customAdd: "Add feed",
+      customRemove: "Remove",
+      customEmpty: "No feeds of your own yet.",
+      customNameRequired: "Please give it a name.",
+      transportTitle: "How feeds are fetched",
+      transportProxy:
+        "This installation has a feed proxy ({path}). The feeds are loaded by the server, so the publishers never see your IP address.",
+      transportDirect:
+        "This installation has no feed proxy. Feeds are loaded straight from the browser where the publisher allows it (CORS), and your IP address is visible to them. The server build adds a proxy (see docs/deployment.md).",
+      forgetCached: "Forget the headlines loaded last",
+      forgetCachedHint:
+        "Drops the headlines this browser kept for offline use.",
+      forgetCachedDone: "Done.",
+      urlProblem: {
+        empty: "Please enter an address.",
+        notAUrl: "That is not a valid address.",
+        scheme: "Only http and https are allowed.",
+        credentials: "The address must not carry credentials.",
+        port: "Only the standard ports 80 and 443 are allowed.",
+        privateHost: "Addresses inside a local network are not allowed.",
+        tooLong: "The address is too long.",
+        duplicate: "That feed is already in the list.",
+      },
+    },
+  },
+
   settings: {
     title: "Settings",
     nav: {
@@ -2093,6 +2200,7 @@ const en: typeof de = {
       backups: "Backups",
       history: "Change history",
       import: "Import",
+      news: "News",
       tax: "Tax",
       explorer: "Explorer",
     },

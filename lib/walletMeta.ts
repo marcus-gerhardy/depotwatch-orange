@@ -7,6 +7,7 @@
 // split between wallets, when a backup check is due, and in which order the
 // wallets stand.
 
+import { addCalendarDays, localTimeZone, readStoredCalendarDate, todayCalendarDate } from "./dates";
 import { Decimal, ZERO } from "./decimal";
 import { hasIssue, issueContext, type DataIssue } from "./dataQuality";
 import { dailyBalanceSeries } from "./portfolio";
@@ -153,11 +154,6 @@ export type BackupStatus =
   | { kind: "ok"; checkedAt: string; dueAt: string | null }
   | { kind: "due"; checkedAt: string; dueAt: string };
 
-function addDays(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate.slice(0, 10)}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Where a wallet's backup check stands. "Due" only when the owner asked to be
@@ -170,10 +166,15 @@ export function backupStatus(
 ): BackupStatus {
   if (!hasSeedBackup(w.type)) return { kind: "notApplicable" };
   if (!w.backupCheckedAt) return { kind: "never" };
-  const checkedAt = w.backupCheckedAt.slice(0, 10);
+  // A calendar date ("YYYY-MM-DD", docs/dates.md); a legacy instant is read
+  // as its local day.
+  const checkedAt = readStoredCalendarDate(w.backupCheckedAt);
+  if (checkedAt === null) return { kind: "never" };
   if (!w.backupReminder) return { kind: "ok", checkedAt, dueAt: null };
-  const dueAt = addDays(checkedAt, BACKUP_CHECK_INTERVAL_DAYS);
-  return now.toISOString().slice(0, 10) >= dueAt
+  const dueAt = addCalendarDays(checkedAt, BACKUP_CHECK_INTERVAL_DAYS);
+  // Today as the user's own calendar shows it — not the UTC date, which is
+  // still yesterday in Berlin until 01:00 or 02:00.
+  return todayCalendarDate(now, localTimeZone()) >= dueAt
     ? { kind: "due", checkedAt, dueAt }
     : { kind: "ok", checkedAt, dueAt };
 }

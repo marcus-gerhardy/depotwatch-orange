@@ -8,13 +8,10 @@
 // in the build.
 //
 // The schema is the source of truth: `config/import-presets/schema.json`, read
-// at run time by the small validator below rather than restated in JavaScript.
-// The subset it implements is exactly what that schema uses (type, enum,
-// const, required, properties, additionalProperties, propertyNames,
-// minProperties, items, minItems, uniqueItems, minLength, maxLength, pattern,
-// $ref into $defs). `lib/importPresetFile.test.ts` holds the schema and the
-// app's own validator to the same enums, so a value the build accepts can
-// never be one the app refuses.
+// at run time by the shared validator in `scripts/lib/json-schema.mjs` rather
+// than restated in JavaScript. `lib/importPresetFile.test.ts` holds the schema
+// and the app's own validator to the same enums, so a value the build accepts
+// can never be one the app refuses.
 //
 // On top of the schema come the checks a schema cannot express: ids unique
 // across files, file name matching the id, `fixedType` not competing with a
@@ -22,104 +19,11 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { validate } from "./lib/json-schema.mjs";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const DIR = join(ROOT, "config", "import-presets");
 const SCHEMA_FILE = "schema.json";
-
-// ---------------------------------------------------------------------------
-// Minimal JSON-Schema validator (the subset schema.json uses)
-// ---------------------------------------------------------------------------
-
-function resolveRef(ref, schema) {
-  if (!ref.startsWith("#/")) throw new Error(`unsupported $ref: ${ref}`);
-  return ref
-    .slice(2)
-    .split("/")
-    .reduce((node, key) => node[key], schema);
-}
-
-function typeOf(value) {
-  if (Array.isArray(value)) return "array";
-  if (value === null) return "null";
-  if (Number.isInteger(value)) return "integer";
-  return typeof value;
-}
-
-function matchesType(value, expected) {
-  const actual = typeOf(value);
-  if (expected === "number") return actual === "number" || actual === "integer";
-  if (expected === "integer") return actual === "integer";
-  return actual === expected;
-}
-
-/** Collect every violation (not just the first): a contributor wants the list. */
-function validate(value, node, root, path, errors) {
-  if (node.$ref) {
-    validate(value, resolveRef(node.$ref, root), root, path, errors);
-    // A sibling of $ref (description) carries no constraints in this schema.
-  }
-
-  if (node.const !== undefined && value !== node.const) {
-    errors.push(`${path || "/"}: must be ${JSON.stringify(node.const)}`);
-    return;
-  }
-  if (node.enum && !node.enum.includes(value)) {
-    errors.push(`${path || "/"}: must be one of ${node.enum.map((v) => JSON.stringify(v)).join(", ")}`);
-    return;
-  }
-  if (node.type && !matchesType(value, node.type)) {
-    errors.push(`${path || "/"}: expected ${node.type}, got ${typeOf(value)}`);
-    return;
-  }
-
-  if (typeof value === "string") {
-    if (node.minLength !== undefined && value.length < node.minLength) {
-      errors.push(`${path}: shorter than ${node.minLength} characters`);
-    }
-    if (node.maxLength !== undefined && value.length > node.maxLength) {
-      errors.push(`${path}: longer than ${node.maxLength} characters`);
-    }
-    if (node.pattern && !new RegExp(node.pattern).test(value)) {
-      errors.push(`${path}: does not match ${node.pattern}`);
-    }
-  }
-
-  if (Array.isArray(value)) {
-    if (node.minItems !== undefined && value.length < node.minItems) {
-      errors.push(`${path}: needs at least ${node.minItems} entries`);
-    }
-    if (node.uniqueItems && new Set(value.map((v) => JSON.stringify(v))).size !== value.length) {
-      errors.push(`${path}: has duplicate entries`);
-    }
-    if (node.items) {
-      value.forEach((item, i) => validate(item, node.items, root, `${path}[${i}]`, errors));
-    }
-  }
-
-  if (typeOf(value) === "object") {
-    for (const key of node.required ?? []) {
-      if (value[key] === undefined) errors.push(`${path || "/"}: missing "${key}"`);
-    }
-    if (node.minProperties !== undefined && Object.keys(value).length < node.minProperties) {
-      errors.push(`${path || "/"}: needs at least ${node.minProperties} entries`);
-    }
-    for (const [key, child] of Object.entries(value)) {
-      const childPath = path ? `${path}.${key}` : key;
-      if (node.propertyNames) {
-        validate(key, node.propertyNames, root, `${childPath} (key)`, errors);
-      }
-      const propSchema = node.properties?.[key];
-      if (propSchema) {
-        validate(child, propSchema, root, childPath, errors);
-      } else if (node.additionalProperties === false) {
-        errors.push(`${childPath}: unknown field`);
-      } else if (typeOf(node.additionalProperties) === "object") {
-        validate(child, node.additionalProperties, root, childPath, errors);
-      }
-    }
-  }
-}
 
 // ---------------------------------------------------------------------------
 // What a schema cannot say

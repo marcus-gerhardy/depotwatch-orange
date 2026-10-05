@@ -41,13 +41,15 @@ import { ExemptionLimitWidget, TaxFreeProceedsWidget } from "./TaxWidgets";
 import { UtxoOverviewWidget, WatchlistStatusWidget } from "./WatchlistWidgets";
 import { YearInReviewWidget } from "./YearInReviewWidget";
 import SavingsGoalWidget from "./SavingsGoalWidget";
+import NewsWidget from "./NewsWidget";
 
 /**
  * What a widget reads. Shown in the picker so it is obvious up front which
  * tiles talk to a third party: "price" goes to Binance, "explorer" to the
- * explorer configured in the settings, "ledger" stays entirely local.
+ * explorer configured in the settings, "news" to the feeds the user chose,
+ * "ledger" stays entirely local.
  */
-export type WidgetDataSource = "ledger" | "price" | "priceHistory" | "explorer";
+export type WidgetDataSource = "ledger" | "price" | "priceHistory" | "explorer" | "news";
 
 export interface WidgetSize {
   w: number;
@@ -358,6 +360,19 @@ const BASE_WIDGETS: WidgetDefinition[] = [
     maxSize: { w: 12, h: 9 },
     dataSources: ["explorer"],
     component: WatchlistStatusWidget,
+  },
+  {
+    id: "news",
+    titleKey: "dashboard.widgets.news.title",
+    descriptionKey: "dashboard.widgets.news.description",
+    defaultSize: { w: 4, h: 7 },
+    minSize: { w: 3, h: 5 },
+    maxSize: { w: 12, h: 12 },
+    // On the default dashboard, but silent: the tile makes no request at all
+    // until the user confirms it may reach outside the app (docs/news.md).
+    // Being placed is not the same as being switched on.
+    dataSources: ["news"],
+    component: NewsWidget,
   },
 ];
 

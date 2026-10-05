@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://depotwatch-orange.com/schemas/news-feeds-1.json",
+  "title": "DepotWatch news feed list",
+  "description": "The news feeds the widget offers out of the box, and at the same time the server-side allowlist the proxy route accepts (see README.md). Configuration only: this file carries no portfolio data and no user data of any kind.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sources"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "description": "Version of THIS format, not of anything a publisher does.",
+      "const": 1
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "language",
+        "url",
+        "homepage",
+        "terms"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable and unique. Kebab case. What a muted or disabled source is remembered by in a portfolio file, so renaming one loses that setting.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "name": {
+          "description": "The publisher, as it should be credited next to every headline.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "language": {
+          "description": "The language the headlines are in, as an ISO 639-1 code.",
+          "enum": [
+            "de",
+            "en"
+          ]
+        },
+        "url": {
+          "description": "The publisher's own RSS or Atom feed. HTTPS only, and never a page that has to be scraped.",
+          "type": "string",
+          "pattern": "^https://",
+          "maxLength": 300
+        },
+        "homepage": {
+          "description": "Where the feed comes from, for the source list in the settings.",
+          "type": "string",
+          "pattern": "^https://",
+          "maxLength": 300
+        },
+        "terms": {
+          "description": "The publisher's terms of use, licence or imprint. Required: a source whose conditions nobody can look up does not belong in a shipped list.",
+          "type": "string",
+          "pattern": "^https://",
+          "maxLength": 300
+        },
+        "description": {
+          "description": "One sentence: what this feed is and roughly how much of it there is.",
+          "type": "string",
+          "maxLength": 300
+        },
+        "defaultEnabled": {
+          "description": "Whether the source is on before the user has said anything. Absent means true; false is for a feed that is worth offering but too busy to put in a chronological list by default.",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

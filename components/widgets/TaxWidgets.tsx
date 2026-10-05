@@ -9,6 +9,7 @@
 // are gated by TAX_FEATURES_ENABLED in the registry, like every other tax
 // surface.
 
+import { yearOfInstant } from "@/lib/dates";
 import { useMemo } from "react";
 import { formatPercent } from "@/lib/decimal";
 import { formatDate } from "@/lib/i18n";
@@ -132,7 +133,8 @@ export function ExemptionLimitWidget() {
   const { t, loc, fifo, fmtDisplay } = useDashboardData();
   const limitSetting = useAppStore((s) => s.portfolio?.settings.taxExemptionLimitEur);
   const now = useNowDate();
-  const year = now?.getFullYear() ?? null;
+  // The current tax year in the reference zone, the same cut `realizedInYear` makes.
+  const year = now === null ? null : yearOfInstant(now);
   const limit = limitSetting ?? DEFAULT_TAX_EXEMPTION_LIMIT_EUR;
 
   const realized = useMemo(

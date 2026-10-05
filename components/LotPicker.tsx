@@ -1,5 +1,6 @@
 "use client";
 
+import { instantInCalendarRange, localTimeZone } from "@/lib/dates";
 import { useMemo, useState } from "react";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { Decimal, btcString, dec, formatBtc, formatFiatPlain, ZERO } from "@/lib/decimal";
@@ -101,8 +102,8 @@ export default function LotPicker({
     return sorted.filter((l) => {
       const e = l.entry;
       if (type !== "" && e.type !== type) return false;
-      if (from !== "" && e.date < from) return false;
-      if (to !== "" && e.date > `${to}T23:59:59.999Z`) return false;
+      // Local calendar days, as the dates are shown (docs/dates.md).
+      if (!instantInCalendarRange(e.date, from, to, localTimeZone())) return false;
       if (q === "") return true;
       const haystack = [
         formatDate(e.date, loc),

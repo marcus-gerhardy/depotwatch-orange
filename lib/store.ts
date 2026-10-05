@@ -12,6 +12,7 @@ import type {
   WatchedAddress,
 } from "./types";
 import type { UserImportPreset } from "./importPresets";
+import type { CustomNewsSource } from "./news/types";
 import { emptyPortfolio, flattenLedger } from "./types";
 import { isThemeId } from "./theme";
 import { APPEARANCE_KEY } from "./themeBoot";
@@ -29,6 +30,7 @@ import { orderWallets, type WalletPatch } from "./walletMeta";
 export { migrateTransferFeeConvention } from "./migrations";
 import { migrateTransferFeeConvention } from "./migrations";
 import { applyFeeAllocationRepair, planFeeAllocationRepair } from "./feeAllocation";
+import { applyCalendarDateRepair, type CalendarDateIssue } from "./calendarDateRepair";
 import {
   DEFAULT_LOCK_SETTINGS,
   lockSettingsOf,
@@ -375,6 +377,13 @@ interface AppState {
    * changed, so the caller can say so.
    */
   repairFeeAllocations: () => number;
+  /**
+   * Rewrite calendar dates an earlier version stored as instants
+   * (lib/calendarDateRepair.ts) — exactly the previewed ones the user
+   * confirmed, and only where the stored value is still what was previewed.
+   * Transaction timestamps are never touched. Returns how many it changed.
+   */
+  repairCalendarDates: (issues: CalendarDateIssue[]) => number;
   addWatchedAddress: (a: WatchedAddress) => void;
   deleteWatchedAddress: (id: string) => void;
   /**
@@ -406,6 +415,20 @@ interface AppState {
    */
   saveDashboardLayout: (layout: DashboardWidgetPlacement[]) => void;
   saveTransactionColumns: (columns: string[]) => void;
+
+  /**
+   * The news widget (docs/news.md). Real changes to the file, not display state: a
+   * consent and a list of sources are decisions that travel with the
+   * portfolio, so in read-only mode they are refused like any other write.
+   *
+   * `setNewsConsent(false)` withdraws the consent rather than only pausing it
+   * — the widget then asks again before the next request, which is what makes
+   * the switch mean what it says.
+   */
+  setNewsConsent: (consented: boolean) => void;
+  setNewsSourceEnabled: (sourceId: string, enabled: boolean) => void;
+  addCustomNewsSource: (source: CustomNewsSource) => void;
+  removeCustomNewsSource: (sourceId: string) => void;
 
   /**
    * The two flags the playful touches remember (CLAUDE.md §5.1): that the
@@ -1494,6 +1517,15 @@ export const useAppStore = create<AppState>((set, get) => {
       return plan.repairableCount;
     },
 
+    repairCalendarDates: (issues) => {
+      const p = get().portfolio;
+      if (!p) return 0;
+      const { portfolio: next, changed } = applyCalendarDateRepair(p, issues);
+      if (changed === 0) return 0;
+      mutate(() => next, { kind: "update", note: `calendarDates:${changed}` });
+      return changed;
+    },
+
     addWatchedAddress: (a) =>
       mutate((p) => ({ ...p, watchedAddresses: [...p.watchedAddresses, a] })),
 
@@ -1585,6 +1617,71 @@ export const useAppStore = create<AppState>((set, get) => {
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, transactionColumns: columns } },
       ),
+
+    setNewsConsent: (consented) =>
+      mutate((p) => {
+        const news = p.uiSettings?.news;
+        if (consented === (typeof news?.consentedAt === "string")) return p;
+        // Withdrawing drops only the consent. Which sources somebody chose,
+        // and the feeds they added, are worth keeping: switching the widget
+        // off for a while must not mean setting it up again afterwards.
+        const next = { ...news };
+        if (consented) next.consentedAt = new Date().toISOString();
+        else delete next.consentedAt;
+        return { ...p, uiSettings: { ...p.uiSettings, news: next } };
+      }),
+
+    setNewsSourceEnabled: (sourceId, enabled) =>
+      mutate((p) => {
+        const news = p.uiSettings?.news;
+        if (news?.sourceState?.[sourceId] === enabled) return p;
+        return {
+          ...p,
+          uiSettings: {
+            ...p.uiSettings,
+            news: {
+              ...news,
+              sourceState: { ...news?.sourceState, [sourceId]: enabled },
+            },
+          },
+        };
+      }),
+
+    addCustomNewsSource: (source) =>
+      mutate((p) => {
+        const news = p.uiSettings?.news;
+        const existing = news?.customSources ?? [];
+        if (existing.some((s) => s.id === source.id)) return p;
+        return {
+          ...p,
+          uiSettings: {
+            ...p.uiSettings,
+            news: { ...news, customSources: [...existing, source] },
+          },
+        };
+      }),
+
+    removeCustomNewsSource: (sourceId) =>
+      mutate((p) => {
+        const news = p.uiSettings?.news;
+        const existing = news?.customSources ?? [];
+        if (!existing.some((s) => s.id === sourceId)) return p;
+        // The per-source override goes with it: leaving it behind would apply
+        // a stale "off" to a feed added again later under the same id.
+        const sourceState = { ...news?.sourceState };
+        delete sourceState[sourceId];
+        return {
+          ...p,
+          uiSettings: {
+            ...p.uiSettings,
+            news: {
+              ...news,
+              customSources: existing.filter((s) => s.id !== sourceId),
+              sourceState,
+            },
+          },
+        };
+      }),
 
     setWholecoinerCelebrated: () =>
       mutateQuiet((p) =>

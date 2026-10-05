@@ -9,6 +9,7 @@
 // Everything here is a pure function over the ledger or the portfolio file, so
 // the dialogs stay rendering code and the rules stay testable.
 
+import { instantInCalendarRange, localTimeZone } from "./dates";
 import { Decimal, btcString, dec, ZERO } from "./decimal";
 import { totalCredit, totalDebit } from "./portfolio";
 import { flattenLedger } from "./types";
@@ -244,8 +245,8 @@ export function rankOutLegCandidates(
         e.accountId !== inLeg.accountId &&
         (filter.walletId === undefined || e.walletId === filter.walletId) &&
         (filter.accountId === undefined || e.accountId === filter.accountId) &&
-        (!filter.from || e.date >= filter.from) &&
-        (!filter.to || e.date <= `${filter.to}T23:59:59.999Z`),
+        // Local calendar days, as the dates are shown (docs/dates.md).
+        instantInCalendarRange(e.date, filter.from, filter.to, localTimeZone()),
     )
     .map((entry) => {
       const linkedInLegs = isLegPaired(entry, paired)

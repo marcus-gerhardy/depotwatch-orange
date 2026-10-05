@@ -1,775 +1,120 @@
-@AGENTS.md
+# DepotWatch Orange
 
-# DepotWatch Orange — Project Specification
+Local-First Web-App zur Verwaltung eines Bitcoin-Portfolios mit deutscher Steuerlogik.
+Next.js (App Router), Tailwind, TypeScript. Sprachen DE (Standard) und EN.
 
-> This file can be used directly as a prompt/context for Claude Code to set up the project.
+**Kernprinzip:** Keine Nutzerdaten auf dem Server. Das gesamte Portfolio liegt in einer
+einzigen, passwortverschlüsselten Datei auf dem Gerät des Nutzers.
+
+Details zu Datenmodell, Features und Entscheidungen: siehe `/docs/` (dort nachschlagen,
+wenn für die Aufgabe relevant — nicht vorsorglich lesen).
+
+---
 
-**Project name:** DepotWatch Orange
-**Domain:** depotwatch-orange.com (check availability/register)
-**Languages:** German (default) and English, switchable
+## Invarianten
 
-## 1. Project Overview
-
-Web app for managing a Bitcoin portfolio. MVP: manual transaction entry. Later stages: CSV import and API integration with brokers/exchanges.
-
-**Core principle:** No user data is stored on the server. All portfolio data lives in a single, password-encrypted file that the user opens locally, edits in the browser, and saves back.
-
-## 2. Architecture Principle: Local-First, No Server Storage
-
-- The app is a pure client application (SPA/PWA). The server serves static code only — no database, no backend storage for user data.
-- **File handling:**
-  - Primary: [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API) (Chrome/Edge/Opera). The user opens the portfolio file once, the app keeps the file handle, and all changes are written straight back to the file — no manual re-save needed.
-  - Fallback (Safari/Firefox): classic upload (`<input type="file">`) on startup, saving via Blob download through a "Save" button.
-  - Feature detection at app start decides which mode is used.
-- **Encryption:** Before writing, the file is encrypted with a user-chosen password (Web Crypto API: AES-GCM, key derivation via PBKDF2). On opening, the password is requested and the file is decrypted.
-- No login/auth system — possession of the file + password replaces authentication.
-
-## 3. Data Model
-
-### 3.1 Two-Layer Architecture
-
-The app separates two independent data layers, because accounting lots (purchases at different times/prices) and actual on-chain UTXOs cannot be reliably mapped 1:1 (e.g. several separate purchases are often sent in one batch to a single address, forming a single UTXO there):
-
-1. **Portfolio ledger (accounting):** manually recorded buy/sell/transfer/spend events for holdings, P&L, and FIFO tax logic. Pure bookkeeping, independent of the actual on-chain structure.
-2. **Address watchlist (security/on-chain):** an independent list of Bitcoin addresses or xpubs the user adds for monitoring (watch-only principle, as in the common desktop wallets). All security features (sections 6.1/6.2) operate on this list with live blockchain data, independent of the ledger.
-
-A ledger transaction can optionally reference an address from the watchlist (purely informative, no functional dependency).
-
-### 3.2 Portfolio Ledger
-
-Hierarchy: **Wallet → Account → Transactions**. A wallet (e.g. an exchange or hardware wallet) can contain multiple accounts (e.g. "Spot", "Savings", "Account 1").
-
-```json
-{
-  "version": "1.0",
-  "currencyDisplay": "EUR",
-  "wallets": [
-    {
-      "id": "uuid",
-      "name": "Börse",
-      "type": "exchange | hardware | software | paper",
-      "accounts": [
-        {
-          "id": "uuid",
-          "name": "Spot",
-          "transactions": []
-        }
-      ]
-    }
-  ]
-}
-```
-
-Transaction schema:
-
-```json
-{
-  "id": "uuid",
-  "type": "buy | sell | transfer_in | transfer_out | spend | gift_in | gift_out | income",
-  "date": "ISO-8601",
-  "amountBtc": "decimal string",
-  "pricePerBtcEur": "decimal | null (price per BTC; for transfers optional: the traced average cost of the moved lots, for display only)",
-  "totalFiatEur": "decimal | null (EUR total actually paid/received for the transaction; for transfers optional: value of the moved amount at the traced average cost, for display only)",
-  "feeBtc": "decimal | null (optional — many brokers only report fees in EUR)",
-  "feeFiatEur": "decimal | null (optional)",
-  "counterpartyAccountId": "transfer_in/transfer_out only: reference to the destination/source account",
-  "transferGroupId": "transfer_in/transfer_out only: shared id linking the out-leg and in-leg(s) of one internal transfer",
-  "lotAllocations": "sell/spend/transfer_out: array of { lotTransactionId, amountBtc } — references the buy/transfer_in transaction(s) (lots) this amount came from; for a transfer_out these are the source-account lots the transfer closes, and their sum must equal amountBtc + feeBtc, i.e. what actually left the account (see the fee convention below)",
-  "txid": "transfer_in/transfer_out only, optional: on-chain transaction id (64 hex chars, lower case)",
-  "address": "transfer_in/transfer_out only, optional: the Bitcoin address of this leg — destination for a transfer_out, receiving address for a transfer_in",
-  "originalCurrency": "optional: currency/asset the transaction was actually settled in, e.g. \"USDT\"",
-  "originalAmount": "optional: decimal string — amount paid/received in that currency",
-  "originalPricePerBtc": "optional: decimal string — price per BTC in that currency",
-  "eurValuationSource": "optional: manual | binance-klines — where the EUR value comes from",
-  "note": "string"
-}
-```
-
-Note: process amounts as strings/with a decimal library, not as JS `number` (avoid rounding errors with crypto amounts). For buy/sell/spend, at least one of `pricePerBtcEur` or `totalFiatEur` must be set — the missing field is derived from the other (`totalFiatEur = pricePerBtcEur × amountBtc` or vice versa).
-
-Transfer legs created by the transfer dialog carry the value of what they move in `totalFiatEur` and the rate that follows from it in `pricePerBtcEur`, so the transaction table shows a price and a value for transfers too. That is display data: the FIFO engine keeps deriving cost basis and acquisition dates from the moved lots (an internal transfer_in never reads the price), and a linked existing transaction keeps a price it already has.
-
-**A transfer's rate and value are computed from its origins** (`provenanceValue()`/`derivedTransferValues()` in `lib/provenance.ts`), live wherever they are shown: the transaction table's Kurs and Wert columns (sorted by the computed figure like any other, and shown without any "≈": a complete value is the exact sum of the amounts of the buys behind it, not an estimate — only a value that covers just part of the amount is marked), the origin list's total row, and the transaction dialog, which shows both read-only for a transfer leg. A transfer is not a trade and has no price of its own — the coins it moves do. The live trace **wins over figures a leg stored earlier**, because lot assignments are editable and a stored value goes stale the moment they change; what a leg recorded is the fallback for a chain that no longer resolves (an unlinked leg, an import). Nothing is ever written to the file by the display.
-
-**The value is built from what the origin transactions recorded, not from their cost basis** (`recordedShareValue()`): a lot's own "Betrag (EUR)" (or price × amount), split in proportion to the share taken from what it credited to the account. It is valued over the share that was **consumed**, not the share that arrived — a transfer_out closes `amountBtc + feeBtc` worth of lots while only `amountBtc` reaches the other side, and the euros of the coins burned as a network fee were paid for those same buys. So a transfer that moves whole buys is worth exactly the sum of their amounts, at every hop of a chain (`valueScale` in the resolver multiplies across hops); the BTC shares stay net, so they keep adding up to the transaction's own amount. The rate is that value over the amount, which is therefore slightly above the buys' own rate whenever a fee was paid — value and rate never contradict each other. Using the tax cost basis instead — which adds `feeFiatEur` and divides by the net BTC (`buyLotBasis`) — leaves a transfer's value differing from the amounts its buys show in the same table, which is exactly the comparison a user makes. The two figures stay separate on purpose: `OriginLot.costEur` is the cost basis for tax, `OriginLot.valueEur` is the recorded value for display, and the origin table shows the cost basis per lot ("Einstand / BTC") while its total row shows the value — never an average of one under the header of the other. Origins with no EUR figure at all are left out of both sums instead of being valued at the others' average; `complete` says whether the whole amount is covered, and a partial value is marked as such. The transfer dialog writes the same figure onto the legs it creates, so stored and computed agree from the start.
-
-Linking an existing transaction as the out-leg (transfer dialog): the candidate matches when its `amountBtc` **plus** the network fee entered in the dialog equals the sum of the selected lots. Its amount is never rewritten — only `feeBtc` and the lot allocations are written back. Picking a candidate adopts its own `feeBtc` into the dialog when no fee was entered yet.
-
-**Pairing two legs normalises them onto the convention** (`linkTransferLegs`): where the difference between what left and what arrived is plausibly the network fee, the out-leg's amount becomes what arrived and the difference goes into `feeBtc`. `amountBtc + feeBtc` is unchanged by that, so existing allocations stay exactly as valid as they were. This used to be an offer ("adopt the difference as a fee?"), and declining it left a pair whose two legs disagreed about the amount with the missing satoshis recorded nowhere — the engine burned them silently and every fee figure under-reported by the same amount.
-
-Three cases keep their amounts: a *negative* difference is not a fee and cannot be made into one; a difference **above `FEE_PLAUSIBILITY_LIMIT`** is not one either, and writing it into `feeBtc` would invent a fee of a size nothing ever paid and feed that invention into every fee figure in the app — the dialog already says such a pair is probably a wrong match, so the mismatch stays and the user corrects the amounts; and a leg joining an existing pairing keeps its amount, because the difference to *this* arrival is not the transfer's fee. Confining the rewrite to a plausible fee also bounds what it can cost: `unlinkTransferLeg` releases a pairing but cannot know what an amount was before it, so nothing here is undone by unlinking.
-
-**Settled in another currency** (`originalCurrency`, `originalAmount`, `originalPricePerBtc`): a transaction may have been settled in something other than EUR (e.g. a BTC buy against USDT on an exchange). Those three optional fields record it **for documentation only**. EUR stays the one binding valuation currency: FIFO, holding periods, P&L and the dashboard read `totalFiatEur`/`pricePerBtcEur` exclusively and never these fields — there is no per-field currency choice anywhere in the app. All four fields are optional, so files written before they existed stay valid without migration.
-
-**EUR valuation of such transactions** (`eurValuationSource`, `lib/valuation.ts`): when a buy/sell/spend has a timestamp and an amount but no EUR figure, the EUR value can be derived from the Binance BTC/EUR daily close of that day (`fetchDailyClose` in `lib/binance.ts`): `totalFiatEur = amountBtc × close`, and `eurValuationSource` is set to `"binance-klines"` so an estimated value stays distinguishable from a documented one (absent means `"manual"`). Every derived value remains freely editable, and editing it puts the source back to `"manual"`. The lookup never runs in the background or over the whole ledger at once — only on an explicit click in the transaction dialog or as one bulk action in the CSV import preview (rate limits, and every request tells a third party which days one is interested in). One request per distinct day serves all rows on it (`createEurValuator`). A day Binance has no candle for keeps asking for a manual value. The transaction table shows the original currency in an opt-in column and marks a derived EUR value with "≈".
-
-**On-chain data belongs to the transfer, not to one leg** (`groupOnChain()`/`effectiveOnChain()` in `lib/transferLink.ts`): both legs describe the same send, and in practice only one side has the data — a hardware wallet exports txid and address, an exchange export usually neither. So a leg without them takes them from its group: the `txid` always (one transaction, one id), the `address` only when the group pairs exactly one out-leg with exactly one in-leg, because a batched send pays several outputs and "the" address of the sending leg would be a guess. Everything reads it that way: the table's columns (the inherited value is muted and says where it came from), the data-quality issue `missingTxid` — and with it the dashboard widget that counts it — and the transaction dialog, which offers the counterpart's value for an empty field instead of filling it in silently. Linking two legs (`linkTransferLegs`, and the transfer dialog when it links or creates a counterpart) writes the values over, so a pairing made now needs no inheriting later.
-
-On-chain fields (`txid`, `address`): both optional and only meaningful for `transfer_in`/`transfer_out` — the form never offers them for buy/sell/spend, and the CSV import drops them for those types. `txid` is stored normalized (trimmed, lower case) and must be exactly 64 hex characters; `address` must be a syntactically valid Bitcoin address (legacy P2PKH/P2SH, bech32 SegWit v0, bech32m Taproot — checksum verified for bech32/bech32m, case rules per BIP-173), stored trimmed with an all-uppercase bech32 address folded to lower case. Because one on-chain transaction can pay several outputs, the address pins down which output this leg means. Both are **matching aids only** (pairing an out-leg with its in-leg): the security/privacy and UTXO features must keep operating exclusively on the address watchlist (§3.1/§3.3) — never derive watchlist data from the ledger or vice versa. Explorer links for these values are rendered as plain anchors the user clicks; the table must never fetch anything while rendering (a txid/address must not reach a third party unasked).
-
-Fee convention (`feeBtc`): `amountBtc` is always what reaches the other side — the coins received on a buy/transfer_in, the coins sold, spent or sent on the outgoing types. A BTC fee is **on top of** that: a buy credits `amountBtc − feeBtc`, and sell/spend/transfer_out/gift_out (internal *and* external) debit `amountBtc + feeBtc`. Two paired transfer legs therefore carry the **same** `amountBtc`, and the pair costs the portfolio precisely the network fee.
-
-**The addition is written down once**, in `lib/portfolio.ts`: `totalDebit()` is what an outgoing transaction takes out of its account, `totalCredit()` what an incoming one puts in, and `balanceDelta()` is nothing but those two split by direction. Everything that has to know the rule reads them instead of repeating it — the account balances, `allocationTargetBtc()` in `lib/transferLink.ts` (what a disposal's `lotAllocations` must add up to), what the FIFO engine consumes (`consumeLeaving`), and `creditIsNetOfFee()`, which the CSV import converts an export's amounts onto. Repeating the addition per call site is how the same transfer could leave a correct ledger balance *and* a remaining lot the size of its fee: **a ghost holding in the source wallet worth exactly the network fee**, showing up in every lot-based view while the balance itself looked right. `lib/feeConsistency.test.ts` pins the identity that follows from the convention — held + sent out + fees paid = everything ever received — and asserts per account that the engine's open lots equal the ledger balance.
-
-**An assignment that stops short of the fee is found and repaired** (`lib/feeAllocation.ts`, §4.1). It arises the ordinary way round: the lots are assigned, the fee is filled in afterwards, and nothing recomputes an assignment when a field changes (nor should it, see the lot concept) — so the gap sits there. `feeAllocationGaps()` reports every outgoing transaction with a BTC fee whose allocations fall short; `planFeeAllocationRepair()` takes the missing BTC **from the lots the transaction already names**, in its own order, and only where those are exhausted from the next-oldest lots of the same account. A disposal with *no* allocations is deliberately out of scope: which buys it sold is a question nobody has answered yet, and answering it here would be the app picking lots by itself. What no lot can cover is reported rather than forced, and the result is stored oldest lot first like every hand-made assignment.
-
-Files written before this was unified (out-leg amount incl. fee, allocations summing to it, in-leg net) are converted on load by `migrateTransferFeeConvention()` in `lib/store.ts`.
-
-**Deleting a transaction** releases what pointed at it (`lib/deletion.ts`, used by both delete actions in the store): `lotAllocations` entries referencing a deleted transaction are dropped — an amount no lot could ever cover — which leaves that disposal unassigned until the user assigns it again (nothing re-assigns it automatically, see the lot concept); and a transfer leg whose counterpart is gone loses `transferGroupId`/`counterpartyAccountId`, i.e. it becomes a plain external send/receive, so its coins stay accounted for in both the balance and the FIFO engine. A group with several in-legs stays intact as long as one out-leg and one in-leg remain. The confirm dialog names how many transactions this affects.
-
-**Coins that arrived without being bought** (`gift_in`, `income`) **and coins given away** (`gift_out`): three types rather than a flag on a buy, because each is taxed differently and the difference is not cosmetic.
-
-- A **gift received** carries the *giver's* acquisition, not its own: German law has the recipient step into their shoes ("Fußstapfentheorie"), so the holding period keeps running from the giver's purchase and their cost becomes the recipient's. Those two figures live in `inheritedAcquisitionDate`/`inheritedCostBasisEur`, both optional because a recipient often does not know them — and unknown is then **reported as unknown**: the lot is marked `originUnresolved` rather than dated from the arrival, which would invent a holding period and invent the most favourable one there is.
-- **Income** (received as payment or reward) is an acquisition at the day's market value: the holding period starts on receipt and that value is the cost basis from then on. It is taxed *when it arrives*, outside private disposals, so it is reported as its own figure (`FifoResult.incomeReceipts`) and never as a realised gain — mixing it in would tax it a second time under the wrong heading.
-- **Giving coins away** consumes lots and needs the same `lotAllocations` as a sale, but it is **not a disposal** (§23 EStG): there are no proceeds, so there is no gain. It is listed separately (`FifoResult.giftsOut`) with the cost basis it closed, which is where a gift tax return starts — booking it as a sale at zero proceeds would report that whole cost basis as a realised loss. Gift tax itself is a different tax and is not calculated here.
-
-`isInflow()`/`isOutflow()`/`isPriced()` in `lib/types.ts` are the single answer to "does this type create a lot, consume lots, carry a price" — the switches that used to spell out `buy || sell || spend` read those instead, so a future type cannot be forgotten in half of them. Every tax surface repeats that the app is no substitute for tax advice.
-
-**Lot concept:** A "lot" is not a separate entity but any buy/transfer_in transaction with a remaining balance (amount − amount already sold via `lotAllocations`). The assignment of a disposal to one or more lots is stored permanently in `lotAllocations` and is never retroactively recomputed when other transactions are added or edited later.
-
-**The assignment is always the user's, never the app's.** Nothing anywhere picks lots by itself — not when a transaction is created, not when one is deleted, and above all not while calculating. A guessed assignment decides holding periods, cost basis and taxable gains silently, and silently decides them differently as soon as anything earlier in the ledger changes; two runs of the same file would then disagree about what was sold. So:
-
-- a new sell, spend or outgoing transfer is created **without** allocations (the dialog offers the picker right there, so it can be answered immediately, but nothing is filled in for the user), except for a sale started from a specific lot row, which is a choice the user already made;
-- the FIFO engine consumes **only** what the allocations say (`consumeAllocated`); there is no dynamic FIFO fallback and no `allocateFifo` helper any more. A disposal without an assignment closes no lots, has no cost basis and reports its full amount as `uncoveredBtc`;
-- deleting a lot drops the allocations pointing at it and leaves the disposal unassigned, rather than substituting another lot;
-- what is unassigned is *visible*: `incompleteAllocation` (§4.1) covers sell, spend and transfer_out, the transaction table badges those rows and unfolds them into their (missing) origins, and the dashboard reports the resulting gap between the ledger balance and the engine's open lots.
-
-A consequence to keep in mind: while disposals are unassigned, `FifoResult.openLotsBtc` exceeds the ledger balance by exactly the unassigned amount. That gap is the honest state of the file, not a bug — it disappears as the assignments are made.
-
-**Lot continuity across internal transfers:** Moving coins between own wallets/accounts must not reset the tax lot history. An internal transfer_out carries `lotAllocations` (assigned by the user, possibly several lots batched into one on-chain transaction) and shares a `transferGroupId` with its transfer_in leg(s). A transfer_in does NOT start a new lot at the transfer date — its `date` is only the arrival time for display purposes. The FIFO/tax engine resolves lot identity (original acquisition date + cost basis) at runtime by following transferGroupId → transfer_out → lotAllocations back to the original buy, across any number of transfer hops. Holding-period and cost-basis calculations for later disposals always use the traced original lot.
-
-**Origin resolution** (`lib/provenance.ts`): the same links read backwards, for one transaction at a time. `resolveProvenance(entry, index)` answers "which original buys is this made of", returning per origin the acquisition date, the proportional share, the original cost per BTC, the origin wallet/account and the lot transaction's id. A transfer_in resolves through its group's out-leg, every other type through its own `lotAllocations`; a buy or an external receive is an origin and resolves to itself. Shares are split **proportionally** at every hop, so they always add up to exactly the amount asked for: a transfer_out's allocations cover its amount *plus* the network fee (see the fee convention), so an arrival's origins each carry their proportional part of that fee, and an arrival that is later only partly moved on passes its origins down in the same proportion. Multiple hops (A → B → C) simply recurse. Corrupt data cannot hang the walk: ids on the current path are tracked (a repeat is a circular link) and the depth is capped, with the untraceable amount reported as `unresolvedBtc` and `truncated` set.
-
-The FIFO engine and the resolver derive lot identity from the same persisted data and must agree — a test asserts they produce the same dates, amounts and costs for a bundled arrival, and `buyLotBasis()` in `lib/fifo.ts` is the single implementation of a buy's cost per BTC that both read.
-
-**Both links are editable after the fact** (`lib/transferLink.ts`, pure functions over the ledger/portfolio), because an import rarely gets them right the first time:
-
-- *Which lots an out-leg closes* (`lotAllocations`) is edited in the transaction's own dialog: entries can be changed, removed, and added from the source account's open lots. Availability per lot counts every **other** transaction's allocations and deliberately excludes the edited transaction's own claim, so editing a value never competes with itself (`lotAvailability`). The target sum is `allocationTargetBtc()` = `amountBtc + feeBtc`; a deviation is shown in BTC and never blocks saving, since a half-assigned import is a legitimate intermediate state. Because these are a field of one transaction, they are written by the dialog's save like every other field.
-- *Which out-leg an arrival belongs to* (`transferGroupId`) is edited on the in-leg: the linked leg is shown with wallet/account, date, amount and txid and can be released, or one can be picked from the unpaired out-legs of other accounts, filterable by wallet, account and period and ranked by `rankOutLegCandidates()` — an identical txid is proof and sorts first, then closeness in amount (weighted heavily) and date. This link lives on *two* transactions at once, so it is applied to the portfolio immediately rather than on the dialog's save; releasing it always clears both sides, and a group with several in-legs survives losing one of them. The outgoing leg's own dialog *shows* the arrivals it is paired with (read-only, with a jump), so "did this send ever arrive anywhere" is answerable from either side.
-
-**Linked means paired, never "has a `transferGroupId`"** (`pairedGroupIds()`/`isLegPaired()`): a leg can carry an id whose counterpart never existed or is gone — an interrupted assignment, an import, an older file. Such a leg is exactly as unlinked as one without an id, so it is offered as a candidate and counted as a data-quality gap (§4.1); asking the field instead hid it from the arrival's picker *and* from the issue count, leaving a transfer that could not be repaired from either side. `linkTransferLegs()` accordingly mints a fresh group for it. A candidate that *is* paired is offered only on request (`includePaired`), marked with its existing arrival: one send can legitimately arrive in several pieces, so linking then **joins** that group instead of minting a new id (which would orphan the arrival already there), and the out-leg's amount is never rewritten as a fee in that case.
-
-**A link applied while the dialog is open must survive its save.** The dialog's fields are state captured when it opened, but the transfer link is not a field: it is written to the portfolio immediately and can change (or be released) while the dialog is open. So `transferGroupId` and the counterparty account are taken from the *live* entry on save, never from the snapshot the dialog started with — otherwise saving silently undid the assignment that was just made. For the same reason the counterparty select of a paired leg shows the linked account and is disabled (changing it there would desync the two sides), and on an unpaired leg it follows the live entry unless the user picks something else. Moving a leg to another account is still allowed: `updateTransaction()` retargets the counterpart's `counterpartyAccountId` the way the bulk move does, so the pair never points at the account a leg has left.
-
-**The amount difference when linking** is the network fee in the normal case. It is shown, and `adoptFeeBtc` writes it to the out-leg — which also sets the out-leg's amount to what arrived, because the ledger's fee sits *next to* the amount rather than inside it (§3.2); recording it without shrinking the amount would debit the source account twice. `amountBtc + feeBtc` is unchanged by that, so existing allocations stay valid. A difference above 1 % of the amount (`FEE_PLAUSIBILITY_LIMIT`), or a negative one, is not a fee but a wrong match and is called out as such.
-
-Both dialogs preview the resulting origin list before saving, computed by running the real resolver over a ledger that already has the change — no second implementation to keep in sync.
-
-**Picking what to assign** happens in a table, not a list, because a real portfolio has neither few lots nor few candidates (`components/LotPicker.tsx` for lots, the candidate table in `components/OutLegLink.tsx` for out-legs): **newest first** by default — what one looks for right after an import — sortable by every column, narrowable by free text and period, and for lots **multi-select**, so a transfer batching six purchases costs one dialog instead of six. What each selected lot would contribute is computed and shown before confirming: while the transaction is still short of BTC the selection is filled up in the table's current order and capped per lot (the sort order doubles as the priority), and unchecking that offers every picked lot in full. The resulting amounts stay editable in the assignment table afterwards.
-
-`lotAllocations` are nevertheless **stored oldest lot first**, whatever order the table is sorted or the user clicked in: the FIFO engine takes the network fee off the last allocation, so the stored order decides which lot pays it and must not follow a display preference.
-
-**Where the trace dead-ends** the app says so instead of substituting the arrival date: an internal transfer_in whose origin does not resolve is reported as "origin unresolved" (`hasUnresolvedOrigin`), counted as a data-quality issue (§4.1), badged in the transaction table, and offered the assignment dialog. In the FIFO engine the same situation — an arrival that received more than its out-leg moved — marks the surplus lot `originUnresolved`, which propagates into `DisposalPart.originUnresolved` and `Disposal.unresolvedOriginBtc`. Every tax surface renders that as "origin unresolved" rather than a holding period (§4).
-
-### 3.3 Address Watchlist
-
-```json
-{
-  "watchedAddresses": [
-    {
-      "id": "uuid",
-      "type": "address | xpub | ypub | zpub",
-      "value": "bc1q... or xpub...",
-      "label": "e.g. Ledger Account 1",
-      "tags": ["kyc", "hardware-wallet"],
-      "walletId": "optional: the wallet this address belongs to, said by the user"
-    }
-  ],
-  "explorerSettings": {
-    "provider": "mempool.space | blockstream | custom-electrum",
-    "customEndpoint": "optional, e.g. your own Electrum server"
-  }
-}
-```
-
-Live data (current UTXOs, address history, pubkey exposure) is fetched at runtime from the configured explorer source, not stored in the file (only the watchlist itself is persisted).
-
-**`walletId` is a label the user attaches, never a derivation.** The separation of §3.1 is about *data flow*: nothing may read an address out of a transaction or a transaction out of an address, because the two cannot be mapped onto each other reliably. Saying "this address belongs to my hardware wallet" is not that mapping, it is the one thing only the owner knows, and it is what lets the wallet detail page (§4.5) put the book balance next to what the chain says. Optional, like every field added later, and set in the watchlist view, where the entry lives. An entry assigned to nothing belongs to no wallet and simply appears on no detail page.
-
-### 3.4 CSV Import Presets
-
-Import configurations for the CSV import wizard (delimiter, encoding, date format, column mapping, per-field BTC/Sats unit, and the "Typ" value-mapping table) come from two sources:
-
-- **System presets:** read-only, shipped in the app's code under `/config/import-presets/` (one JSON file per provider). Not stored in the portfolio file, not editable or deletable by the user — only an app update can change them. New providers are added by dropping in another JSON file and adding one line to `SYSTEM_IMPORT_PRESETS` (see `lib/importPresets.ts`). **None ship at the moment**, so the picker offers "manual/no preset" plus the user's own; the wizard hides the "predefined" group while the list is empty.
-- **User presets:** created, edited, and deleted by the user in the import wizard and in the preset management (§6.3). Stored in the portfolio file itself (`importPresets`), so they travel with the file rather than being tied to one device/browser.
-
-**A system preset is not written by hand — it is an import that worked, exported.** Nobody can write a mapping table for an export they have never seen, and one written from a provider's documentation is a guess that fails in front of a user. So the two kinds are the same configuration in two places, and the path between them is a file: `config/import-presets/schema.json` describes it (JSON Schema 2020-12), `lib/importPresetFile.ts` writes and reads it, `config/import-presets/README.md` says how to contribute one.
-
-The file format groups what the runtime shape keeps flat (`columnMapping`, `unitMapping`, `valueMapping`, `feeInterpretation`) and adds what a shared preset needs to be more than one person's settings: `provider` and `formatVersion` (so several export formats of one provider live side by side), `description`, `headerSignature`, `createdAt` and the format's own `schemaVersion`. `toPresetFile()`/`fromPresetFile()` are the only crossing, so the wizard never learns the file format and presets already stored in portfolio files stay valid — every metadata field is optional on the runtime shape.
-
-**The export carries configuration and nothing else.** These files are shared in public pull requests, and one that quietly contains somebody's on-chain history is the worst kind of leak, because nothing about it looks wrong. So the file is built from an **allowlist** of fields rather than a spread (a field added to the runtime shape cannot travel out unnoticed), and the three places where the user's own data bleeds into a configuration — the header signature, the type values, the row-filter values — are scanned: anything that parses as a bitcoin address, a txid, an amount, an e-mail address or an IBAN is dropped and named in the dialog. The importer **refuses** such a file instead of cleaning it silently, because an incoming file is somebody else's work. The export dialog shows the whole JSON before it is written, and the download is named after the preset, never after the CSV it was built from.
-
-**Recognition is by header row** (`matchPresets()`, `normalizeHeader()`): a preset matches when every column of its `headerSignature` is in the file — compared case-insensitively with whitespace collapsed, order irrelevant, and **extra columns are never a reason to reject** one, since an export gains a column far more often than it loses one. A preset without a signature (anything written before it existed) falls back to its mapped columns. All matches are offered, best first: a signature match beats one made from the mapping alone, more columns beat fewer, then the newer `formatVersion` (compared numerically where it can be, so "10" is newer than "2"). The wizard applies the best one, says which, and puts the rest next to it to switch to — several format versions of one provider can fit the same file, and only the user knows which export this is. Saving a preset in the wizard records the header row of the file it worked on, because that is the only moment it is known for certain.
-
-**Validated in the build** (`npm run presets:validate`, part of `npm run build` and `npm run lint`, and run again from a test): every file under `/config/import-presets/` against the schema, plus what a schema cannot say — ids unique across files, the file name matching the id, no `fixedType` competing with a mapped type column, and no personal data anywhere. The schema is the script's single source of truth, and `lib/importPresetFile.test.ts` holds it and the app's own validator to the same enums, so a file the build accepts can never be one the app refuses.
-
-```json
-{
-  "importPresets": [
-    {
-      "id": "uuid",
-      "name": "e.g. My Ledger export",
-      "provider": "optional: e.g. the exchange the export comes from",
-      "formatVersion": "optional: version of that export format",
-      "description": "optional",
-      "headerSignature": ["optional: the header row this preset was built on"],
-      "createdAt": "optional: ISO-8601",
-      "delimiter": ", | ;",
-      "decimalSeparator": ". | ,",
-      "encoding": "utf-8 | iso-8859-1 | iso-8859-15",
-      "mapping": { "type": "CSV column name", "date": "…", "time": "…", "amountBtc": "…" },
-      "fixedType": "optional: buy | sell | transfer_in | transfer_out | spend",
-      "dateFormat": "optional: iso | de | mdy | dmy | ymd | unix-s | unix-ms",
-      "timeFormat": "optional: hms | h12 | datetime",
-      "amountUnit": "optional: btc | sats",
-      "feeBtcModeIn": "optional: deducted | notDeducted (buys)",
-      "feeBtcModeOut": "optional: deducted | notDeducted (sells, spends, transfers out)",
-      "feeFiatMode": "optional: gross | net",
-      "feeUnit": "optional: btc | sats",
-      "typeValueMapping": { "optional, e.g. received": "transfer_in", "sent": "transfer_out" },
-      "rowFilter": {
-        "optional — only matching CSV lines are imported": null,
-        "combinator": "and | or",
-        "rules": [
-          {
-            "column": "CSV column name, e.g. transaction_type",
-            "match": "isAnyOf | isNoneOf (default isAnyOf)",
-            "values": ["trade"]
-          }
-        ]
-      }
-    }
-  ]
-}
-```
-
-**Column mapping:** the wizard proposes a mapping from the header names. Every field/column pair is scored (whole header name > all words of a phrase anywhere in the header > substring, minus per-field exclusions) and the best pairs are taken first, so `transaction_type` or `Operation Type` finds the type field while an exact `type` still beats `ordertype`, and "Amount Fiat" lands on the fiat total rather than the BTC amount. Ties go to the earlier column, i.e. the first column that says "type" wins.
-
-**Date and time:** two separate mapping fields, both mandatory, each with its own format select. An export with separate columns ("Datum" + "Uhrzeit") maps one to each; an export with a single date-time column has that column selected in *both* fields and its time read out of the value (`timeFormat: "datetime"`). The time field is optional. Both cells are normalized for the preview with their column's format: the date to "YYYY-MM-DD" (`normalizeDateCell`) and the time to "HH:MM:SS" (`normalizeTimeCell`), so whatever shape the file uses — a unix timestamp, "07/24/2026", an ISO value with a zone offset like `2024-07-05T14:01:34+02:00` — shows up as a readable date and clock time, and a column holding a whole timestamp fills both fields with its two halves. A value that cannot be read is kept verbatim and flagged. The two are combined only when the row is validated and imported (`parseImportDateTime`): pointing both fields at the same column parses that value once, separate columns put the time cell's clock time on the date cell's calendar day (local time, as a single cell "01.02.2024 10:30" has always been read). A time that cannot be read is reported per row as `invalidTime`. A value with an explicit zone ("…T23:30:00Z", "…+02:00") names an instant, so day *and* clock time are both read in local terms; otherwise the two halves could come from different days and move the transaction. A date without any time means local midnight of that day. The mapping proposal checks the data, not just the header, so "Time in force" never becomes the time column; with no time column at all it falls back to the date column, which is also what a date-only export needs (its rows then import at midnight). A row whose time cell is empty is reported as `invalidTime` rather than silently becoming 00:00.
-
-**Original currency in the import:** `originalCurrency`, `originalAmount` and `originalPricePerBtc` are mappable target fields like any other (the currency code is stored upper case, and a pair like "BTC/USDT" keeps its quote side). If no EUR column was mapped but date and amount are there, the preview offers to derive the missing EUR values for all affected rows in one action with a progress indicator; those rows are marked "€?" before and "≈" after.
-
-**Values on import:** an amount is stored as a magnitude, because the direction comes from the transaction type — a leading minus, as some exports write it for withdrawals, is dropped. BTC amounts and BTC fees are rounded to 8 decimals (`btcString`), the satoshi being the smallest unit the ledger stores; a value that already fits into 8 decimals is never touched. An amount that differs from the file's because of the BTC fee mode is spelled out in the preview (`btcAmountAdjustment`), so it cannot be mistaken for a rounding artifact.
-
-**Fee modes:** exports disagree on whether a fee is already part of the amount it belongs to, so the wizard asks — right at the mapped fee column, and only when that column is mapped:
-
-- **BTC fee** (`feeBtcModeIn` / `feeBtcModeOut`, at the `feeBtc` mapping): "already deducted from the BTC amount?", asked **once per direction** — `deducted` = the amount is what was really received/sent, `notDeducted` (default) = the fee is still inside it. Two questions, because one file commonly uses both conventions: an exchange's spot buys commonly report the amount net of the trading fee while its withdrawals report the total that left the account. Forcing one answer on both directions leaves the other wrong by exactly its fee sum, which is what a balance that will not reach zero looks like.
-- **EUR fee** (`feeFiatMode`, at the `feeFiatEur` mapping): "already part of the EUR amount?" `gross` = the amount is the money that actually moved, fee included, `net` (default) = the fee comes on top.
-
-Both are converted to the ledger convention of §3.2, where a fee always sits *next to* the amount it belongs to: `feeBtc` on top of `amountBtc` (a buy credits amount − fee, an outgoing type debits amount + fee) and `feeFiatEur` outside `totalFiatEur` (the FIFO engine adds it to a buy's acquisition cost and takes it off a sale's proceeds). So each mode corrects exactly one direction: `notDeducted` turns an outgoing BTC amount into `amount − fee`, `deducted` turns a bought amount into `amount + fee`; `gross` turns a buy total into `total − fee` and a sale total into `total + fee`, `net` needs nothing. Either way the money and the coins that actually moved stay what the file says. A `transfer_in` is never touched (its credit ignores the fee, which belongs to the out-leg), and a fiat fee never changes a BTC amount, nor a BTC fee an EUR total.
-
-**Consistent EUR figures:** because a fee mode moves the total or the amount, `pricePerBtcEur` is always re-derived so price, total and amount tell the same story (`reconcileEurFigures`): with a total the price follows from `total ÷ amountBtc` — a price column in the file may still refer to the unadjusted figures — otherwise the total follows from `price × amountBtc`. The preview therefore shows both, plus a read-only column with what the ledger will actually book (`effectiveEurTotal`: acquisition cost `total + fee` on a buy, proceeds `total − fee` on a sale/spend) and the rate that follows from it, so the chosen interpretation stays checkable per row.
-
-All fee modes are part of the import presets (system and user), so the next import from the same provider comes pre-filled; a user preset written before the BTC question was split still applies its single answer to both directions.
-
-**Row filter:** the wizard's second step restricts the import to certain lines — any number of conditions "column is (not) one of \<values\>", joined by one AND/OR combinator. Columns and values are offered from the loaded file (values with occurrence counts), so a filter always fits the file at hand; e.g. an export where only `transaction_type = trade` should be imported. A rule without selected values, or one naming a column the file does not have, is ignored rather than dropping every row. Filtered-out lines never reach the mapping/type-value/preview steps, and surviving rows keep their original CSV line number.
-
-**Duplicate detection** (`lib/importDuplicates.ts`, `lib/importBatches.ts`): an export imported twice doubles the holding and falsifies every tax figure derived from it, and nothing looks broken afterwards — the numbers are simply wrong. Two halves guard against it.
-
-*The file*: its raw bytes are hashed (SHA-256) when it is chosen and compared against the runs the portfolio already records. A match warns with the date and the transaction count of that run, and the step does not continue until the repeat is confirmed on purpose. The bytes, not the parsed rows: a re-export with one row appended is a different file. WebCrypto is unavailable outside a secure context, so a failed hash costs the warning and nothing else — the row-level detection still runs.
-
-*The rows*: every row that would actually be written is checked against the target account **and** against the earlier rows of the same file, in this order of evidence — a shared `txid` in the same account and of the same type; identical account, type, timestamp, amount and EUR figure; the same values with timestamps inside a tolerance (`settings.importDuplicateToleranceMinutes`, default 2, configurable because exports disagree about time zones and rounding). The first two are proof and are labelled as such, the third is a suspicion and is worded as one. Rows are walked in file order and join the index as they go, so of two identical lines the *second* is flagged and the first stays importable.
-
-**Nothing is ever rejected automatically.** Identical transactions can be perfectly real (a split order filled twice), so a duplicate is *marked*, defaulted to "do not import", and the user decides: the preview badges it, names the reason, links to the colliding transaction so the two can be compared, filters to "all / new only / duplicates only", and offers "skip all" and "import all anyway". That default is derived, not written into the rows, so a row re-included by hand survives the scan re-running.
-
-The comparison keys are built **once** as maps (`buildDuplicateIndex`), so a portfolio of several thousand transactions costs one pass rather than one per imported row; a test asserts 1 000 rows against 5 000 existing transactions stay in the millisecond range.
-
-**Every import is recorded** (`importBatches` on the file, `importBatchId` on each transaction it wrote, both optional so older files need no migration): when, which file, its hash, the preset, how many transactions, and where they landed. That is what recognises the file next time and what "undo this import" removes by. Undoing is deliberately not a single delete: a transaction an import wrote becomes an ordinary transaction the moment it exists, so `analyzeBatchRemoval()` reports what would break — a lot a later disposal allocates, a transfer leg whose counterpart stays, a disposal of the batch that closed lots which do not belong to it — and those stay while the rest goes. The list and the action live in the settings.
-
-In the wizard's first step, the user picks a preset (system presets first, marked as predefined, then their own — both **grouped by provider**, with the format version in the label) or "manual/no preset"; picking one pre-fills every later step, which the user can still adjust before importing. After a manual or adjusted run, the user can save the resulting configuration as a new user preset, and export it as JSON — offered both on the confirmation step and after the import has run, which is the moment the configuration has just been proved to work.
-
-**Managed in the settings** (`components/ImportPresetsView.tsx`, in the import group of §6.3): system and user presets listed separately, the system ones marked read-only and offering "duplicate as my own preset" — a variant of a shipped preset must be the user's own, or the next app update would throw the edit away. User presets can be renamed, duplicated, deleted and exported; a preset somebody else exported comes in through the same view, validated against the schema and refused with a per-field reason rather than half applied. Importing keeps the file's id where it is free, so an updated version of a shared preset replaces the one it updates instead of leaving two entries nothing can tell apart.
-
-### 3.5 Interface Settings (`uiSettings`)
-
-How the user arranged the interface travels with the portfolio file, not with the browser — the same file opened on another device shows the same dashboard and the same table columns.
-
-```json
-{
-  "uiSettings": {
-    "dashboardLayout": [
-      { "i": "portfolioValue-1", "widgetId": "portfolioValue", "x": 0, "y": 0, "w": 4, "h": 4 }
-    ],
-    "transactionColumns": ["date", "type", "walletAccount", "amount", "price", "value"]
-  }
-}
-```
-
-- `dashboardLayout`: position, size and choice of the dashboard widgets (§4.1). `i` is the instance id and the grid item key, `widgetId` the registry entry to render, `x`/`y`/`w`/`h` grid units.
-- `transactionColumns`: the visible transaction-table columns, in display order.
-
-`uiSettings` and each of its fields are **optional**: a file written before they existed stays valid and falls back to the default layout and the default column set. Entries naming a widget or column this build does not have are dropped on load, so removing a widget in an app update cannot break an existing file. An empty `dashboardLayout` is not the same as a missing one — a dashboard the user deliberately emptied stays empty.
-
-**When it is written:** once per editing session, never per interaction. The dashboard keeps its working copy in component state while edit mode is on and commits it when the user leaves edit mode or navigates away; the column picker commits when it closes. So a drag across the grid costs one save at the end instead of one per frame, and an encrypted file is re-encrypted once instead of continuously. A session that changed nothing writes nothing: the commit is compared against the arrangement the session started from, so merely opening the dashboard of an older file never writes the default back or marks the file dirty.
-
-**Migration:** both values used to be device preferences in `localStorage` (`depotwatch.dashboard.v1`, `depotwatch.txColumns.v6`). Those keys are still *read* as a fallback when the open file carries no setting of its own (`lib/legacyUiPrefs.ts`), so nothing is lost when an older file is opened. They are never written back and never deleted: the file always wins, and adopting a device value must not silently mark the file as changed.
-
-## 4. MVP Features
-
-- **Wallet/account management:** create, rename, delete (hierarchy wallet → account). A new wallet is created **with its first account**, named in the same dialog: transactions hang on accounts, so a wallet without one cannot be picked anywhere — not as a transfer target, not in the transaction dialog, not in a filter — and a freshly created wallet that is missing from every list looks like the app swallowed it. A wallet that ends up without accounts anyway (its last one deleted, an older file) says so where it is listed.
-- **Transaction entry (manual):** buy, sell, transfer (wallet-to-wallet/account-to-account), spend (payment with BTC).
-
-  The dialog (`components/TransactionForm.tsx`) is one always-visible block with what every transaction needs — type, date, account(s), amount, price, total — and below it one collapsible `Section` (`components/ui.tsx`) per topic: fees, assignment/origin (transfers only), on-chain data, settled-in-another-currency, note. A section is **closed by default but opens itself when it has content** and stays open while something in it needs attention (an unassigned amount, an unlinked arrival, an invalid txid — `forceOpen`, which the toggle cannot override for as long as it lasts). A closed header carries a summary of what is inside (the fee, the note, the linked source account, assigned/target BTC), so the dialog reads top to bottom without opening anything. Fields of a closed section keep their values — collapsing hides, it never clears. The field area scrolls and the save/cancel bar does not, so the actions of a long transfer are never a scroll away.
-- **Dashboard:** a freely configurable widget dashboard (see §4.1).
-- **Year in review:** a card-by-card look back at a completed year, reached from the milestones page and a dashboard widget, with a privacy-first image export (see §4.2).
-- **Transaction table:** sortable, filterable by wallet, account, type, date range, and by data-quality issue (see §4.1, "Data quality"). Both transfer directions unfold (expander) into their origin lots (§3.2): original purchase date, proportional BTC share, original cost per BTC, origin wallet/account and holding-period status, each linking to the original buy, with a total row that flags any deviation from the arrival's own amount. The same list is a section of the transaction's detail/edit view. An arrival with no resolvable origin shows "origin not assigned" plus a button that opens the out-leg picker (§3.2); when that picker finds no candidate it offers the transfer dialog's assignment mode instead, which builds the missing out-leg from the source account's lots. An out-leg whose allocations do not cover what left the account shows the same kind of hint, leading into its own dialog, where the assignments are edited.
-- **Value history chart:** portfolio performance over time, optional comparison against the BTC price (historical data via Binance Klines API).
-- **Tax module (Germany):** on (`TAX_FEATURES_ENABLED` in `lib/features.ts`; flipping it to `false` removes every tax surface from the UI while the FIFO engine keeps running, because the persisted `lotAllocations` depend on it).
-  - Lot assignment on sell/spend/transfer_out: made by the user and persisted, never derived by the app (see §3.2).
-  - Marking tax-free (holding period > 1 year) vs. taxable.
-  - Display of remaining time until tax-free status per open lot.
-  - Holding period and cost basis always come from the **resolved original** lot (§3.2), never from the date coins arrived somewhere. A transfer leg is never a taxable event, regardless of the price it carries for display.
-  - Positions whose origin does not resolve are reported as "origin unresolved" — in the tax view's open lots and disposals, in the transaction table's tax-status column, and as their own bucket in the holding-period widget. They are never valued against an arrival date.
-- **File handling:** open/save incl. password prompt and encryption (see section 2).
-
-### 4.1 Widget Dashboard
-
-The dashboard is a grid the user arranges themselves (`react-grid-layout` v2, loaded via `next/dynamic` with `ssr: false` — it measures the DOM, so there is nothing for the static export to prerender).
-
-**Grid:** 12 columns, drag and resize enabled only in an explicit *edit mode* (`components/DashboardGrid.tsx`), so nothing moves by accident in normal use. Dragging starts from the widget header only (`WIDGET_DRAG_HANDLE`), which leaves the controls inside a widget clickable. Below 768 px the dashboard drops to a single column (`components/Dashboard.tsx` → `WidgetStack`) and edit mode is unavailable; a widget keeps its configured grid height there, so a chart stays a chart.
-
-**Free cells:** react-grid-layout knows nothing about empty space, so `freeRects()` in `lib/dashboardLayout.ts` derives it from the layout — occupied cells are marked, then each free cell grows right and down as far as it stays free, which merges a wide gap into one "+" button instead of twelve. Three spare rows are always offered below the last widget. Clicking a placeholder opens the widget picker and inserts the chosen widget at that cell in its default size.
-
-**Registry (`components/widgets/registry.ts`):** every widget is one entry — id, title/description keys, default size, min/max size, data sources, component. The **icon is not in the entry**: it is drawn in `components/widgets/WidgetIcon.tsx`, keyed by the same id, in the geometry every drawn icon in the app shares (`components/icons.tsx`, §5) — the emoji these used to be were a handful of pixels at header size, took the platform's emoji font rather than the theme, and never the accent colour. Motifs that mean the same thing in both sets (an hourglass for the holding period, a shield for the watchlist) are defined once in the shared module rather than twice. Tests hold the set complete, uniform, inside its box, and **free of duplicate drawings** — two widgets with the same picture are two rows in the picker that cannot be told apart, which is exactly how the year in review and the buy heatmap both ended up as calendars. Nothing in the dashboard, the grid, or the picker knows a widget by name, so a new widget is added by a single registry entry and nothing else. Min/max sizes are enforced by the grid, so a tile can never be resized into illegibility. Widget components take no props; they read the shared, once-computed portfolio figures (ledger, FIFO result, balances, live price, display-currency formatting, transaction-table navigation) from `useDashboardData()` (`components/widgets/context.tsx`).
-
-**Widgets:** portfolio value with 24h/7d/30d change, profit/loss, BTC price, holding-period timeline, sats stack with milestones, average cost basis vs. price, custody split (exchange share as a warning metric), price chart with own entries and exits, network fees, halving countdown, data quality, DCA overview, plus the value chart, the wallet/account breakdown and the holding composition. Also: what could be realised tax-free right now, this year's gains against the exemption limit, the BTC stack over time, a buy heatmap, the fee balance, a what-if price, time in the market with the deepest drawdown, a block clock, the watchlist's UTXO picture and its open security findings. Portfolio-level warnings (negative holding, unusable amounts, uncovered disposals) are *not* widgets: they belong to the whole ledger and are always shown above the grid.
-
-The **BTC price widget shows both fiat prices**, one row per currency and the rows identical apart from their colour: the display currency in the accent, the fiat it does not already show muted below it (with the display unit set to BTC the first row is a sats figure, so EUR *and* USD follow). Both come from the spot request that runs anyway — the EUR/USD cross rate needs them — so naming the dollar price costs nothing.
-
-It **also reads the price as "Moscow time"** (`moscowTime()` in `lib/displayUnit.ts`): the sats one dollar buys, written as a clock — 2 000 sats per dollar is "20:00", with the sats figure spelled out below it. It is **always the USD price**, whatever the file displays, because that is the convention the figure is quoted in everywhere; a per-user reference currency would produce a "moscow time" nobody else could compare theirs to. It is a second notation of the same spot price, not a conversion, so it is always shown (like the display unit of §6.3 and unlike the easter eggs of §5.1) and nothing stored or calculated ever reads it. Below $10 000 per BTC the figure stops being a clock ("100:00"), and below half a sat per dollar there is nothing left to show — both cases print "—" instead of an invented time.
-
-**Derived figures live in `lib/dashboardStats.ts`, not in the widgets** (`taxFreeRealizable`, `realizedInYear`, `feeTotals`, `buyHeatmap`, `tradeMarkers`, `maxDrawdown`, `timeInMarket`, `whatIf`): pure functions over what the engine already produced, unit-tested in `lib/dashboardStats.test.ts`, Decimal throughout with rounding left to the formatters. Each of them has a way of being quietly wrong that no screenshot would reveal, and each is pinned by a test: a lot whose origin never resolved is **never** counted as tax-free (its acquisition date is an arrival, §3.2) but reported as its own figure; a BTC fee is valued at the close of **the day it was paid**, and a day with no candle is reported as unvalued rather than dropped; the drawdown is the *portfolio's*, not the price's, so buying on the way down lifts it again; the what-if values `openBasisBtc` and not the whole holding, for the same reason the P/L widget does.
-
-**The exemption-limit tracker** reads `settings.taxExemptionLimitEur` (§6.3, default 1 000 €) instead of hard-wiring a figure — the legislator moves it (600 € until 2023), and a file written under one figure must keep showing that one. It says in words that this is a *Freigrenze* and not an allowance (one euro over and the whole gain is taxable, not just the excess), and carries the disclaimer that none of this is tax advice. Both tax widgets sit behind `TAX_FEATURES_ENABLED` in the registry: with the flag off they are not registered at all, so they can be neither placed nor picked.
-
-**The two watchlist widgets share one scan** (`lib/watchlistScan.ts`): addresses are walked one at a time with a pause between them, every request goes through the module cache of §4.1 keyed per address, and the aggregation (`summarizeUtxos`, `summarizeSecurity`) happens once for both tiles. Watch-only and strictly separate from the ledger (§3.1); xpub entries are counted as "not queryable" rather than guessed at. With an empty watchlist both tiles offer to add an address and open that form on arrival, rather than only naming the gap.
-
-**A widget may not read the clock while rendering.** `useNow()`/`useNowDate()` (`lib/clock.ts`) expose it as an external store, and where there is no meaningful "now" (the prerender) the hook returns null and the widget shows its skeleton — calling `Date.now()` in the render would make the component non-idempotent, which is exactly what that module exists to prevent.
-
-**The price chart's own entries and exits** (`tradeMarkers`/`tradeMarkersFor`): a marker sits at the price the trade was **executed** at, never at that day's close. The close is a different number, and putting a buy on it claims an execution that never happened — it also dropped every trade whose day the price source had no candle for. A trade with no EUR figure at all has no price to be placed at and is *counted* below the chart instead of being placed at zero. Because the ledger records EUR (§3.2) and the chart follows the display currency, a USD axis converts each marker at the EUR/USD rate of **its own day** (both daily series, the rate carried forward over gaps), not at today's. And because a daily DCA would put several hundred dots on the chart — a band, not information — trades are folded into buckets (day, week or month: the finest that stays under ~45 markers), each marker sitting at the **volume-weighted** average price of its bucket and sized by the BTC it covers. Whenever it aggregated, the widget says so underneath, so a dot standing for thirty buys cannot be read as one trade.
-
-A marker sits at the volume-weighted **middle of its trades**, not at the bucket's first instant: a month bucket begins on the 1st, and a dot drawn there claims trading on a day that often had none — and slides out of the picture whenever the visible range starts mid-period, which is what once left a lone dot in the empty margin beside the line. For the same reason the time axis takes its domain from the **line**, and a trade the price source does not reach back far enough to place is left out and counted underneath, next to the ones with no price at all. The value axis frames the data instead of reaching towards zero (`priceAxisDomain`, rounded outward so the ticks stay round figures); markers share that axis, so none can fall outside it.
-
-**A dot standing for a month of buying has to be readable as one**, so hovering a marker opens a card with its period, the number of trades, the BTC, the value and the average price paid. That card is deliberately *not* Recharts' tooltip: that one is tied to the axis and hides itself wherever it finds no active tick — near the left edge, for instance — so dots that were plainly being pointed at answered nothing. It follows the dot's own coordinates instead and opens towards the middle of the tile, and while it is open the axis tooltip and its cursor line are suppressed, because both would name the day's close, the one number a marker is placed *away* from. The highlight on the hovered dot is CSS rather than state: re-rendering several hundred markers on every pointer move is work for nothing, and it churns the very node the pointer is sitting on.
-
-**The buy heatmap is the classic calendar strip** (`buyHeatmap`): a year of days, weeks as columns and weekdays as rows, shaded by the day's volume. The strip is 53 columns wide at a readable cell size, so on a narrow tile it scrolls sideways — that is the trade this form makes, and it is why the widget asks for a wide default (eight columns, where the year fits without scrolling). Squeezing the year into any width instead is what turns the squares into slivers that can carry neither a date nor a label. What the strip does carry: the months across the top and the weekdays down the side, so it is clear what one square is, plus a line saying it outright. Hovering a square reports that day below the grid — how many buys, how much BTC and EUR, and the volume-weighted price paid, derived from the **gross** amounts like the chart's trade markers (the cell's BTC stays net of the fee, since that is what the stack grew by). That detail area has a fixed height and falls back to the period's summary, so moving the pointer across a year of squares never makes the tile jump. Month names and weekday abbreviations come from `Intl` in the active locale rather than from a dictionary entry, because they are calendar data.
-
-**Unrealized P/L and the cost basis:** `openCostBasisEur` only covers open lots that have a known cost per BTC, so a market value compared against it must be taken over `FifoResult.openBasisBtc` — never over `portfolio.totalBalance()`. Coins whose acquisition price is unknown (an external `transfer_in` without a price, a buy with no EUR figure) are part of the holding but contribute no cost, so valuing the whole holding against a partial basis books their full market value as profit and can report a gain while the price sits below the average cost. The P/L widget therefore values `openBasisBtc` and names the BTC it left out; the same rule applies to any future figure that subtracts a cost basis from a market value.
-
-**Data quality** (`lib/dataQuality.ts`): unlinked transfer legs (unpaired, see §3.2 — a group id alone is not a link), incoming transfers whose origin cannot be traced, disposals (sell, spend, outgoing transfer) whose lot allocations do not cover what left the account, transfer legs without a txid, and buy/sell/spend without any EUR figure. One predicate per issue, shared by the widget and the transaction table's issue filter, so the count and the filtered list can never disagree. An issue that cannot be judged from a single transaction takes an `IssueContext` (built once per ledger via `issueContext()`) instead of guessing — origin resolution walks the whole ledger backwards, and a caller that does not pass the context gets `false` rather than a wrong count.
-
-The tile also carries the one gap with an answer the app may fill in itself: an assignment short by exactly the network fee (§3.2). It is a *subset* of `incompleteAllocation` rather than an issue of its own — counting it twice would report the same defect twice — and it gets a line of its own plus a repair dialog (`components/FeeRepairDialog.tsx`), reachable from the transaction table's issue filter as well, so a dashboard without this tile is not a dashboard without the repair. The dialog behaves like the restore does (§6.5): it names every transaction it would change and which lots the missing BTC would come from, writes a verified backup first, and on a failed backup stops and says why rather than writing anyway.
-
-**External data** (`lib/marketData.ts`): one module-level cache with per-key TTL, shared in-flight requests and a short error memo, so a re-render never becomes a request and an unreachable source never becomes a request storm. Prices come from Binance, on-chain figures exclusively from the explorer configured in `explorerSettings` (§3.3) — never a hard-wired third party. Widgets load independently, show a skeleton while loading, and catch their own errors: a per-widget `WidgetBoundary` plus a per-widget error state means one broken or unreachable tile never takes down the dashboard.
-
-**Layout persistence:** position, size and choice of widgets live in the portfolio file (`uiSettings.dashboardLayout`, §3.5) and are written once per editing session, not per drag. "Reset layout" restores `defaultDashboard()` in the working copy, which is then committed like any other change. The shipped default layout has to be a fixed point of react-grid-layout's vertical compaction — otherwise the grid would "change" it on mount and merely opening the dashboard would dirty the file; a test asserts this.
-
-**The default layout is a table of row bands** (`DEFAULT_BANDS` in `lib/dashboardLayout.ts`) and shows **every** registered widget, ordered by what a portfolio owner needs first: what it is worth right now, then the stack itself — how much of it there is, how far it is towards the target its owner set, what it cost and whether it is in one's own custody — then the curves, then buying behaviour, then the ledger panels, then tax, then the watchlist, then the record of what the owner has decided (the milestones, the last completed year, the time in the market), and finally the ambient chain facts, which are the tiles that say nothing about this portfolio at all. A band is exactly 12 columns wide and every widget in it is equally tall, which is what makes the whole layout a compaction fixed point *by construction*: each band rests completely on the one above, so nothing can float upwards, and no row is left part empty. A band 11 wide, or two heights inside one band, silently breaks that — the tests hold it: every row full, nothing able to rise, and every registry entry placed exactly once (so a new widget that nobody put in a band fails there rather than quietly missing from the default). Widths follow what a widget needs rather than what looks tidy: the buy heatmap gets **eight columns**, because a year of days is 53 week columns wide and only fits without scrolling from there on.
-
-**A widget the open file cannot fill is laid out around, not left as a hole.** Two kinds of widget are not on every dashboard: the tax ones behind `TAX_FEATURES_ENABLED`, and the ones whose subject the user configures first (`available` in the registry — the savings goal, §4.4). A hole is not an option, because the grid compacts it away on mount and merely opening the dashboard would then rewrite the file. So each is dropped at the level of a whole *band*: the tax band carries `taxOnly` and goes entirely, the bands below simply moving up with it; a band whose shape depends on a conditional widget **names** it (`requires`) and declares the `fallback` it becomes without it — possibly nothing at all, which is how one arrangement can answer for two.
-
-The savings goal is exactly that case, and it is why the dependency is named rather than read off the band's own contents: the four tiles about the stack (how much, how far towards the target, what it cost, where it sits) do not fit one row at a readable width — four across leaves each of them three columns, too narrow for the one carrying a table of amounts and the one carrying a list of labelled figures. So a file with a goal gets two rows of two, and the far more common file without one keeps its single row of three. Every variant is 12 columns wide in every row, i.e. every variant is a compaction fixed point, and the tests check that for the layout with each conditional widget dropped in turn — which is what will catch the *next* such widget. `defaultDashboard()` is told what the file can fill through a **predicate**, not a portfolio: the layout module stays free of the widget registry, and the caller (`components/Dashboard.tsx`) passes `isWidgetAvailable`.
-
-### 4.2 Year in Review
-
-A "wrapped"-style look back at one bitcoin year (`components/YearInReview.tsx`).
-
-**Only years that are over.** A review of a year that is still running is a half figure presented as a whole one: the average price has months left to move, the streak can still grow, and "stacked this year" said in March is not the statement it will be in December. So a review starts existing the moment a year ends and never changes afterwards. The picker offers a **contiguous range** from the first transaction year to the last completed one, gaps included — a year in which nothing was traded still has a story (what passed the holding period, which milestones arrived, what was held on 31 December), and skipping it would be hiding a year rather than being tidy. Until the first year is over there is nothing to show, and the page says so.
-
-**It is not in the main navigation.** The entry points are a button on the milestones page (§5.2) and its own dashboard widget: both answer the same question as the milestones do — what has this portfolio owner actually done — and neither is a place one works in. A nav item for a page one opens once a year would cost a permanent slot for it.
-
-**It reports behaviour, never a verdict.** Every card is something the user *did*: bought, held, moved into their own custody, paid in fees. Nothing here grades a price, because what the market did in a year was not a decision anybody made — the same rule that decides what may be a milestone (§5.2). It shows in the wording: the prices paid are a **range**, not a best and a worst buy, and the comparison against the year's average price is stated as a difference, not as a result.
-
-**The arithmetic is one pure function** (`computeYearReview()` in `lib/yearInReview.ts`) over the flattened ledger, the FIFO result and the milestone records: Decimal throughout, no clock of its own (`now` is passed in), no formatting, no fetching. The view only decides how the figures read, which is what keeps a card from being able to say more than the review contains.
-
-The cards: net sats stacked and how many buys they took, EUR invested, the volume-weighted average price paid against the year's average BTC price, the range of prices paid, the busiest month and weekday, the longest unbroken buying streak, fees (trading and network), the amount whose holding period ran out during the year, realised gains where there were disposals, transfers into self custody plus the self-custody share at year end, the milestones reached, and finally the holding at year end. A **summary** page at the end of the stepper puts all of them on one screen, each line jumping back to its card.
-
-**A card with no basis is never rendered.** `review.cards` lists exactly the ones the year can fill, and the stepper walks that list: a year with one buy has no price *range* (a single price is not a span) and no streak, a year without disposals has no realised gains. A year with no transactions at all gets one friendly page instead of twelve zeroes. The two tax cards additionally follow `TAX_FEATURES_ENABLED`, like every other tax surface.
-
-**Internal transfers may not look like stacking.** Net growth and the year-end holding are computed over `bookingDates()` (`lib/portfolio.ts`, shared with the daily balance series): a paired arrival is booked on the day its out-leg left. The two legs of one transfer regularly carry different timestamps, and a pair straddling New Year's Eve would otherwise count as a whole coin stacked in January and a coin lost in December. A test holds it.
-
-**Holding periods come from the traced original buy**, read off the FIFO engine's open lots (§3.2) — never from the day coins arrived somewhere. A lot whose origin never resolved is not counted as anything: it is reported separately as "origin unresolved / not judgeable", because the one wrong answer about coins whose acquisition date the app had to guess would be a confident one.
-
-**No mass fetching for merely being opened.** The comparison against the year's average price uses the daily closes that are **already cached** (`peekDailyCloses()` in `lib/marketData.ts` — it never starts a request and deliberately ignores the TTL, since a close of a day that is over does not change). When nothing is cached the card simply omits the comparison and offers a button that loads the series on purpose (`loadDailyCloses()`, same cache key as the dashboard's, so the two reuse each other's work). The same closes are what value BTC fees; without them a BTC fee is reported as unvalued rather than dropped.
-
-**Sharing is where this feature could do real damage, so:**
-
-- The image is drawn **in the browser**, on a canvas (`lib/yearInReviewImage.ts`), and handed over as a PNG download. Nothing is uploaded, no service renders it, and there is no "share to …" button — the app has no business talking to anyone.
-- **Absolute amounts are off by default.** The holding, the sums invested, the sats stacked, the euros realised: all dropped from the image unless the user turns them on, because what somebody owns in bitcoin is a personal security matter rather than a privacy preference, and an image outlives the moment it was posted in. What is left still tells the year: counts, percentages, the average price, the rhythm, the self-custody share. Which lines count as absolute is decided **once**, in `shareStats()` (`lib/yearInReviewShare.ts`), and asserted by a test — the switch cannot leak a line the list does not mark.
-- The switch says what it does in so many words (that the image would then name the real size of the holding, and that this is a security risk), and the preview above the button shows the exact lines the image will carry, so nothing appears inside a PNG that was not on screen first.
-- The **privacy mode wins over the switch**: while amounts are blurred, absolute figures cannot be written into an image at all. Screen sharing and publishing a holding are the same risk, and the two settings must not be able to contradict each other. On the page itself the privacy mode blurs exactly the figures the share list marks as absolute.
-
-**The dashboard widget** (`components/widgets/YearInReviewWidget.tsx`, in the default layout): the last completed year in four figures — net stacked, buys, average price paid, self-custody share — and a link into the full review. Ledger only: it hands the computation an empty set of closes, so the tile never talks to anybody. The market comparison is the one figure that needs history, and it belongs on the page, where it can be asked for on purpose. With no completed year in the file the tile says that instead of showing zeroes.
-
-**The turn-of-the-year hint** (`components/YearInReviewHint.tsx`): once a year has ended, the dashboard carries one quiet line through the first quarter saying its review is ready, with a link into it and a dismiss. It names the year that has just ended, never the running one — the review of a year that is not over does not exist. Dismissal is recorded per year in the portfolio file (`uiSettings.yearInReviewDismissed`, §3.5), so it stays away on every device the file is opened on and asks again for the next year. After the season it is gone on its own: the review stays one click away on the milestones page and in its widget, without a banner asking for attention.
-
-**Motion** is one short entrance per card, applied through `motion-safe:` like the milestone toast (§5.2): anyone who asked for less of it gets the same cards, they simply appear. Everything is drawn from theme tokens, so the page works in all nine themes, and every string goes through the DE/EN dictionaries.
-
-### 4.3 As-Of View
-
-"What did I hold on 31 December" is a question the tax return asks every year, and one the live view cannot answer. `lib/pointInTime.ts` answers it the only way that keeps it consistent with everything else the app says: by running the **same engine over the same ledger** with everything after the cut-off left out. No second implementation of holding periods, cost basis or lot tracing — a historical view that disagreed with the live one about a lot would be worse than no view at all.
-
-Two details decide whether the figures are right. The cut-off is inclusive to the **end** of the chosen day, because "as of 31 December" means the day is over rather than about to start. And entries are cut by their **booking date** (`bookingDates`, §11), so a paired arrival counts from the day its out-leg left — the two legs of one transfer regularly carry different timestamps, and cutting between them would put the coins in neither account or in both.
-
-**The holding period is judged against that day**, not against today: a lot bought in March 2024 was taxable on 31 December 2024 and is tax-free now, and a view that answered "is it tax-free today" would be the live view with a date picker on it. A lot whose origin never resolved is counted as neither tax-free nor locked but reported separately, for the same reason it is everywhere else (§3.2).
-
-**A period is the same calculation, asked twice.** A tax return wants two different things about one year: what was held on 31 December (a moment) and what was realised during it (a span). With an optional *from* date the chosen day becomes the end of a period, and `periodBetween()` adds the opening balance, the change, what was bought and disposed of, and the gains realised inside it. Those gains are the *closing* snapshot's disposals filtered by date — its engine has already walked the whole history, so computing them separately would be a second implementation free to disagree with the first. The opening balance is the state at the end of the day **before** `from`, so "1 January to 31 December" is a whole year rather than 364 days with an off-by-one at each end. Gifts given and income received in the period are counted separately rather than folded into the realised figure (§3.2), because neither is a disposal — but leaving them unmentioned in a period report would hide coins that moved.
-
-**Year ends are one click**, since that is what a tax return asks for — and only years that are over: a year end that has not happened is a guess, not a position. Everything else it says is what the live view would say about that day: holding in total and per account, cost basis (with the BTC it does *not* cover named, §4.1), value at that day's close, and the open lots with their status.
-
-**Reached from the tax page, not from the navigation** — it answers a tax question, and one asked a few times a year does not earn a permanent slot in a row of seven. The button sits beside the tax view's own export, and the view has a way back.
-
-The view **only reads** — it is strictly historical, says so in a banner above every figure, and holds nothing the store would let it write. The market value uses the **already cached** closes (`peekDailyCloses`, like the year in review, §4.2) and offers a button to fetch them on purpose; merely opening a view must not call an exchange. Export is CSV, or PDF through the browser's own print dialog — a megabyte of PDF library to render what the page already renders, in a theme the app already maintains for print (§5.4), would be a poor trade.
-
-### 4.4 Savings Goal
-
-An optional target: an amount, and optionally a date (`settings.savingsGoal`, so it travels with the file). Without one the widget does not exist — the registry entry carries an `available` predicate, which keeps it out of the picker and out of the default layout, whose bands for it fall back to the arrangement without it (§4.1), so "not configured" is absence rather than a tile explaining itself. With a target set it is there from the start, beside the sats stack at half the grid's width: the goal is a statement about the holding and belongs next to it, and it carries a list of labelled amounts that a quarter-width tile cannot hold. Nothing else in the dashboard learns a widget's name for any of that.
-
-**It reports, it does not urge.** No streak to lose, no "you are behind", no suggestion to buy — the same rule the milestones are written under (§5.2), and for the same reason: this is somebody's money, not a game with a scoreboard, and a target the user set themselves is a measure rather than a promise the app gets to hold them to. Past the date and not there, it says the date has passed, once, in the neutral colour, and stops.
-
-What it says is what is true (`lib/savingsGoal.ts`, pure functions, Decimal throughout): how far along, what is left, the rate the remaining months would need when a date is set, the rate saved so far, and where that rate would arrive. Each of those has a way of being wrong that a plausible-looking number would hide, and each is pinned by a test: an overshot target is *reached*, not 130 % reached; past the date there is **no** required rate, because "save the rest in no time" is a division by zero dressed up as advice; and with nothing saved yet there is no projection, because "never" is not information. The holding it measures is the ledger's (§11), not the engine's open lots.
-
-### 4.5 Holdings per Wallet and Account
-
-"How much is in here" was answerable only on the dashboard, from a widget that lists every account at once. It is asked about *one* place, usually while doing something with it, so it is answered where that place is named.
-
-**One computation, read by everything** (`lib/holdings.ts`): the wallet/account detail view, the wallet management list, the transaction table's summary row and its wallet-cell popover, and the balance hints in the transfer dialog and the lot picker. Several implementations of "the holding" would drift, and a balance that differs between two screens is worse than one that exists on a single screen.
-
-It takes its two halves from what each is the authority on (§11):
-
-- the **quantity** from the ledger (`balanceDelta`), never from the FIFO engine, which can only account for disposals that carry a lot assignment;
-- everything **about** those coins — acquisition date, cost basis, holding period — from the engine's open lots, which is where lot identity is resolved across internal transfers (transferGroupId → out-leg → `lotAllocations` → the original buy, §3.2). `lib/provenance.ts` is that same resolution read backwards for one transaction; walking it a third time here would be a third implementation free to disagree with the other two. A test holds the two together for a lot moved twice.
-
-The gap between them is **reported, not hidden**: while disposals are unassigned the open lots exceed the balance by exactly the unassigned amount (§3.2), and `unassignedBtc` says so on every surface that shows both figures. For the same reason the unrealized result is valued over `basisBtc` and never over the whole holding (§4.1), and the amount with no known cost is named rather than averaged in. The tax split has **three** buckets, not two: a lot whose origin never resolved is reported as "not judgeable" instead of being dated from an arrival, which would be a guess that happens to be the most favourable one available.
-
-**The detail view** (`components/WalletDetailView.tsx`) is reached from the wallet list, from the summary above the transaction table and from the popover on a row, and it carries its own way back — like the year in review and the as-of view it earns no permanent slot in a row of seven. It shows the holding, then the accounts under it (each linking one level deeper), then the open lots it is made of with their resolved purchase date and holding-period status, then the addresses of this wallet, then the last few transactions with the way into the filtered table. Recording a transaction, renaming, and adding an account are done from here rather than by going back to the list; a new transaction starts in the account one is standing in (`initialAccountId`), which is where defaulting to the portfolio's first account would book it somewhere else entirely.
-
-**The comparison with the chain** is part of that page and hidden until it can be made: it needs watchlist entries assigned to this wallet (§3.3), and it reads them through the same shared, throttled scan the dashboard uses (`lib/watchlistScan.ts`), against the explorer the user configured. Book balance, on-chain balance, and the deviation, with a sentence saying which of the two it is — a difference below one satoshi is none, and above it the causes are named rather than resolved, because only the owner knows whether a transaction is missing from the ledger or an address is missing from the watchlist. xpub entries cannot be queried by address and are counted out loud instead of quietly making the chain side look too small.
-
-**The summary above the transaction table** states the holding of whatever the filters select — a wallet, one of its accounts, or nothing at all, which is the whole portfolio. A holding belongs to a *place*, so the moment a filter selects transactions instead (a type, a data-quality issue, a period, the tax-free switch) there is no balance to state: the bar falls back to the sums of the rows on screen (`rowTotals`) and says in so many words that this is what they are. Those sums are taken over the filtered rows rather than the visible page, which is an accident of the page size. A transfer leg's EUR value is left out of them, because it is derived from the buys behind it (§3.2) and adding it to those buys would count the same euros twice.
-
-**Balances where a decision is made**: the transfer dialog shows what both accounts hold and what the move leaves them with, and the lot picker and the assignment table show the same pair for the account being drawn on. Both are measured *without* the transaction being edited, so the figure reads the same whether the dialog was opened on a new transaction or on one already in the ledger — asking for the plain balance instead would answer two different questions depending on how the dialog was reached.
-
-## 5. Design
-
-- Minimalist, clean, reduced UI.
-- Dark mode as the default theme (both themes are dark).
-- Bitcoin color theme: accent color orange (`#F7931A`) on black/dark gray, green/red for profit/loss indicators.
-- **Mobile first**, and comfortable up to a wide desktop (§5.3).
-- **Typography:** Outfit for body text, Space Grotesk for headings, Geist Mono for anything that has to line up in a column (amounts, ids, addresses). All three are **bundled with the app** (`app/fonts/`, variable woff2, latin subset, wired up via `next/font/local`) rather than fetched from Google — an app whose whole point is that opening a portfolio tells nobody must not ask a CDN for a font while doing it. The heading face is applied to `h1`–`h6` in `globals.css`, so every heading follows without a component knowing about it; `font-heading` is there for the few lockups that read as headings without being one.
-
-**The app mark** (`assets/icon.svg`) is a **block**, drawn as a solid object: one lit face, one in shadow, one outlined. Deliberately not a ₿ — that glyph belongs to bitcoin rather than to this app, and a letterform is the hardest thing to keep legible at 16 px, where counters close up and stems blur. A block is the opposite: three straight faces on a hexagonal silhouette, which survives being rasterised to 16 pixels and still reads as one shape. It also says what the app is — a block is what the chain is made of, and a container, which is the premise: one file holding the whole portfolio.
-
-It is the single source for every icon the app ships — favicon (16/32/48 in one .ico), the SVG modern browsers prefer, the 180 px touch icon, and the 192/512 manifest icons — all rasterised by `scripts/build-icons.mjs` (`npm run icons:build`). The **maskable** variant is a different drawing rather than a resize: Android crops launcher icons to whatever shape it likes, so it is full-bleed and its mark sits inside the safe circle; both substitutions that make it are asserted, so a changed source fails the build instead of silently shipping a rounded tile to be cropped again. The tile is accent-filled with a dark mark, the inverse of the header lockup — at 16 px an orange tile is legible on both a light and a dark tab strip, where dark-on-dark is not.
-
-Every candidate was judged **as a 16 px raster in a mock tab strip**, not as a large drawing: that is the size the icon spends its life at, and it is where a mark either survives or turns to mush.
-
-**The same block is the lockup mark**, wherever the app's name is written out — header, start screen, lock screen, footer, static pages (`components/BrandMark.tsx`, the icon's geometry in `currentColor`), so what sits in the tab strip and what sits beside the name are one mark rather than two. It replaced a literal ₿ character: **none of the three bundled fonts contains U+20BF**, so the mark hung on whatever the device fell back to and rendered as an empty box on one without the glyph — the same argument every icon in the app is drawn under. A test keeps the character out of the source.
-
-**Colour themes** (`lib/theme.ts` + the generated `app/themes.css`, chosen in the settings, §6.3): a theme is **nothing but a set of token values** — background/surface/surface-2, border, foreground/muted, accent (+ its dim and the text colour on it), gain/gain-safe/loss/warning, and a five-colour chart series. No component ever names a colour, so a new theme is one entry in the table and no component changes at all. Nine ship: `ocean` (default, deep navy), `night` (the Bitcoin orange on near-black), `terminal` (green on black, monospaced, with a static scanline texture), `gold`, `paper` (light, serif headings), `sunrise` (light, warm), `nord`, `mono` (greyscale, colour reserved for gain/loss) and `mempool` (after its fee gradient). A theme may bring its own typeface (`--theme-font-body`/`--theme-font-heading`), which is how terminal and paper differ in more than colour.
-
-The values exist twice — as CSS custom properties for the components and as literals in TypeScript, because chart libraries cannot read variables and reading them off the DOM would mean touching `document` during a prerender. `scripts/build-theme-css.py` generates the stylesheet from the table, and `lib/theme.test.ts` asserts they never drift apart **and** that every theme clears WCAG AA (4.5:1) for text on every surface it is used on, for the text on a filled accent button, and 3:1 for the chart series. That test is what keeps a new palette honest; `night`'s loss red was lifted from `#e01b24` to `#f4585f` because of it, the only change to the two original themes.
-
-**Appearance** (`lib/appearance.ts`) is theme + mode + the colour-vision option in one shape. `mode: "system"` picks between a configured light and dark theme by `prefers-color-scheme`, live. It lives in the portfolio file (`uiSettings.theme`/`themeMode`/`themeLight`/`themeDark`/`colorBlindSafe`, next to the dashboard layout) and is mirrored to a device preference (`localStorage`), so the start screen and the legal pages are themed before a file is open; the file wins when one is opened, and `settings.theme` is still read for files written before it moved. An inline script in `<head>` (`lib/themeBoot.ts`) sets the attributes from that preference **before the first paint**, so nothing flashes in the wrong colours; `components/ThemeEffect.tsx` only keeps them in sync afterwards.
-
-**Accessibility.** Gain and loss are never encoded by colour alone: `PnlValue` prefixes an arrow (▲/▼/•, `aria-hidden`), and the places that already print a sign opt out of it — so the direction survives colour blindness, a greyscale print and a monochrome theme. The **colour-vision-friendly** option is independent of the theme and swaps gain from green to a blue each theme carries itself (`--gain-safe`, one rule for all themes); a test asserts that blue is blue-dominant in every theme and far enough from the loss hue. Print always uses the light `paper` theme, whatever is on screen — its tokens are re-declared inside `@media print`, so a dark background never floods a page.
-
-**Every icon in the app is drawn, and drawn once** (`components/icons.tsx`). Three sets read off it — the milestones (§5.2), the dashboard widgets (§4.1) and the **inline marks** that sit in a line of text (the warning triangle, the check, the ✕ of a close button, the lock beside the file name). They share one geometry, which is what makes them look like one family rather than three: a 24×24 box, no fill, `currentColor` at stroke width 1.6, round caps and joins, and a solid dot wherever one is needed. The **motifs that mean the same thing in more than one set** are defined once there as well — a padlock is custody on a widget, an encrypted file in the settings and a read-only preset in the import wizard; a key, an hourglass, a slice of pizza likewise.
-
-The inline marks are sized in `em` and shifted onto the baseline, so a badge in a 12 px hint and the same badge in a heading stay in proportion without either being given a size by hand. They replaced literal characters (`⚠`, `✓`, `⭳`, `🔒`, `🧪`), which is the same argument as for the two icon sets and then some: a character has **no guaranteed presentation**, so depending on the platform's font fallback the same paragraph shows a line drawing, a colour emoji that ignores the `text-warning` it was given, or an empty box — `⭳` in particular is missing from most UI fonts.
-
-**Where the line runs between an icon and a character:** a glyph that acts as an *icon* is drawn — a status badge, a button whose whole label it is, an affordance. A glyph that belongs to *running text or a numeric column* stays a character: the `→` between two accounts, the `▸` of a disclosure, and above all the ▲/▼/• of `PnlValue`, which exist so a direction survives without colour (see below) and have to sit on the baseline of the figure they belong to. A test scans the whole source for pictographs, Miscellaneous Symbols and Dingbats and names the file and line of anything it finds; Arrows and Geometric Shapes are deliberately not in that net. It is the only thing that stops the next one being typed straight into a component — the first thing it caught was a symbol in its own explanatory comment, which is why test files are scanned too.
-
-An icon is decoration beside text that already says what it is, so all three sets render `aria-hidden` and carry no label. Where an icon *is* the whole button, the button carries the `aria-label` — asserted for the close buttons, since replacing a `✕` character with a drawing is exactly how a button loses its accessible name.
-
-**Laser eyes** (§5.1) add no colour of their own: the glow is `var(--accent)`, so the effect works in every theme, including the light ones.
-
-**Keyboard and dialogs:** `:focus-visible` draws an accent outline globally — the UI is dense and made largely of icon buttons, table headers and disclosure headers that have no other affordance. Anything sortable or expandable is a real `<button>` with `aria-sort`/`aria-expanded`, never a clickable `<th>` or `<div>`. `Modal` is a `role="dialog" aria-modal` with its title as the accessible name; it takes focus when it opens, returns it where it was on close, closes on Escape, and freezes the page behind it.
-
-### 5.4 Print
-
-Print always uses the light `paper` theme (§5). What that leaves is everything else, and it is a different job: a screen is a place one *works* in, a sheet is a document somebody reads, files, or hands to a tax adviser. So the working parts go — header, navigation, every button, every filter, any dialog or toast that happened to be open — and what stays is the content, on white, inside real page margins (`@page`, A4).
-
-**The rules are element-level, in `globals.css`, not utility classes on components.** A component that has to remember `print:hidden` is a component that will forget; a rule that says "no `nav` on paper" cannot be forgotten by the next view somebody adds.
-
-Three decisions worth naming:
-
-- **Every column prints, whatever the width rules say.** An A4 page is about 794 px, so the `lg:` breakpoint never applies to it — which silently dropped the note and the taxable-gain column from the printed tax report. On screen a column is hidden because the *viewport* is narrow (§5.3); paper is not narrow, it is finite, and a report is expected to be complete. Columns holding nothing but controls carry `print-hide` and go entirely.
-- **A paged table is rendered, not sliced.** The tax and as-of views show a screenful of lots and extend on request (§5.3), but a report that stopped after fifty lots would not be a report — so the remaining rows are rendered and *hidden*, and print shows them. The one place where hiding with CSS beats not rendering, because the printed document needs the rows to exist.
-- **One type family.** The paper theme pairs a serif heading with the sans body, which reads as deliberate on screen and as an accident on a page this short; figures stay monospaced, because columns of numbers have to line up.
-
-**The first sheet is a cover** (`components/PrintCover.tsx`): the report's name, what it covers, the headline figures in a two-column list, and at the foot the file it came out of, the moment it was produced and the disclaimer. It is the sheet somebody files or hands across a desk, and often the only one they read twice — everything behind it is the evidence for what it says. A figure may carry a second line naming what it excludes (an amount with no cost basis behind it), because a cover that states a number without its caveat is the page that gets quoted back at you. It exists on paper only: on screen those same figures *are* the view, and a second copy above it would be noise.
-
-**A long table is one table per sheet** (`components/PagedTable.tsx`). `thead { display: table-header-group }` repeats a header across a break, and for a short table that is enough; for a savings plan's several hundred open lots it is not. What comes out then is one table torn across a dozen sheets, where no page says what it is, which part of the whole it holds, or whether anything is missing — and a stack like that cannot be checked or handed on. So the rows are cut into pages by the app, and each page gets a complete table: its own caption, its own header row, and its own "part n of m". The break is **declared** rather than left to the layout engine, which is also what makes the count honest — the app decides where a page ends, so it knows how many there are. Part one breaks too: a table that begins halfway down the second sheet and runs over the fold is exactly the look this exists to prevent.
-
-On screen the same markup has to read as *one* table, so the repeated headers are hidden there and the chunks share one `table-fixed` geometry with an explicit `colgroup` — sized independently, two chunks would disagree about their columns and the seam would show. Rows per sheet is a **per-table** figure, not a constant: a seven-column tax table wraps two of its cells onto a second line and fits about two thirds of what the five-column as-of table does. A cell that would otherwise grow without limit is clamped, and the clamp sits on an inner element rather than on the `td` — print forces every cell to `display: table-cell` so no column can be dropped by a breakpoint, and `line-clamp` needs a display of its own.
-
-**The running sheets identify themselves too** (`components/PrintHeader.tsx`): app, report, what it covers, the file it came from, and **when it was produced**. That last one matters more than it looks — a portfolio report is a statement about a moment, and two printouts of the same year can legitimately differ once a missing lot assignment is filled in. A sheet that cannot say when it was made is one nobody can reconcile. The disclaimer prints with it, because a sheet that leaves the app has to carry it.
-
-### 5.3 Mobile First
-
-A phone is not a narrow desktop, and the rules below are what the app is laid out under. Every one of them exists because the desktop version, shrunk, was broken in a specific way.
-
-**The header fits the screen it is on.** Everything in it either shrinks, turns into its icon, or steps aside: the file name appears from `md` (the padlock and the save dot say the rest, and the menu panel names the file in full), the "set up file"/"save" button is its icon until `md`, and the header's own question mark goes at `sm` because every view heading carries one anyway. Nothing wraps: a wrapped label made the header twice as tall and pushed the file indicator off the edge.
-
-**A widget is as tall as its content.** The grid height in `uiSettings.dashboardLayout` is a desktop figure — chosen so the tiles beside it in its row line up — and imposing it on the single-column stack gave four lines of text a tile of empty space and cut off the tiles that needed more. Only a widget whose content has no height of its own says otherwise, with `mobileHeight` in the registry: a chart fills what it is given and collapses to nothing when that is "as tall as the content". A test holds those two sets apart (§4.1).
-
-**A wide table keeps every column and scrolls inside its own card.** The columns are the user's choice (§3.5), and a table that quietly drops most of them on a narrow screen answers a different question than the one the column picker was asked — including the row's own controls, which are part of the table. So nothing is hidden by width; what gives is the width itself: the table scrolls sideways in its container, and the *page* still never does. Cells stay on one line for the same reason — wrapping a wallet name into three lines buys width the row does not have to buy. (The transaction form's delete button was added while the row buttons were briefly gone on a phone; it stays, because a dialog that edits a transaction should be able to remove it.)
-
-**A long list is paged, not endless.** A savings plan puts hundreds of open lots in the tax view; rendered whole they make a page tens of thousands of pixels tall — unusable on a phone and slow everywhere. Both of its tables start at a screenful and are extended on request.
-
-**Dialogs use the width they are given** (`p-2 pt-4` on a phone against `p-4 pt-16` above it), and a form inside one measures its scroll area in `dvh` rather than `vh`: on a phone the browser chrome comes and goes, and `vh` measures the taller of the two states — a dialog that is a little too long for the screen exactly when the address bar is showing.
-
-**Touch targets** are taller below `sm` where they would otherwise be 30 px (`Button`, the navigation, the settings groups), and nothing depends on hovering: a hover tooltip may add detail, never carry it.
-
-The layout is checked at 320, 375, 390, 640, 700, 768, 1024, 1280 and 1440 px — no page may scroll horizontally at any of them.
-
-### 5.2 Milestones
-
-A catalogue of small acknowledgements (`lib/milestones.ts`, the overview in `components/MilestonesView.tsx`), under one rule that decides what may be in it: **a milestone rewards a decision the user made, never what the market did.** Nothing is awarded for the price going up, because that is not an achievement, it is weather. There are no streaks either — a streak turns a tool one opens when there is something to record into one that punishes you for not opening it, and this is somebody's money, not a game. And nothing compares one user to another, because the app has never seen another user and never will. A test asserts that no predicate reads a rate.
-
-Five categories: **stacking** (first transaction, 100 000 sats, 1 000 000 sats, 0.1, 0.21, 1 and 2.1 BTC), **sovereignty** (first withdrawal from an exchange to one's own wallet, 50 % and 100 % self custody, first watched address, a taproot address, a Lightning wallet), **patience** (first lot past the holding period, 100 days, a year, held through a halving, four years), **diligence** (first *verified* backup, §6.5, the file is encrypted, every transfer linked, every txid recorded, a tax report exported, a tax year closed) and **culture** (whitepaper opened, first consolidation, bought on a halving day, bought on 22 May).
-
-**The file stores only what was reached** (`milestones` on the portfolio file: id, `achievedAt`, `acknowledged` — optional, so older files need no migration); the catalogue itself lives in code, and adding one is a single registry entry. Each entry is a **pure predicate** over a snapshot (`MilestoneContext`), which is what makes the catalogue unit-testable and what lets the app work out *when* something happened rather than stamping today's date on a file with five years of history: `achievedAt()` derives the date from the ledger (the day the holding crossed a threshold, the withdrawal that moved coins off an exchange, first buy plus 100 days), falls back to now, and is never allowed to land in the future.
-
-**Every entry has its own drawn icon** (`components/MilestoneIcon.tsx`), for the same reason the laser eyes are drawn (§5.1): at 20 px an emoji is a handful of pixels whose look is decided by the platform's emoji font rather than by the theme, and it takes no accent colour. The set shares one geometry — a 24×24 box, no fill, `currentColor` at stroke width 1.6, round caps and joins, a solid dot where one is needed — which is what makes a column of them read as one set rather than as a pile of clip art. The drawings live outside `lib/milestones.ts`, keyed by id, so the catalogue stays free of JSX and testable without a DOM; tests assert that every milestone has exactly one icon, that none is drawn that no milestone asks for, that no shape brings a weight or colour of its own, and that nothing runs past the viewBox. The overview shows the icon for an *open* milestone too, muted instead of in the accent: an icon that only appeared once earned would make the list jump as it filled up.
-
-**A reached milestone stays reached.** The holding can fall back below one coin and coins can move back onto an exchange — none of that un-earns the decision, and re-deriving the date would rewrite history. Records are added to, never touched.
-
-**Evaluated on change, not on a timer:** the store evaluates inside the same commit as the change that earned it, and once when a file is opened, which is when the time-based ones can have become true. First contact with a file that carries *no* milestone history is silent: everything it already fulfils was discovered, not reached, so it is recorded acknowledged and nothing is announced. A file that already carries records is a returning one, and what is new since then genuinely happened while the user was away. Two milestones cannot be worked out from the file at all (the whitepaper was opened, a report was exported) and are recorded when they happen.
-
-**An event needs no file to happen in** (`lib/milestoneEvents.ts`). The whitepaper is reached from "how it works" and from the help, both of which are read *before* a portfolio is opened — so the click went into a store with no file and was dropped, and the milestone was unreachable in practice. Such an event now waits in `localStorage` and is written into the next file that is opened, with **the time it happened** as `achievedAt`: a milestone records when something was done, not when a file was later loaded. The queue holds one entry per milestone (the first click wins) and entries **expire after 24 hours**, because a click from last week belongs to a forgotten browser session rather than to the file somebody opens today. Nothing is written into the demo — it has nowhere to be saved, so a record there would be gone the moment it is closed and would ask the user to pick a location for test data on the way; the queue is left untouched and goes to the next real file. Several at once arrive in one collected toast like any other batch. The whitepaper is linked from the help as well as from "how it works", so the milestone is also reachable in the normal case, with a file open.
-
-**The notification is a remark, not an interruption**: a small card bottom right that goes on its own, several at once collected into one card rather than queued as a sequence, its one movement behind `motion-safe:`. The whole coin keeps the confetti it already had (§5.1). Everything here is switched off by `settings.easterEggs` — but only the announcement: the records are still kept and the overview stays reachable, because that switch turns off the interruption, not the history.
-
-### 5.1 Easter Eggs
-
-A handful of small touches, under one rule: **none of them may get in the way of using the app seriously.** Nothing moves on its own, nothing blocks a click, nothing changes a number. `settings.easterEggs` (default on, `lib/easterEggs.ts`) switches every one of them off; with it off the app behaves entirely plainly. It has **no row in the settings**: a switch labelled "playful touches" tells everyone who opens the settings that there are some to find, which is precisely what these must not do. The field stays honoured wherever it is read, so a file that carries it off keeps them off — it is switchable by editing the file, not by reading the settings. The laser-eyes switch is the one exception, and only *after* they have been unlocked (§5.1), because by then there is nothing left to give away and an unexplained glow needs a way out.
-
-- **Day-of lines**, each only on its day and in the *user's own timezone*: 22 May adds a line to the portfolio-value widget expressing the holding in pizzas at the 2010 rate (10 000 BTC for two, so 5 000 apiece); 3 January puts the genesis-block headline in the footer, 10 January Hal Finney's "Running bitcoin".
-- **A buy that was just recorded** (`components/BuyCelebration.tsx`): a short firework — the bitcoin sign on its coin, drawn as ever (§5), with two waves of sparks and a shockwave going out behind it, orange confetti coming down over the whole screen, and the amount that was added underneath. Transform and opacity only, above everything, `pointer-events: none`, gone after 4.6 s on its own — the burst is over in under a second and the rest is the coin standing there while the rain comes down, which is what makes it worth looking up for. The confetti is the **one** implementation (`components/Confetti.tsx`), shared with the whole coin: fewer pieces here and spread over twice the start window, so a purchase rains where the first whole coin dumps — the same family, without the everyday event stealing the rare one's moment. Its start window plus its fall time land just inside the flash, so the rain ends as the coin leaves instead of being cut off in mid-air; a test holds that, and another holds the durations written into the Tailwind animation utilities to the constant they belong to. Two things decide whether this is a pleasure or a nuisance. It is **pushed by the transaction dialog** (`celebrateBuy` in the store), never derived from the ledger: a buy is entered one at a time only there, so a CSV import of five hundred rows cannot set off five hundred fireworks, an edit of an old buy sets off none, and opening a file with ten years of history in it sets off none either. And the figure it names obeys the privacy mode like every other amount — a headline-sized number is the last place to make an exception. Reduced motion leaves the coin and the figure standing still and drops the burst; the colours are the theme's accent and the text colour that goes on it, so it works in all nine themes.
-- **The first whole coin** (`components/Celebration.tsx`): crossing 1.0 BTC once triggers a short orange confetti animation (`components/Confetti.tsx`, shared with the buy flash above), CSS only and `pointer-events: none`. `uiSettings.wholecoinerCelebrated` records it in the portfolio file, so it happens once per portfolio rather than once per page load — and a file that is *already* above one coin when it is opened records the flag without showing anything, because that moment has passed. `prefers-reduced-motion` (checked in JS *and* in the stylesheet) leaves the message and drops the motion.
-- **Laser eyes**: 21 clicks on the ₿ in the header unlock a cosmetic mode — persisted as `uiSettings.laserEyes`, switchable off in the settings once unlocked, and confirmed by a toast so an unexplained glow cannot read as a rendering bug. The logo is a real button, so it is reachable by keyboard. Unlocked, the ₿ **gives way to a face** (`components/LaserAvatar.tsx`): the placeholder avatar of every login screen, contours only, with a flare burnt into each eye. Both halves are the point — the meme is a *face* with flares in it, and a flare needs eyes to sit in, which a ₿ does not have. The flare is what the pictures actually show, not a beam leaving the head: a white-hot core, long horizontal spikes and shorter vertical ones, and a halo wide enough that the two bleed into one band across the eyes. It is drawn (SVG) because at 20 px an emoji is a handful of grey pixels that looks like whatever the platform's emoji font decides. The only colours are the theme's accent and white, so it burns in all nine themes; the glow around it is one `drop-shadow` in the accent (`.laser-glow` in `globals.css`, `drop-shadow` and not `text-shadow`, because what glows is no longer a glyph). Static, out of the layout, and nothing it draws can take a click.
-
-- **Sovereign badge**: with 0 % of the holding on exchange-type wallets, the custody widget's warning metric gives way to the acknowledgement — that state *is* the goal of the metric.
-- **Fee comment**: the network-fee widget adds one line per rate band about what one would actually do at that rate (consolidate while blocks are cheap, wait while they are not), which keeps it useful rather than loud.
-- **Empty transaction table**: "Nothing here yet. Every stack starts at zero sats." instead of the neutral sentence.
-- **Block Stacker** (`lib/blockStacker.ts` for the rules, `components/BlockStacker.tsx` for the canvas, on `app/not-found.tsx`): a row of blocks slides over a grid and is dropped with one impulse; what overlaps the row below survives, the rest falls away, so every miss narrows the row until nothing is left. The reward per block **halves every 21 levels**, said out loud in one line when it happens, and the row speeds up a little per level.
-
-  It sits on the **404 page**, which is the whole reason it may exist at all: nobody is working there. The error message, the "back to the app" link and the help link keep their place and their size, and the game is a quiet line below them that has to be opened — until then it is not even loaded (`next/dynamic`, `ssr: false`), so a 404 stays the cheapest page on the site. Like every other touch here it is gone entirely with `settings.easterEggs` off.
-
-  It obeys the same rules as the rest of the app rather than being a thing apart. **One impulse** is the entire control scheme — click, tap or the space bar — which is why the play area is a real `<button>`: focus, keyboard and the global focus ring come for free, and the canvas inside is `aria-hidden` because everything it shows is written out underneath in text. Every colour is a theme token read through `useThemeColors()` (a canvas cannot read CSS variables), so the accent row and the muted tower work in all nine themes. **Nothing runs until it is pressed**, and the loop stops again when the tab is hidden or the game ends: an animation frame on a forgotten 404 tab is somebody's battery. With reduced motion the blocks that missed simply disappear instead of falling; the row's own movement stays, because that one is not decoration, it is the game.
-
-  The **record lives in `localStorage`** (`lib/blockStackerBest.ts`), never in the portfolio file: a high score is not portfolio data, and writing it would mark the file as changed, which in File System Access mode means a game quietly wrote to somebody's disk. It is exposed as an external store rather than copied into state, for the same reason `lib/clock.ts` is.
-
-  The rules are pure and DOM-free, so the parts that are easy to get subtly wrong are unit-tested rather than looked at: the bounce at both walls, what a near miss costs, that a complete miss records no level, that the next row starts on the **far** side (otherwise tapping twice is a free perfect stack), and that the reward halves on schedule and never reaches zero.
-- The **whitepaper** ships with the app (`public/bitcoin.pdf`) and is linked from "how it works" — served from the project, like the fonts, so reading it asks nobody else. That page also calls the chain the **timechain**, exactly once.
-
-Every string goes through the normal DE/EN dictionaries; there are no hard-coded texts.
-
-The **BTC display unit** (§6.3) is deliberately *not* one of these: it is a real display mode and stays available with the switch off. Only the "1 BTC = 1 BTC" line in the portfolio-value widget is the playful part of it.
-
-## 6. Settings
-
-### 6.1 Security & Privacy
-
-- **Address reuse detection:** warning when a watched address has been used for receiving more than once.
-- **Public key leak detection:** check whether, for legacy/P2SH addresses, a spend has already exposed the public key on-chain.
-- **xpub leak warning:** notice when adding an xpub that sharing it exposes the wallet's entire transaction history.
-- **Address poisoning warning:** detection of dust transfers with visually similar addresses (a common scam attempt).
-- **Address type hint:** recommendation of modern address formats (native SegWit/Taproot) over legacy, for better privacy and lower fees.
-- **Privacy score:** heuristic-based assessment per transaction/UTXO (incl. common-input-ownership heuristic, conspicuously round amounts).
-- **Privacy mode (UI):** ability to blur/hide amounts in the interface (e.g. for screenshots or screen sharing).
-
-### 6.2 UTXO Management
-
-- **Coin control with labels:** tag individual UTXOs (source, KYC/non-KYC, wallet) for targeted selection in future spends.
-- **Dust UTXO detection:** flag UTXOs whose spend fee would exceed their value.
-- **Consolidation suggestions:** recommend merging small UTXOs when network fees are low.
-
-### 6.3 General Settings
-
-**The settings are grouped, not stacked** (`components/SettingsView.tsx`): a column of groups on the left — general, appearance, security, backups, change history, import, tax, explorer — with one group's cards on the right, and the column turning into a scrollable row of chips where there is no room for it. Ten cards in a single scroll is a list, not a structure: everything that is rarely touched buries what is being looked for. The menu carries **short labels of its own** (`settings.nav.*`) rather than reusing the card headings, because "Explorer-Quelle (On-Chain-Daten)" is a fine title for a card and a bad entry in a column 13 rem wide. The tax group follows `TAX_FEATURES_ENABLED` like every other tax surface, and `initialSection` lets something link straight into a group — which is how the backup reminder reaches the backups.
-
-- Appearance (§5): one of nine colour themes, or "follow the system" with a light and a dark theme; plus the colour-vision-friendly option. Stored in `uiSettings` and mirrored to a device preference
-- Language (German/English toggle, German as default) — the choice lives in the portfolio file and is mirrored to a device preference (`localStorage`), so the pages that exist without an open file (start screen, "how it works", legal notice, privacy) follow it as well; those pages carry their own DE/EN switch and exist under a localized URL per language (`/so-funktionierts` ↔ `/how-it-works`, `/impressum` ↔ `/legal-notice`, `/datenschutz` ↔ `/privacy`; map in `lib/routes.ts`). Opening a page adopts the URL's language; switching the language rewrites the URL — except while a portfolio is open, where the file's language wins
-- Display currency: EUR, USD, or **BTC** — a display *unit*, not a valuation currency. The ledger stays EUR (§3.2); amounts are shown in whole sats, fiat figures are converted at the current rate, and prices are still fetched in fiat (`priceCurrencyOf`). Sorting, rounding and every stored value are untouched by it: `lib/displayUnit.ts` only renders.
-- Easter eggs / playful touches (§5.1), on by default
-- Explorer source for on-chain queries: public API (default, e.g. mempool.space) or your own Electrum server/node (maximum privacy) — with a clear UI notice about the trade-off that public APIs transmit addresses to third parties
-- Change password / enable/disable encryption
-- Tax settings (holding period rule, the §23 EStG exemption limit in EUR, FIFO as default, possibly LIFO selectable later)
-- Autosave behavior (interval/debounce in File System Access API mode)
-- Backups: folder, trigger, retention and the reminder span (§6.5); plus the change history with its undo (§6.6)
-- Auto-lock on inactivity (§6.4): after 1, 5, 15 or 30 minutes, or never; plus "lock as soon as the tab is hidden" and whether the lock screen may show the file name
-- Read-only mode (§6.7): open a file to look at rather than to work in, switchable while it is open
-
-### 6.4 Auto-Lock
-
-The app locks itself after a configurable stretch without user activity (`lib/autoLock.ts` for the rules, `components/AutoLock.tsx` for the effects, `components/LockScreen.tsx` for what is left afterwards).
-
-**Locking is real, or it is not offered.** Hiding the interface behind an overlay protects against a glance over the shoulder and against nothing else: the decrypted portfolio would still be in memory, in the DOM and in a screenshot of the tab. So locking drops the plaintext **and** the password from the store and keeps only the ciphertext; unlocking is a genuine decryption with a password typed in again. `app/page.tsx` accordingly renders the lock screen *instead of* the app rather than over it — with no decrypted portfolio there is nothing left that could render a balance.
-
-The one thing that follows from this: **an unencrypted file cannot be locked.** There is no secret to lock it with, and a lock screen that kept the plaintext in memory would be the dishonest version of this feature. So the timer is never armed for such a file, the header button is disabled and says why, and the settings carry the same sentence instead of a switch that does nothing.
-
-**Nothing is lost to a lock.** Where there is a destination (File System Access mode with a handle), pending changes are written first. The ciphertext the lock keeps is made from the state in memory, not re-read from disk, so even a save that fails — a revoked permission, a full disk — costs nothing: the change is in the envelope, `dirty` stays true, and it can be saved again after unlocking. A portfolio that has **never been saved anywhere** (the demo, §7.1) is not locked at all: the lock asks for the "choose a location" step instead (`fileSetupRequested`), because the moment to pick a destination is while the owner is still there.
-
-**Expiry is a timestamp comparison on an interval, never a `setTimeout`.** Browsers throttle timers in background tabs, sometimes to once a minute — precisely the situation this feature exists for — so a timeout would fire late and unpredictably. An interval that compares `Date.now()` against the last activity gives the right answer however badly the tick itself was delayed: a tab throttled for an hour locks on its first tick back. Activity is mouse, keyboard, touch, scroll and wheel, listened for on the capture phase and **throttled** to one reset every two seconds — a mousemove fires dozens of times a second and every one of them means the same thing. The timestamp lives in a ref rather than in the store, because a store field would re-render every subscriber several times a second for a value nothing displays.
-
-**Long-running work postpones the lock** rather than being torn down by it: `busyCount` in the store (a count, not a flag — two operations can overlap) covers the import's bulk EUR valuation, and `pendingRequestCount()` in `lib/marketData.ts` covers a price series that is halfway in. While something is in flight the countdown stays at zero and the warning says it is waiting, so the lock happens the moment the work finishes instead of a full cycle later.
-
-**The warning** appears 30 seconds before, with a countdown, "stay unlocked" (which resets the clock) and "lock now". Any real activity resets it anyway — the button is for the case where somebody is reading rather than typing.
-
-**The lock screen** shows the app's name, a password field and, unless the settings say otherwise, the file name. Nothing else: no balance, no wallet, no date, not even whether anything is unsaved. A wrong password is named as one, and after two failures each further attempt waits — 5, 10, 20, 40, 60 seconds, capped (`unlockDelayMs`), on top of the ~600 000 PBKDF2 rounds each attempt already costs. For anyone who does not have the password to hand there is "close file", which drops the ciphertext too.
-
-**Manual locking**: a header button and Ctrl/Cmd+L, both in the shell rather than in the timer, because a refusal has to be said out loud — pressing lock during an import and seeing nothing happen reads as a broken button, not as a deliberate wait. **"Lock when the tab is hidden"** (Visibility API, off by default) is deliberately not tied to the countdown: it is a different intent, so it neither waits nor warns.
-
-Settings live in `uiSettings` (`autoLockMinutes`, `lockOnHide`, `lockShowFileName`) and are mirrored to a device preference like the appearance is, so a new file starts from what this browser last used. They are read through the same parser in both directions, so a hand-edited file cannot configure an interval the settings screen has no entry for — `autoLockMinutes: 0` would mean "lock instantly, forever", a state the UI could not get out of.
-
-### 6.5 Backups and Integrity
-
-One file holds everything, which is the point of the app and also its one structural risk: a damaged or lost copy is not a setback, it is the whole portfolio. Backups are what make that premise survivable, and they are only worth having under two rules.
-
-**A copy that was never read back is not a backup.** Every write is immediately re-read, decrypted, parsed, checked against its own checksum and compared with what it was made from (`runBackup` in `lib/store.ts`). Only then is it recorded as verified. An unverified copy is worse than none: it is the one somebody relies on at the worst possible moment. The state the file records (`backupState`) therefore distinguishes "written" from "verified", and every surface that reports it — the settings, the data-quality widget, the reminder, the milestone — reads the *verified* one.
-
-**Retention may never leave you with nothing.** `pruneBackups()` in `lib/backup.ts` is a pure function over the listing: the newest N (default 10), plus one per day for 7 days, one per week for 4 weeks, one per month for 12 months, the sets overlapping harmlessly. On top of the policy sit two safeties — the newest backup is kept whatever the numbers say, and **nothing is deleted unless a verified backup remains**. Rotation runs only on the far side of a successful verification, so the file it counts on is the one just proved good. All of it is testable without a file system, which is why it lives in a pure module.
-
-**The folder is a separate, explicit step, because a file handle cannot write next to itself.** The handle from `showSaveFilePicker` grants access to that one file: no siblings, no listing. Timestamped copies therefore need a *directory* handle (`showDirectoryPicker`), stored in **IndexedDB** — a `FileSystemDirectoryHandle` survives `structuredClone` and therefore IndexedDB, and does not survive `JSON.stringify` and therefore not localStorage. Permission does not come back with it after a reload and can only be re-requested from a user gesture, hence the explicit "grant access again" button rather than a background attempt that would fail silently. Without the File System Access API at all, backups are downloads the user triggers by hand, and the UI **says so** instead of implying an automation the browser cannot deliver.
-
-Names are `portfolio-2026-08-12T14-32-05.dwp`: an ISO timestamp with the colons replaced, because a colon is not a legal file name on Windows and a backup that cannot be written on one platform is not a backup either. Sorting by name therefore sorts by age. Two backups can land in the same second — a save-triggered one and the safety copy a restore writes — so a collision gets a counter (`uniqueBackupName`); reusing the name would overwrite an existing backup, and in that particular case the very file being restored from.
-
-**Restoring is the most destructive button in the app, so it is the most talkative.** The confirmation shows both sides of the swap (transactions and last transaction date, for the open file and for the backup), and a **safety backup of the current state is written and verified first**, so the restore itself can be undone. The current file is never overwritten silently. What comes back is the backup's *data*; the backup bookkeeping and the change log stay with the session, because taking them from the backup would rewind the record of backups and drop the entry saying a restore happened.
-
-**Integrity** (`lib/integrity.ts`): every save stamps the payload with the SHA-256 of its own contents (`integrity`, never part of what is hashed), inside the encryption and identical for encrypted and plain files. Opening verifies it **on the raw parsed object**, before the merge with defaults reorders any keys. A mismatch does not open the file: the start screen names what is wrong — contents that do not match the checksum, a write that stopped halfway (`looksTruncated`), or something that is not a portfolio file at all — and offers a backup instead, with "open anyway" as a deliberate second choice. It is a checksum, not a signature: the threat here is corruption, not forgery, and pretending otherwise would be dishonest. Files written before it existed carry no stamp and are opened without a check rather than treated as damaged.
-
-Backups live **in the settings** (§6.3), in a group of their own, rather than in the main navigation: the folder is set up once and the list is opened when something has gone wrong, which is not something that earns a permanent tab. The reminder and the damaged-file screen link straight into that group.
-
-**The reminder** is one dismissible line above the dashboard when the newest *verified* backup is older than the configured span (default 7 days), and never a modal — a dialog that blocks the app until it is answered teaches people to click it away unread. Dismissal is session state: the condition is still true tomorrow.
-
-**The milestone** "first backup" (§5.2) means a backup that was written **and verified**, not a file that was saved. Saving is the same copy in the same place; it survives nothing that the original does not.
-
-### 6.6 Change History in the File
-
-Separate from the backups and deliberately not a disaster measure: the file keeps its last 50 changes (`changeLog`, `lib/changeLog.ts`) so the other kind of accident is recoverable — a bulk delete that hit ten rows too many, an import into the wrong account, an edit on the wrong transaction.
-
-**Entries are derived by diffing, not described by the caller.** Deleting a transaction does not only remove that transaction: it drops the lot allocations pointing at it and turns a transfer leg whose counterpart is gone into an external one (§3.2). An undo that put the deleted row back and left those alone would restore a ledger that never existed. So `diffChange()` compares the ledger before and after each action and records exactly what moved — unchanged transactions keep their object identity through an immutable update, so the common case is a walk of reference comparisons.
-
-**Bounded in three directions**, so the file cannot grow without limit: 50 entries; an entry keeps its undo payload only while that payload is small (`MAX_UNDO_TRANSACTIONS`, 100); and only the **10 newest** entries keep a payload at all (`UNDOABLE_ENTRIES`) — fifty entries each carrying a hundred transactions would be megabytes inside the file, and nobody reaches for an undo of the fortieth-last action. Older entries stay in the log as a record without their payload. A bulk action over hundreds of rows is *recorded* so it can be understood, but not *reversible*, and the settings say which is which. An import needs no payload at all — it already carries `importBatchId` on every row it wrote and has its own undo (§3.4). Applying an undo is idempotent about what it cannot find: a transaction deleted by hand since is not removed twice, an account that no longer exists drops its restores and is reported as skipped rather than invented.
-
-
-### 6.7 Read-Only Mode
-
-A portfolio can be opened to be looked at rather than worked in: read, filtered, analysed, exported — and not changed. It exists for the cases where an edit is not merely unwanted but harmful: a file in a synced folder that must come out of a visit with its timestamp untouched, an archived year, somebody else's file over their shoulder, a backup one wants to compare against.
-
-**The lock is in the store, not in the buttons** (`refuseWrite()` in `lib/store.ts`). Every change to the portfolio goes through `mutate` and every write to disk through `persist`, so shutting those two doors covers the whole app — including the paths no button leads to: a keyboard shortcut, a dialog that was already open when the mode went on, code written next year that forgets there is a mode. Disabled controls are the *second* layer, for understanding rather than for safety, and a refused write that got past them says so in a toast that carries the way out ("enable editing"). A mode that only hid controls would not be a mode, it would be a suggestion.
-
-**Nothing is written, and that includes the autosave.** `scheduleAutosave()` never even arms its timer, so a file in a synced folder is not re-uploaded because somebody looked at it. Backups are writes too and are refused with a reason of their own (`readOnly`), as is a password change.
-
-**What still works** is everything that only reads: views, filters, sorting, search, the origin expander, the tax view and its CSV export (an export writes a *new* file), the year in review and its image, milestones, the help. Milestone *evaluation* also still runs — it is the result that is not written; an event milestone raised here goes into the waiting queue of §5.2 instead and lands in the next file opened for editing.
-
-**How the app is arranged is not a change to the file** (`mutateDisplay`): theme, language, display currency, the dashboard layout and the table columns still take effect for the session. Read-only stops the file from being touched, not the app from being used. They are applied in memory, never marked dirty and never saved — and leaving the mode does not save them retroactively either, because nothing was kept as pending.
-
-**Getting in and out.** The open dialog offers "open for viewing only" as a quiet toggle under the open button — the exception, not the decision most visits make, with what it means behind the app's own question mark (the help panel is mounted on the start screen for it); the header carries a **crossed-out pencil** that switches into the mode and, in it, a "read-only" badge in the warning colour that switches back — deliberately not an eye (that is the privacy mode, two seats along) and not a padlock (that is the auto-lock, one seat along): three buttons that all mean "protected" in some way have to be told apart at a glance. Going in is one click, coming out asks — it is the click that puts the file at risk again. A backup opened from the backups view (§6.5) is *always* read-only: it is a copy of a past state being looked at, and it must not be able to become the working file by accident. The mode is **session state** and is never written into the portfolio; what *is* remembered, per file name and in `localStorage` (`lib/readOnlyFiles.ts`), is whether a file should open this way by default — a property of this device's habits, not of the portfolio.
-
-Everything else keeps working unchanged: the auto-lock (§6.4) still counts down and still locks, and unlocking returns to the same read-only session.
-
-### 6.8 External File Changes
-
-One file, owned by the user — and people keep such a file where their other important files live, which today usually means a synced folder. Two devices, or one device and a sync client, then write the same file, and a save would silently win: what the app holds in memory goes to disk and whatever arrived in between is gone, with nobody told. That is the one loss this app cannot shrug off.
-
-**The file is fingerprinted when it is read and checked again before every write** (`lib/fileWatch.ts`). `lastModified` and `size` come free with the handle, but **the SHA-256 of the raw bytes is what decides**: a timestamp moves without the contents changing often enough — a re-download of the same version, a metadata touch, a backup tool — and warning about each of those would teach people to click the dialog away, which is exactly when the real conflict arrives. Same hash, same file, no conflict, whatever the clock says.
-
-**The check sits in `persist()`**, the one function every write goes through, rather than in the callers: a check somewhere else is a check somebody can forget. A conflict does not write; it sets `fileConflict` and the dialog takes over.
-
-**The dialog names both sides** — transactions and last transaction date for each, plus when the external one was written — because the question "which version counts" is unanswerable in the abstract. Three ways out, each saying what it costs: *load the external version* (the local edits go, backed up first), *save as a new file* (both kept), *overwrite* (the external version goes, downloaded as a copy first). **Every branch that loses something backs up exactly the side it is about to lose** — a backup of the surviving side would be worth nothing. A file that cannot be read (a different password) can still be preserved and overwritten; it just cannot be shown.
-
-**And it looks before it is asked to write** (`components/FileWatch.tsx`): every two minutes and whenever the tab comes back to the foreground, which is when a laptop was closed and synced. That one is deliberately *quiet* — a line in the header, never a modal. Being interrupted mid-edit about a file that has not been written yet would be worse than the problem; the dialog belongs to the moment a write would actually overwrite something.
-
-Without the File System Access API there is no handle to re-read, so there is nothing to compare: saving is a download the user places themselves. A missing capability, not an error — nothing is reported and nothing is blocked.
-
-## 7. Tech Stack
-
-- **Framework:** Next.js (App Router) + Tailwind CSS
-- **i18n:** next-intl (or comparable) for DE/EN language switching, German as default
-- **State management:** lightweight (React Context or Zustand), no Redux needed
-- **Charts:** Recharts
-- **Dashboard grid:** react-grid-layout v2 (see §4.1)
-- **Price data:** Binance public API (ticker for live price, Klines for historical chart data)
-- **On-chain data:** mempool.space/Blockstream Esplora API (default) or a configurable own Electrum server; Next.js API routes optionally usable as a proxy (e.g. to avoid sending the user's IP directly to public APIs), but not strictly required since these APIs generally support CORS
-- **Encryption:** Web Crypto API (AES-GCM + PBKDF2)
-- **Help content:** Markdown under `content/help/`, compiled to a TS module by `scripts/build-help.py`; screenshots by Playwright against the demo portfolio (§8)
-- **Hosting:** fully static/serverless possible (no persistent backend required for the MVP), e.g. Vercel/Netlify. The response headers a static export cannot express in `next.config.ts` live in `vercel.json`; `docs/deployment.md` says what each one is for. The one that cannot be tightened is `connect-src 'self' https:`: an allowlist of the two public explorers would break the **own server** option of §3.3, which is precisely the setup that leaks least.
-
-### 7.2 PWA and Offline
-
-A local-first app whose whole premise is that your data never leaves the device, failing to open on a train, is a contradiction. So the app installs and starts without a network: the manifest (`app/manifest.ts`) makes it installable, and `public/sw.js` holds the shell.
-
-**What may be cached is the app and nothing else, and that is enforced by scope rather than by care.** The worker only ever intercepts **same-origin GET** requests, so a response from an exchange or a block explorer cannot land in a cache by accident — those requests are not touched at all. Portfolio data never travels over HTTP in the first place (File System Access API or a file input), so there is nothing of the user's to exclude. A test reads the worker's source and holds it to that shape, because what matters here is a property of the code rather than a behaviour.
-
-**The precache list is generated from the finished export** (`scripts/build-sw.mjs`, part of `npm run build`): the file names are content-hashed, so the shell is only known once the build has run. A worker that cached "whatever gets requested" would leave the app *almost* offline-capable — whatever the first visit happened to load — and "almost" fails exactly where it was needed. 81 files, 3.5 MB, which is the app plus the demo portfolio and the whitepaper; the 2.4 MB of help screenshots are deliberately left out and cached when the help is opened, since the help is written to read without them (§8). Immutable `/_next/static/…` is served cache-first, everything else network-first so a new version arrives.
-
-**Offline degrades visibly rather than failing.** The header carries an offline badge — said once, centrally, because prices and chain data are the only things that stop working and everything else (the ledger, the tax figures, the file) is unaffected, which is worth making obvious rather than mysterious. The last spot price this browser saw is kept in `localStorage` with its timestamp, so the price widget shows "54 830 €, offline, as of yesterday 21:04" instead of a dash. A price is the same number for everyone and carries no trace of what anybody holds; nothing else is persisted that way.
-
-**An update is offered, never applied.** A new version reloading the page while somebody is halfway through a transaction would lose their work to a cosmetic improvement — so the waiting worker is announced in the header and activates on a click, which is also the only moment a reload is safe. `skipWaiting()` exists exactly once and only behind a message from the page.
-
-### 7.1 Demo Portfolio
-
-`public/demo-portfolio.json` and `…​.en.json` are what "Testportfolio laden" opens. They are not a stub: the demo doubles as the worked example of every feature, so the ledger contains every constellation the app knows — all four wallet types, wallets with several accounts, all five transaction types, batched transfers (dozens of buys in one send), a chain across three wallets, one send arriving in two accounts, foreign-currency settlement in USDT and USD valued from history, external receives and sends, legs that inherit a txid or an address from their counterpart, BTC and fiat fees, disposals on both sides of the holding period across three tax years, a watchlist covering every address format, UTXO labels, two import presets that disagree about everything the wizard can ask, a savings goal it is short of, and the current default dashboard — which carries the savings-goal tile, so the demo has to carry the goal (a tile the file cannot fill would leave the hole of §4.1).
-
-It also has to have **volume**, because a heatmap, a DCA overview, a fee balance or the price chart's marker aggregation say nothing about five transactions. So the file carries three years of a weekly savings plan and a year of a daily one — several hundred buys, swept into cold storage in batches of dozens of lots at a time, which is also the widest lot assignment in the file. **Every price in it is the market's**, not a model of one: `price_at()` reads the day's real BTC/EUR close from `scripts/data/btc-eur-daily.json`, a committed table refreshed by `npm run demo:prices` (Binance daily klines — the very source the app charts). The generator refuses a day the table does not cover rather than guessing. Invented prices were wrong twice over: already wrong for months that had been and gone, and drifting further for as long as the file shipped — on the dashboard that showed up as a price chart whose own buys and sells floated far above the line, since the line came from Binance and the markers from the file. A test holds every recorded rate against that table, so a hand-written price cannot creep back in; the dates of the demo's disposals are picked so that "taxable gain" and "tax-free gain" are what they actually are against the real history. Committing the table is what keeps generating reproducible and offline, and closes of days that are over never change, so refreshing only ever appends. `scripts/help-screenshots.mjs` answers the price interfaces from the same table, so the documentation shows the demo's trades on the line too.
-
-It also carries exactly **one** deliberate gap — a transfer nobody has assigned yet — because "which buys does this close" is the one question the app never answers by itself (§3.2), and the demo should show what that looks like and how it is fixed. Its note says so.
-
-Both files are generated by `scripts/build-demo-portfolio.py` from one structure, so the two languages cannot drift apart, and `lib/demoPortfolio.test.ts` runs the real engine over them: balances non-negative, no lot over-allocated, engine and ledger agreeing apart from that one gap, and every feature above actually present. A demo that contradicts itself fails there rather than in front of a user.
-
-## 8. Help
-
-An in-app manual of fifteen topics (`content/help/<locale>/*.md`), reachable as a **panel beside the work** and as **pages of its own** under `/hilfe` and `/help`.
-
-**The panel is the primary surface**, because the question somebody has is almost always about what is on screen right now: "which lot do I pick here?" is asked *while* the dialog is open, and navigating away to answer it loses the context the question was about. The standalone pages exist for what a panel cannot be: a URL to save, to share, or to leave open in a second tab. Both render the same component (`components/help/HelpBrowser.tsx`); only the page syncs the topic into the address bar.
-
-**Content is Markdown, turned into a structure at build time** (`scripts/build-help.py` → `lib/help/content.ts`, `npm run help:build`). Two reasons for a generator rather than a Markdown loader: the app is a static export that must work offline, so content belongs in the bundle rather than in a fetch; and a parsed structure renders as React elements, so nothing ever goes through `dangerouslySetInnerHTML` — documentation is text somebody edits in a file, and it must not be able to put markup into the app. The Markdown subset is small and documented in the script.
-
-**Section anchors are written by hand** (`## Heading {#anchor}`), never derived from the heading. A deep link into the help is a URL somebody may have saved and the target of every `HelpButton` in the app; rewording a heading must not break either. The generator refuses to emit anything when an anchor is missing or used twice, or when **the two languages disagree about which sections exist** — a page that exists in German only is a page that is missing in English. Topic slugs are identical in both languages; only the `/hilfe` ↔ `/help` prefix differs, so a shared link resolves in either.
-
-**`HelpButton` takes a section, not a topic**: a question mark next to a field means "explain *this*". It sits in the header of every view and, via `Modal`'s `help` prop, in the header of the dialogs — the CSV wizard passes a different anchor per step, because the question in the mapping step is a different question from the one in the preview. A test walks every `anchor=`/`help=` in the components and asserts it resolves **in both languages**: a button pointing at content that was renamed is the one kind of rot nobody notices.
-
-**Search** is a plain scan over the sections in the reader's language (`searchHelp`), not an index: fifteen topics are smaller than the index would be, and there is nothing to keep in sync. Every term has to appear, so two words narrow rather than widen; a title match outranks a passing mention.
-
-**Screenshots are generated, never maintained by hand** (`scripts/help-screenshots.mjs`, `npm run help:screenshots`). The script drives the **static export** — what users actually get — with Playwright, and the rule it exists under is that it **only ever opens the demo portfolio** (§7.1): no real portfolio can reach the documentation, because there is no code path that could open one. Everything else is about reproducibility: fixed viewport, theme, language and time zone seeded before the first paint, animations off, and **the network cut off** — the price and explorer interfaces are answered with fixed values, so a screenshot does not depend on today's bitcoin price and a documentation build does not call an exchange. Output goes to `public/help/screenshots/`, referenced from the Markdown by relative path, and **every image needs an alt text** (the generator refuses one without, and a test requires it to be more than a couple of words). A missing screenshot renders as its alt text in a dashed frame rather than a broken image: the help reads perfectly well without pictures, which is what a fresh checkout has.
-
-**What belongs where:** the help explains *the handling*, "How it works" (§2) explains *the concept*. Where they meet, the help links across rather than repeating — the security architecture is on that page, not in fifteen paragraphs here. Everything touching tax says plainly that the app is no substitute for tax advice, and the tax topic leads with it.
-
-Panel behaviour: a `role="dialog"` deliberately **without** `aria-modal`, because the app behind it stays usable — that is the point of reading help next to your work. What it does take from a modal is the keyboard contract: focus moves in on open, Escape closes, focus returns where it came from.
-
-## 9. Non-Goals (MVP)
-
-- No server-side storage of user data
-- No multi-user/login system
-- No CSV import (later stage)
-- No broker/exchange API integration (later stage)
-- No cryptocurrencies other than Bitcoin
-- No automatic derivation of UTXOs from the portfolio ledger (see 3.1) — on-chain data comes exclusively from the address watchlist
-
-## 10. Roadmap (post-MVP)
-
-- CSV upload with a mapping assistant for various exchange export formats
-- Direct read-only API integration with brokers/exchanges (a server proxy may be needed due to CORS/API keys — results still end up exclusively in the local file, no server-side storage)
-- Multi-asset support (ETH, more coins)
-- PDF export for tax documents
-- Automatic import of the address watchlist via xpub scan (auto-detect all derived addresses)
-
-## 11. Technical Notes for Implementation
-
-- Check browser support for the File System Access API at runtime (feature detection), implement a clean fallback.
-- Implement the FIFO calculation as a pure, isolated function with unit tests. The same goes for origin resolution (`lib/provenance.ts`): pure, isolated, and covered for single lots, bundled multi-lot arrivals, partial amounts, multiple hops, missing links and circular references.
-- Numeric **input fields** use the shared `components/NumberInput.tsx`: it shows the value with the locale's decimal separator (de: "0,50000000") while handing the parent a canonical decimal string ("0.5"), which is what the ledger stores and every calculation expects. Typing is never reformatted mid-entry (only on blur), and unparseable text is passed through so validation can flag it instead of it silently becoming 0. `parseNumberInput()` accepts either separator (the last "." or "," is the decimal point, earlier ones are grouping), so pasted values work in both languages.
-- Formatting for display goes exclusively through the shared helpers, never through a bare `toLocaleString`/`toFixed` (which would pick up the browser's locale or ignore grouping): `formatBtc` (always 8 decimals, zero-padded), `formatFiat` (with currency symbol), `formatFiatPlain` (no symbol — for columns whose header already names the currency), `formatInt` in `lib/decimal.ts`, and `formatDate`/`formatTime`/`formatDateTime` in `lib/i18n/`. The active app locale (`intlLocale(locale)` → `de-DE`/`en-US`) drives decimal and thousands separators as well as date order. Input fields keep raw machine-readable values — only rendered output is formatted.
-- **The sign belongs to the formatter, never to a component.** A figure that is a *change* rather than a level wants a "+" on a gain, so `formatBtc`/`formatFiat`/`formatInt`/`formatSats` take a `signed` flag (`signDisplay: "exceptZero"`), and the dashboard passes it through `fmtValue`/`fmtDisplay`/`fmtAmountPlain`. Writing the sign by hand puts it in front of a number Intl has already signed — which is what showed "−-10.000,00 €" in the cost-basis widget — and picks a glyph the locale's own minus then contradicts (Intl uses U+002D, a hand-written one was U+2212). `formatPercent` has always worked this way. Tests pin both halves: the formatters, and the widget rendering no figure with two signs.
-- **The order the ledger is read in is causal, not chronological** (`causalOrder()` behind `flattenLedger()`): an entry is placed at the later of its own date and the dates of the transactions it takes its lots from — an in-leg behind its out-leg, a disposal behind the lots it allocates — with the causal depth as the tie-break inside one effective date. Timestamps alone do not do it: an arrival is regularly recorded *before* the send it belongs to (a hardware wallet stamps the transaction when it sees it, an exchange when the withdrawal completes, and two CSV exports need not agree at all). Read in that order the arrival's lots have not left the source account yet, and its coins drop out of the FIFO engine while the balance still counts them — which surfaces as a chunk of the holding with no cost basis. For the same reason the engine never silently drops an arrival: one whose group has no out-leg becomes a lot of unknown origin (`originUnresolved`) instead of nothing at all.
-- **A daily balance series books both legs of an internal transfer on the send day** (`dailyBalanceSeries()` in `lib/portfolio.ts`). The two legs regularly carry different timestamps — a hardware wallet stamps the arrival when it sees it, an exchange the withdrawal when it completes, and two CSV exports need not agree at all (see the causal-order note above). Booked on their own days, such a pair moves the *total* holding: it rises by the moved amount on the arrival day and falls back on the send day, drawing a spike out of a transfer that never changed the holding by more than its network fee (the opposite leg order draws the same artefact as a dip). So a **paired** `transfer_in` is booked on the day its out-leg left, which is also the day the fee was burnt; an unpaired arrival keeps its own day, because an arrival with no send behind it is a real inflow from outside. Everything built on that series inherits the fix: the value chart, the 24h/7d/30d changes, the stack chart and the drawdown.
-- The displayed BTC holding always comes from the ledger (`portfolio.totalBalance()`: buys + transfer_ins − sells − transfer_outs − spends, BTC fees per §3.2), never from the FIFO engine. The engine only accounts for disposals that carry an assignment (§3.2), so with unassigned or half-imported history its open-lot sum (`FifoResult.openLotsBtc`) exceeds the real balance — that gap is reported on the dashboard instead of changing the balance.
-- Version the data model (`version` field) to enable future migrations.
-- Use decimal arithmetic for BTC amounts (e.g. `decimal.js`), no native `number` for money/crypto amounts.
-- Autosave mechanism (e.g. debounce after every change) for File System Access API mode; explicit save button for fallback mode.
-- Implement the address watchlist strictly separated from the portfolio ledger (see 3.1) — no implicit links, only optional, purely informative references.
-- **Checking a real file** (`npm run portfolio:check -- <file> [--wallet "…"] [--expect-sats 122] [--list]`, `scripts/validate-portfolio.ts`): "my wallet app says 122 sats less than DepotWatch" is a question about one particular file, and no amount of reading the code answers it. The script opens that file the way the app does — same decryption, same integrity check, same migration (`lib/migrations.ts`, which is why the migration lives outside the store), same balance and FIFO engine — and reports the balance per wallet and account, the gap between ledger and open lots, the convention identity of §3.2, and the transactions that could account for a difference, each with the satoshis it is worth: an arrival carrying a `feeBtc` (the convention ignores it, so the account is credited too much by exactly that), an outgoing leg with no fee recorded at all (an on-chain send always paid one, so the source keeps it), an arrival larger than its send, an unparseable amount. `--list` prints one wallet's bookings with a running balance, which is what reconciling against a wallet app actually needs. Read-only: it never writes the file, never sends anything anywhere, and takes the password from `DWP_PASSWORD` or a hidden prompt so it stays out of shell history.
+Regeln, deren Verletzung Daten stillschweigend beschädigt. Vor Änderungen an Bestands-,
+Lot- oder Steuerlogik immer prüfen.
+
+1. **Keine Nutzerdaten verlassen das Gerät.** Keine Datenbank, kein Upload, kein
+   Telemetrie-Ping. Portfoliodaten gehören niemals in Service-Worker-Caches, Server-Routen
+   oder Logs. Externe Abrufe (Kurse, Chain, News) nur für öffentliche Daten und nur
+   ausgelöst durch Nutzeraktion oder bewusste Einstellung.
+
+2. **EUR ist die einzige Bewertungswährung.** FIFO, Haltefristen, Gewinne und alle Summen
+   rechnen in EUR. Andere Währungen sind reine Anzeige-Umrechnung oder Dokumentation
+   (`original*`-Felder).
+
+3. **Gebühren-Konvention.** `amountBtc` einer abgehenden Transaktion ist die Menge, die
+   beim Empfänger **ankommt**; `feeBtc` geht **zusätzlich** ab.
+   → Abgang vom Quellkonto = `amountBtc + feeBtc`
+   → `lotAllocations` müssen `amountBtc + feeBtc` abdecken
+   → zusammengehörige `transfer_out`/`transfer_in` tragen dieselbe `amountBtc`
+   Immer über die zentrale Hilfsfunktion rechnen, nie die Addition lokal wiederholen.
+
+4. **`transfer_in` erzeugt kein neues Lot.** Anschaffungsdatum und Einstandskurs werden zur
+   Laufzeit über `transferGroupId` → `lotAllocations` bis zur ursprünglichen Buy-Transaktion
+   aufgelöst, über beliebig viele Hops. Das `date` eines `transfer_in` ist reine
+   Ankunftsinformation und niemals Grundlage der Haltefrist.
+
+5. **`lotAllocations` werden beim Anlegen eingefroren.** Einmal gesetzte Zuordnungen werden
+   nie rückwirkend neu berechnet, auch nicht wenn später Transaktionen hinzukommen.
+
+6. **Change-Outputs sind keine Zugänge.** On-Chain-Wechselgeld verlässt das Wallet nicht und
+   darf niemals als `transfer_in` oder Lot erfasst werden — sonst verdoppelt sich der
+   Bestand und Haltefristen werden zurückgesetzt.
+
+7. **Ledger und Adress-Watchlist sind getrennte Ebenen.** Security- und UTXO-Funktionen
+   arbeiten ausschließlich auf der Watchlist. Die Felder `txid`/`address` im Ledger sind
+   reine Zuordnungshilfe, keine Datenquelle für On-Chain-Analysen.
+
+8. **Decimal-Arithmetik für alle Geld- und BTC-Beträge** (`decimal.js`), niemals `number`.
+   Rundung ausschließlich bei der Anzeige, BTC mit 8 Nachkommastellen.
+
+9. **Positionen mit ungeklärter Herkunft** werden nie stillschweigend einer Steuerkategorie
+   zugeordnet, sondern explizit als „nicht bewertbar" ausgewiesen.
+
+---
+
+## Konventionen
+
+- **i18n:** keine hartkodierten Strings, alles über next-intl (DE/EN).
+- **Datum:** Zeitpunkte (ISO-8601 mit Zone) und Kalenderdaten (`YYYY-MM-DD`) strikt
+  trennen, nur über `lib/dates.ts`. Für Kalenderdaten nie `toISOString()` oder `Date` als
+  Transportformat. Steuerliche Tageszuordnung in `Europe/Berlin` (`docs/dates.md`).
+- **Theming:** Farben ausschließlich über Design-Tokens/CSS-Variablen, nie feste Farbwerte.
+  Muss in allen Themes funktionieren.
+- **Barrierefreiheit:** Gewinn/Verlust nie allein über Farbe kodieren (Vorzeichen oder Pfeil
+  ergänzen). `prefers-reduced-motion` respektieren. Tastaturbedienbarkeit sicherstellen.
+- **Dateizugriff:** File System Access API mit Feature-Detection, sauberer Fallback über
+  Upload/Download für Safari/Firefox. Handles gehören in IndexedDB, nicht in localStorage.
+- **Persistenz von Einstellungen:** in `uiSettings` der Portfolio-Datei, damit sie mit der
+  Datei portabel sind; gespiegelt in localStorage nur, wenn sie vor dem Öffnen einer Datei
+  greifen müssen (z. B. Theme). Gebündelt speichern, nicht bei jeder Interaktion.
+- **Reine Funktionen mit Unit-Tests** für FIFO, Herkunftsauflösung, Bestandsberechnung und
+  Steuerlogik. Diese Bereiche nicht ohne Tests ändern.
+- **Datenmodell versionieren** (`version`), neue Felder immer optional einführen, damit
+  bestehende Dateien ohne Migration gültig bleiben.
+- **Steuerangaben** stets mit dem Hinweis versehen, dass die App keine Steuerberatung
+  ersetzt.
+
+---
+
+## Gestaltungshaltung
+
+Für Produktentscheidungen, nicht nur Optik:
+
+- Gamification belohnt **Sorgfalt und Sicherheit, niemals Handelsaktivität**. Keine
+  Anreize, häufiger zu kaufen, zu verkaufen oder die App zu öffnen.
+- Keine Bestenlisten, kein Vergleich mit anderen Nutzern, keine Serien mit Verlustdruck.
+- Beim Teilen und Exportieren absolute Beträge standardmäßig ausblenden — die Bestandsgröße
+  ist ein Sicherheitsrisiko.
+- Datenqualität sichtbar machen statt Lücken zu kaschieren: fehlende Verknüpfungen,
+  ungeklärte Herkunft und veraltete Backups gehören angezeigt, nicht weggerechnet.
+
+---
+
+## Orientierung im Code
+
+<!-- Beim ersten Einsatz ausfüllen und aktuell halten -->
+
+- `…` — Datenmodell und Typen
+- `…` — Persistenz, Verschlüsselung, Datei-Handling
+- `…` — FIFO, Herkunftsauflösung, Steuerlogik
+- `…` — CSV-Import
+- `…` — Dashboard und Widget-Registry
+- `config/import-presets/` — System-Presets (read-only, schema-validiert)
+- `config/news-feeds/` — Standard-Feedliste des Nachrichten-Widgets
+  (read-only, schema-validiert; zugleich die Freigabeliste der Proxy-Route)
+- `lib/news/`, `app/api/news/` — Nachrichten-Widget und Feed-Proxy (siehe `docs/news.md`)
+
+## Befehle
+
+<!-- Beim ersten Einsatz ausfüllen -->
+
+- `npm run dev` / `npm run build` / `npm test`
+- `npm run build:server` — Build mit Feed-Proxy statt Static Export (`docs/deployment.md`)
+- `npm run dev` bindet die Feed-Proxy-Route ein; `npm run dev:export` entspricht dem Static Export
+- `npm run config:validate` — alle Konfigurationsdateien gegen ihr Schema prüfen
+  (`presets:validate` + `feeds:validate`); läuft in `build` und `lint` mit
+- `npm run help:screenshots` — Hilfe-Screenshots aus dem Testportfolio neu erzeugen

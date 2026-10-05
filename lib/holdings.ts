@@ -28,6 +28,7 @@ import { Decimal, ZERO, dec } from "./decimal";
 import { isLotTaxFree, type FifoResult, type OpenLot } from "./fifo";
 import { balanceDelta } from "./portfolio";
 import { isPriced, type LedgerEntry, type Wallet } from "./types";
+import type { CalendarDate } from "./dates";
 
 const SATS_PER_BTC = 100_000_000;
 
@@ -45,6 +46,8 @@ export interface HoldingLot {
   costPerBtcEur: Decimal | null;
   /** `costPerBtcEur × amountBtc`; null when the basis is unknown. */
   costEur: Decimal | null;
+  /** First tax-free calendar day (reference zone). */
+  taxFreeDay: CalendarDate;
   taxFreeDate: Date;
   taxFree: boolean;
   /**
@@ -84,8 +87,8 @@ export interface Holding {
   taxableBtc: Decimal;
   /** Open BTC whose origin never resolved: not judgeable either way (§3.2). */
   unresolvedBtc: Decimal;
-  /** When the next taxable lot comes free; null when none is waiting. */
-  nextTaxFreeDate: Date | null;
+  /** The calendar day the next taxable lot comes free; null when none is waiting. */
+  nextTaxFreeDay: CalendarDate | null;
   /** Open lots, newest acquisition first. */
   lots: HoldingLot[];
   /** Sum of the open lots — not the holding, see `unassignedBtc`. */
@@ -130,7 +133,7 @@ function buildHolding(
   let taxFreeBtc = ZERO;
   let taxableBtc = ZERO;
   let unresolvedBtc = ZERO;
-  let nextTaxFreeDate: Date | null = null;
+  let nextTaxFreeDay: CalendarDate | null = null;
 
   const holdingLots: HoldingLot[] = [];
   for (const lot of lots) {
@@ -148,8 +151,8 @@ function buildHolding(
     else if (taxFree) taxFreeBtc = taxFreeBtc.plus(amount);
     else {
       taxableBtc = taxableBtc.plus(amount);
-      if (nextTaxFreeDate === null || lot.taxFreeDate < nextTaxFreeDate) {
-        nextTaxFreeDate = lot.taxFreeDate;
+      if (nextTaxFreeDay === null || lot.taxFreeDay < nextTaxFreeDay) {
+        nextTaxFreeDay = lot.taxFreeDay;
       }
     }
     holdingLots.push({
@@ -161,6 +164,7 @@ function buildHolding(
       amountBtc: amount,
       costPerBtcEur: lot.costPerBtcEur,
       costEur,
+      taxFreeDay: lot.taxFreeDay,
       taxFreeDate: lot.taxFreeDate,
       taxFree,
       originUnresolved: unresolved,
@@ -191,7 +195,7 @@ function buildHolding(
     taxFreeBtc,
     taxableBtc,
     unresolvedBtc,
-    nextTaxFreeDate,
+    nextTaxFreeDay,
     lots: mergeLots(holdingLots),
     openLotsBtc,
     unassignedBtc: Decimal.max(ZERO, openLotsBtc.minus(btc)),

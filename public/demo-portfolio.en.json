@@ -6300,28 +6300,36 @@
         "h": 6
       },
       {
-        "i": "networkFees-1",
-        "widgetId": "networkFees",
+        "i": "news-1",
+        "widgetId": "news",
         "x": 0,
         "y": 68,
-        "w": 4,
-        "h": 6
+        "w": 6,
+        "h": 7
       },
       {
         "i": "halving-1",
         "widgetId": "halving",
-        "x": 4,
+        "x": 6,
         "y": 68,
-        "w": 4,
-        "h": 6
+        "w": 6,
+        "h": 7
+      },
+      {
+        "i": "networkFees-1",
+        "widgetId": "networkFees",
+        "x": 0,
+        "y": 75,
+        "w": 6,
+        "h": 5
       },
       {
         "i": "blockClock-1",
         "widgetId": "blockClock",
-        "x": 8,
-        "y": 68,
-        "w": 4,
-        "h": 6
+        "x": 6,
+        "y": 75,
+        "w": 6,
+        "h": 5
       }
     ],
     "transactionColumns": [

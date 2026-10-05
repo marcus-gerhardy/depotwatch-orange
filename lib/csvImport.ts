@@ -3,6 +3,7 @@
 // (spec §2). Reusable import presets (system + user) live in
 // lib/importPresets.ts and PortfolioFile.importPresets (see CLAUDE.md §3.4).
 
+import { instantAt, isCalendarDate, serializeInstant } from "./dates";
 import { btcString, dec, fiatString } from "./decimal";
 import {
   isValidBitcoinAddress,
@@ -253,7 +254,24 @@ const GERMAN_DATE = new RegExp(`^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})${OPTIONAL_TI
 const SLASH_DATE = new RegExp(`^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})${OPTIONAL_TIME}`);
 const YMD_SLASH_DATE = new RegExp(`^(\\d{4})\\/(\\d{1,2})\\/(\\d{1,2})${OPTIONAL_TIME}`);
 
-/** Local date from parts, rejecting rolled-over dates like 32.01.2024. */
+/**
+ * A value that carries only a day ("31.12.2025") has no moment to it, but the
+ * ledger stores instants. It is placed at noon in the reference zone
+ * (docs/dates.md): the day is then the same day for the holding period and
+ * the tax year, and it is shown as that day in every zone from UTC−10 to
+ * UTC+12 — local midnight, as before, was the previous evening anywhere west
+ * of where the file was imported.
+ */
+function dateOnlyInstant(y: string, mo: string, d: string): string | null {
+  const day = `${y.padStart(4, "0")}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  if (!isCalendarDate(day)) return null;
+  return serializeInstant(instantAt(day, { h: 12, m: 0, s: 0 }));
+}
+
+/**
+ * Local date from parts, rejecting rolled-over dates like 32.01.2024. Without
+ * a clock time it is a date-only value — see `dateOnlyInstant`.
+ */
 function fromParts(
   y: string,
   mo: string,
@@ -262,6 +280,7 @@ function fromParts(
   mi?: string,
   se?: string,
 ): string | null {
+  if (h === undefined) return dateOnlyInstant(y, mo, d);
   const date = new Date(
     Number(y),
     Number(mo) - 1,
@@ -282,6 +301,8 @@ function fromParts(
 
 function parseIsoDate(s: string): string | null {
   if (!/^\d{4}-\d{1,2}-\d{1,2}([ T]|$)/.test(s)) return null;
+  const dateOnly = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (dateOnly) return dateOnlyInstant(dateOnly[1], dateOnly[2], dateOnly[3]);
   const date = new Date(s.includes("T") || s.length <= 10 ? s : s.replace(" ", "T"));
   return isNaN(date.getTime()) ? null : date.toISOString();
 }
@@ -582,8 +603,9 @@ export function parseImportDateTime(
   let clock = t === "" ? null : parseImportTime(t, timeFormat);
   if (t !== "" && clock === null) return null;
   // Nothing mapped to the time field: a date value that carries its own clock
-  // time keeps it, a plain date means local midnight of that day.
-  if (clock === null) clock = parseImportTime(date, "datetime") ?? { h: 0, m: 0, s: 0 };
+  // time keeps it, a plain date is a date-only value (`dateOnlyInstant`).
+  if (clock === null) clock = parseImportTime(date, "datetime");
+  if (clock === null) return dateOnlyInstant(day.y, day.mo, day.d);
   return fromParts(
     day.y,
     day.mo,

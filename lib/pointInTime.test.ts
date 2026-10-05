@@ -42,14 +42,14 @@ describe("the holding on a past date", () => {
   ]);
 
   it("counts only what had happened by then", () => {
-    const at = portfolioAsOf(entries, new Date(2025, 11, 31), HOLDING_DAYS);
+    const at = portfolioAsOf(entries, "2025-12-31", HOLDING_DAYS);
     expect(at.balanceBtc.toString()).toBe("1");
     expect(at.openLots).toHaveLength(1);
   });
 
   it("includes the chosen day itself, to its end", () => {
     // "As of 1 March" means the day is over — a buy at 10:00 that day counts.
-    const at = portfolioAsOf(entries, new Date(2024, 2, 1), HOLDING_DAYS);
+    const at = portfolioAsOf(entries, "2024-03-01", HOLDING_DAYS);
     expect(at.balanceBtc.toString()).toBe("1");
   });
 
@@ -57,17 +57,17 @@ describe("the holding on a past date", () => {
     // On 31.12.2024 the March buy is nine months old: taxable then, tax-free
     // now. A view that asked "is it tax-free today" would be a live view with
     // a date picker on it.
-    const at = portfolioAsOf(entries, new Date(2024, 11, 31), HOLDING_DAYS);
+    const at = portfolioAsOf(entries, "2024-12-31", HOLDING_DAYS);
     expect(at.lockedBtc.toString()).toBe("1");
     expect(at.taxFreeBtc.toString()).toBe("0");
 
-    const later = portfolioAsOf(entries, new Date(2025, 11, 31), HOLDING_DAYS);
+    const later = portfolioAsOf(entries, "2025-12-31", HOLDING_DAYS);
     expect(later.taxFreeBtc.toString()).toBe("1");
     expect(later.lockedBtc.toString()).toBe("0");
   });
 
   it("reports the cost basis of what was held then", () => {
-    const at = portfolioAsOf(entries, new Date(2025, 11, 31), HOLDING_DAYS);
+    const at = portfolioAsOf(entries, "2025-12-31", HOLDING_DAYS);
     expect(at.costBasisEur.toString()).toBe("20000");
     expect(at.basisBtc.toString()).toBe("1");
   });
@@ -104,7 +104,7 @@ describe("a transfer straddling the cut-off", () => {
       ],
     );
 
-    const at = portfolioAsOf(entries, new Date(2025, 11, 31), HOLDING_DAYS);
+    const at = portfolioAsOf(entries, "2025-12-31", HOLDING_DAYS);
     // One coin, held — not zero, and not two.
     expect(at.balanceBtc.toString()).toBe("1");
     expect(at.balances.find((b) => b.accountId === "a2")?.btc.toString()).toBe("1");
@@ -115,7 +115,7 @@ describe("a transfer straddling the cut-off", () => {
 describe("the year ends offered", () => {
   it("offers every year from the first transaction to the last completed one", () => {
     const entries = entriesOf([tx({ id: "b", type: "buy", date: "2023-06-01T00:00:00.000Z" })]);
-    const years = yearEndOptions(entries, new Date(2026, 5, 1)).map((d) => d.getFullYear());
+    const years = yearEndOptions(entries, new Date(2026, 5, 1)).map((d) => Number(d.slice(0, 4)));
     // 2025, 2024, 2023 — and never the running year, whose "year end" has not
     // happened yet.
     expect(years).toEqual([2025, 2024, 2023]);
@@ -147,7 +147,7 @@ describe("a period between two dates", () => {
   ]);
 
   const year2025 = () =>
-    periodBetween(entries, new Date(2025, 0, 1), new Date(2025, 11, 31), HOLDING_DAYS);
+    periodBetween(entries, "2025-01-01", "2025-12-31", HOLDING_DAYS);
 
   it("includes its own first and last day", () => {
     // "1 January to 31 December" is a whole year, not 364 days with an

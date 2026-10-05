@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "bitcoin-magazine",
+      "name": "Bitcoin Magazine",
+      "language": "en",
+      "url": "https://bitcoinmagazine.com/feed",
+      "homepage": "https://bitcoinmagazine.com/",
+      "terms": "https://bitcoinmagazine.com/terms-of-use",
+      "description": "General reporting, in print since 2012."
+    },
+    {
+      "id": "bitcoinblog-de",
+      "name": "BitcoinBlog.de",
+      "language": "de",
+      "url": "https://bitcoinblog.de/feed/",
+      "homepage": "https://bitcoinblog.de/",
+      "terms": "https://bitcoinblog.de/impressum/",
+      "description": "German-language blog by Christoph Bergmann, writing since 2013."
+    },
+    {
+      "id": "blocktrainer",
+      "name": "Blocktrainer",
+      "language": "de",
+      "url": "https://www.blocktrainer.de/feed.xml",
+      "homepage": "https://www.blocktrainer.de/",
+      "terms": "https://www.blocktrainer.de/rechtliche-infos/impressum",
+      "description": "German-language articles and explainers, with a focus on Bitcoin rather than on crypto markets."
+    },
+    {
+      "id": "btc-echo",
+      "name": "BTC-ECHO",
+      "language": "de",
+      "url": "https://www.btc-echo.de/feed/",
+      "homepage": "https://www.btc-echo.de/",
+      "terms": "https://info.btc-echo.de/agb",
+      "description": "German-language trade press. Covers the wider crypto market, so the busiest of the news feeds here."
+    }
+  ]
+}

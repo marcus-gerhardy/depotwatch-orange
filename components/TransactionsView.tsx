@@ -1,5 +1,6 @@
 "use client";
 
+import { instantInCalendarRange, localTimeZone } from "@/lib/dates";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -921,7 +922,8 @@ function TransferDialog({
         continue;
       }
       prev.remainingBtc = prev.remainingBtc.plus(l.remainingBtc);
-      if (l.taxFreeDate.getTime() > prev.taxFreeDate.getTime()) {
+      if (l.taxFreeDay > prev.taxFreeDay) {
+        prev.taxFreeDay = l.taxFreeDay;
         prev.taxFreeDate = l.taxFreeDate;
         prev.acquiredDate = l.acquiredDate;
       }
@@ -1904,7 +1906,8 @@ export default function TransactionsView({
       // One traceless part is enough to make the whole row's holding period a
       // statement the data does not support.
       if (l.originUnresolved) prev.originUnresolved = true;
-      if (l.taxFreeDate.getTime() > prev.taxFreeDate.getTime()) {
+      if (l.taxFreeDay > prev.taxFreeDay) {
+        prev.taxFreeDay = l.taxFreeDay;
         prev.taxFreeDate = l.taxFreeDate;
         prev.acquiredDate = l.acquiredDate;
       }
@@ -1947,8 +1950,13 @@ export default function TransactionsView({
     if (filterAccount) rows = rows.filter((r) => r.accountId === filterAccount);
     if (filterType) rows = rows.filter((r) => r.type === filterType);
     if (filterIssue) rows = rows.filter((r) => hasIssue(r, filterIssue, issueCtx));
-    if (filterFrom) rows = rows.filter((r) => r.date >= filterFrom);
-    if (filterTo) rows = rows.filter((r) => r.date <= `${filterTo}T23:59:59.999Z`);
+    // Calendar days of the local zone — the zone the list shows its dates in —
+    // compared as days, never as string prefixes of a UTC timestamp
+    // (docs/dates.md).
+    if (filterFrom || filterTo) {
+      const zone = localTimeZone();
+      rows = rows.filter((r) => instantInCalendarRange(r.date, filterFrom, filterTo, zone));
+    }
     if (onlyTaxFree) {
       rows = rows.filter((r) => {
         const lot = lotByTxId.get(r.id);

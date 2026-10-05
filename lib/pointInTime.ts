@@ -11,7 +11,10 @@
 // Two details that decide whether the figures are right:
 //
 //  • the cut-off is inclusive to the **end** of the chosen day, because "as of
-//    31 December" means the day is over, not that it is about to start;
+//    31 December" means the day is over, not that it is about to start. The
+//    day is a calendar date ("YYYY-MM-DD") and ends at midnight in the
+//    reference zone (docs/dates.md), so the 31 December of a tax return is the
+//    same cut wherever the view is opened;
 //  • entries are cut by their **booking date** (`bookingDates`), so a paired
 //    arrival counts from the day its out-leg left. The two legs of one transfer
 //    regularly carry different timestamps, and cutting between them would show
@@ -29,9 +32,19 @@ import {
 import { accountBalances, bookingDates, totalBalance, type AccountBalance } from "./portfolio";
 import { Decimal, dec, ZERO } from "./decimal";
 import type { LedgerEntry } from "./types";
+import {
+  addCalendarDays,
+  endOfCalendarDate,
+  endOfYear,
+  todayCalendarDate,
+  yearOfInstant,
+  type CalendarDate,
+} from "./dates";
 
 export interface PointInTimeResult {
-  /** End of the chosen day — what "as of" actually means here. */
+  /** The chosen calendar day. */
+  day: CalendarDate;
+  /** End of the chosen day in the reference zone — what "as of" means here. */
   asOf: Date;
   /** The entries that had happened by then, in causal order. */
   entries: LedgerEntry[];
@@ -56,13 +69,6 @@ export interface PointInTimeResult {
   basisBtc: Decimal;
 }
 
-/** End of the given day, local time: "as of the 31st" includes the 31st. */
-export function endOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
 /**
  * The portfolio as of the end of `date`.
  *
@@ -74,10 +80,11 @@ export function endOfDay(date: Date): Date {
  */
 export function portfolioAsOf(
   entries: LedgerEntry[],
-  date: Date,
+  day: CalendarDate,
   holdingPeriodDays: number,
 ): PointInTimeResult {
-  const asOf = endOfDay(date);
+  // "As of the 31st" includes the 31st.
+  const asOf = endOfCalendarDate(day);
   const booked = bookingDates(entries);
   const upTo = entries.filter((e) => {
     const when = booked.get(e.id) ?? e.date;
@@ -101,6 +108,7 @@ export function portfolioAsOf(
   }
 
   return {
+    day,
     asOf,
     entries: upTo,
     fifo,
@@ -131,6 +139,10 @@ export function portfolioAsOf(
  * year, not 364 days with an off-by-one at each end.
  */
 export interface PeriodResult {
+  /** First and last calendar day of the period, both included. */
+  fromDay: CalendarDate;
+  toDay: CalendarDate;
+  /** The instants the period runs between (exclusive, inclusive). */
   from: Date;
   to: Date;
   /** How things stood before the period began. */
@@ -156,15 +168,13 @@ export interface PeriodResult {
 
 export function periodBetween(
   entries: LedgerEntry[],
-  from: Date,
-  to: Date,
+  from: CalendarDate,
+  to: CalendarDate,
   holdingPeriodDays: number,
 ): PeriodResult {
   const closing = portfolioAsOf(entries, to, holdingPeriodDays);
   // The day before the period starts: its end is the moment the period begins.
-  const dayBefore = new Date(from);
-  dayBefore.setDate(dayBefore.getDate() - 1);
-  const opening = portfolioAsOf(entries, dayBefore, holdingPeriodDays);
+  const opening = portfolioAsOf(entries, addCalendarDays(from, -1), holdingPeriodDays);
 
   const start = opening.asOf.getTime();
   const end = closing.asOf.getTime();
@@ -181,7 +191,9 @@ export function periodBetween(
     list.reduce((acc, d) => acc.plus(pick(d)), ZERO);
 
   return {
-    from: new Date(from),
+    fromDay: from,
+    toDay: to,
+    from: new Date(start),
     to: closing.asOf,
     opening,
     closing,
@@ -208,14 +220,22 @@ export function periodBetween(
  * year, gaps included — a year in which nothing was traded still had a
  * holding, and that is exactly what somebody looks up.
  */
-export function yearEndOptions(entries: LedgerEntry[], now: Date = new Date()): Date[] {
+export function yearEndOptions(
+  entries: LedgerEntry[],
+  now: Date = new Date(),
+): CalendarDate[] {
+  // Years are cut in the reference zone, like the tax year (docs/dates.md).
   const years = entries
-    .map((e) => new Date(e.date).getFullYear())
-    .filter((y) => Number.isFinite(y));
+    .map((e) => yearOfInstant(e.date))
+    .filter((y): y is number => y !== null);
   if (years.length === 0) return [];
   const first = Math.min(...years);
-  const last = now.getFullYear() - 1;
-  const out: Date[] = [];
-  for (let y = last; y >= first; y--) out.push(new Date(y, 11, 31));
+  const last = yearOfInstant(now)! - 1;
+  const out: CalendarDate[] = [];
+  for (let y = last; y >= first; y--) out.push(endOfYear(y));
   return out;
 }
+
+/** Today in the reference zone — the latest day the view can be asked about. */
+export const latestPointInTimeDay = (now: Date = new Date()): CalendarDate =>
+  todayCalendarDate(now);

@@ -12,3 +12,10 @@ export const SITE_URL =
   (process.env.VERCEL_ENV === "production" && process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
     : "https://depotwatch-orange.com");
+
+/**
+ * Where the source lives. Written out in the footer and on "how it works",
+ * and sent as part of the news proxy's User-Agent (docs/news.md) — an administrator
+ * who sees the request in a log should be one click from knowing what it is.
+ */
+export const REPOSITORY_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";

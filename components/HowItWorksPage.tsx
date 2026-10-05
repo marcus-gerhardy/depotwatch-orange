@@ -3,8 +3,7 @@
 import { useAppLocale } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import StaticPage from "./StaticPage";
-
-const GITHUB_URL = "https://github.com/marcus-gerhardy/depotwatch-orange";
+import { REPOSITORY_URL } from "@/lib/site";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -53,7 +52,7 @@ export default function HowItWorksPage() {
           <p>
             {t("howItWorks.openSourceBody")}{" "}
             <a
-              href={GITHUB_URL}
+              href={REPOSITORY_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline"

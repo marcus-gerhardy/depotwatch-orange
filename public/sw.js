@@ -12,6 +12,10 @@
 // in the first place (it is read through the File System Access API or a file
 // input), so there is nothing of the user's here to leak into storage.
 //
+// The same reasoning keeps `/api/…` out, which is same-origin but is not the
+// shell: the feed proxy serves somebody else's content, and it has a cache of
+// its own on both sides.
+//
 // Two strategies, for two kinds of file:
 //
 //  • `/_next/static/…` is content-hashed and therefore immutable: cache-first,
@@ -74,6 +78,13 @@ self.addEventListener("fetch", (event) => {
   // how "offline" stays honest, because those requests then fail as they
   // should and the UI says so (§7.2).
   if (url.origin !== self.location.origin) return;
+
+  // The feed proxy is same-origin but is not the app shell: it is somebody
+  // else's content, fetched live, with its own cache on the server and its own
+  // offline fallback in the browser (lib/news/client.ts). Caching it here
+  // would pin yesterday's headlines into the shell cache and carry them across
+  // app versions, which is the one thing the shell cache must not do.
+  if (url.pathname.startsWith("/api/")) return;
 
   if (isImmutable(url)) {
     event.respondWith(

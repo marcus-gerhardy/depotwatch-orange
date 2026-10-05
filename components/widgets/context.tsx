@@ -18,6 +18,7 @@ import {
   type ExplorerSettings,
   type FiatCurrency,
   type LedgerEntry,
+  type Locale,
 } from "@/lib/types";
 import { SATS_PER_BTC, amountUnit, formatAmount, formatSats } from "@/lib/displayUnit";
 import { computeFifo, type FifoResult } from "@/lib/fifo";
@@ -31,6 +32,7 @@ import {
 import { lastKnownPrices, useSpotPrices } from "@/lib/marketData";
 import { Decimal, formatBtc, formatFiat, formatInt } from "@/lib/decimal";
 import type { DataIssue } from "@/lib/dataQuality";
+import type { SettingsSection } from "../SettingsView";
 
 /** Where a widget can send the user in the transaction table. */
 export interface TxJumpFilter {
@@ -43,6 +45,8 @@ export interface DashboardData {
   t: TranslateFn;
   /** BCP-47 tag for Intl formatting ("de-DE"/"en-US"). */
   loc: string;
+  /** The app's language itself, for the tiles whose *content* depends on it. */
+  locale: Locale;
   currency: Currency;
   /** The fiat currency prices are fetched in; EUR while displaying BTC. */
   priceCurrency: FiatCurrency;
@@ -99,6 +103,11 @@ export interface DashboardData {
   openMilestones: () => void;
   /** Open the year in review, at a given year (§4.2). */
   openYearInReview: (year: number) => void;
+  /**
+   * Open a group of the settings. For the tiles whose subject is configured
+   * there rather than in the tile itself: the news widget's sources (docs/news.md).
+   */
+  openSettings: (section: SettingsSection) => void;
 }
 
 const DashboardDataContext = createContext<DashboardData | null>(null);
@@ -114,12 +123,14 @@ export function DashboardDataProvider({
   openWatchlist,
   openMilestones,
   openYearInReview,
+  openSettings,
   children,
 }: {
   openTransactions: (filter: TxJumpFilter) => void;
   openWatchlist: (options?: { add?: boolean }) => void;
   openMilestones: () => void;
   openYearInReview: (year: number) => void;
+  openSettings: (section: SettingsSection) => void;
   children: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
@@ -173,6 +184,7 @@ export function DashboardDataProvider({
     return {
       t,
       loc,
+      locale,
       currency,
       priceCurrency: priceCurrencyOf(currency),
       unit: amountUnit(currency),
@@ -205,10 +217,12 @@ export function DashboardDataProvider({
       openWatchlist,
       openMilestones,
       openYearInReview,
+      openSettings,
     };
   }, [
     t,
     loc,
+    locale,
     currency,
     portfolio.explorerSettings,
     entries,
@@ -225,6 +239,7 @@ export function DashboardDataProvider({
     openWatchlist,
     openMilestones,
     openYearInReview,
+    openSettings,
   ]);
 
   return (

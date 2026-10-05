@@ -16,6 +16,7 @@ import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { useNowDate } from "@/lib/clock";
 import { goalProgress } from "@/lib/savingsGoal";
+import { formatCalendarDate } from "@/lib/dates";
 import { Amount } from "../ui";
 import { useDashboardData } from "./context";
 import { Meter, StatLabel, StatValue, WidgetEmpty, WidgetSkeleton } from "./WidgetFrame";
@@ -96,10 +97,10 @@ export default function SavingsGoalWidget() {
                 neutral colour. Nothing is gained by scolding somebody about
                 their own savings target. */}
             {p.byDate?.overdue && <p>{t("goal.datePassed", {
-              date: formatDate(p.byDate.date, loc),
+              date: formatCalendarDate(p.byDate.day, loc),
             })}</p>}
             {p.byDate && !p.byDate.overdue && (
-              <p>{t("goal.by", { date: formatDate(p.byDate.date, loc) })}</p>
+              <p>{t("goal.by", { date: formatCalendarDate(p.byDate.day, loc) })}</p>
             )}
           </>
         )}

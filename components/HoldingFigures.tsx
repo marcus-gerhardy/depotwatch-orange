@@ -9,9 +9,10 @@
 // figures carry a sign. Everything goes through `Amount`, so the privacy mode
 // blurs a balance here exactly as it does everywhere else.
 
-import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
+import { useI18n, intlLocale } from "@/lib/i18n";
 import { formatPercent, type Decimal } from "@/lib/decimal";
 import { daysUntilTaxFree } from "@/lib/fifo";
+import { formatCalendarDate } from "@/lib/dates";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { useValueFormat } from "@/lib/displayUnit";
 import type { Holding, HoldingLot } from "@/lib/holdings";
@@ -155,10 +156,10 @@ export function TaxSplit({ holding }: { holding: Holding }) {
           {t("holdings.unresolvedHint")}
         </p>
       )}
-      {holding.nextTaxFreeDate !== null && (
+      {holding.nextTaxFreeDay !== null && (
         <p className="text-[0.65rem] leading-relaxed text-muted">
           {t("holdings.nextTaxFree", {
-            date: formatDate(holding.nextTaxFreeDate, loc),
+            date: formatCalendarDate(holding.nextTaxFreeDay, loc),
           })}
         </p>
       )}

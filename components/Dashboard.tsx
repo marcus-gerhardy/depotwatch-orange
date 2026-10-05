@@ -41,6 +41,7 @@ import {
 } from "./widgets/registry";
 import WidgetHost from "./widgets/WidgetHost";
 import WidgetPicker from "./widgets/WidgetPicker";
+import type { SettingsSection } from "./SettingsView";
 import YearInReviewHint from "./YearInReviewHint";
 import BackupReminder from "./BackupReminder";
 import { CheckIcon, EditIcon, WarnIcon } from "./icons";
@@ -313,6 +314,7 @@ export default function Dashboard({
   onOpenMilestones,
   onOpenYearInReview,
   onOpenBackups,
+  onOpenSettings,
 }: {
   /** Jump to the transaction table with a filter applied (wallet or issue). */
   onOpenTransactions?: (filter: TxJumpFilter) => void;
@@ -324,6 +326,8 @@ export default function Dashboard({
   onOpenYearInReview?: (year: number) => void;
   /** Jump to the backups view (the reminder links there). */
   onOpenBackups?: () => void;
+  /** Jump to a group of the settings (the news widget links to its sources). */
+  onOpenSettings?: (section: SettingsSection) => void;
 }) {
   const noop = useCallback(() => {}, []);
   return (
@@ -332,6 +336,7 @@ export default function Dashboard({
       openWatchlist={onOpenWatchlist ?? noop}
       openMilestones={onOpenMilestones ?? noop}
       openYearInReview={onOpenYearInReview ?? noop}
+      openSettings={onOpenSettings ?? noop}
     >
       <DashboardBody openBackups={onOpenBackups ?? noop} />
     </DashboardDataProvider>

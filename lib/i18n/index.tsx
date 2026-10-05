@@ -106,3 +106,39 @@ export function formatTime(date: Date | string | number, loc: string): string {
 export function formatDateTime(date: Date | string | number, loc: string): string {
   return `${formatDate(date, loc)}, ${formatTime(date, loc)}`;
 }
+
+/**
+ * "vor 2 Stunden" / "2 hours ago" — how long ago a moment was.
+ *
+ * Through `Intl.RelativeTimeFormat` rather than a dictionary entry per unit,
+ * for the same reason month names are (§4.1): this is calendar data, and every
+ * language has its own rules about it that a table of five strings gets wrong.
+ *
+ * The unit is the largest one that leaves a number worth reading: seconds are
+ * rounded up to "1 minute ago", because an article published 40 seconds ago
+ * and one published 20 seconds ago are the same news, and a figure that
+ * changes while being looked at reads as a stopwatch.
+ */
+export function formatRelativeTime(
+  at: number,
+  now: number,
+  loc: string,
+): string {
+  const rtf = new Intl.RelativeTimeFormat(loc, { numeric: "auto" });
+  const seconds = (at - now) / 1000;
+  const abs = Math.abs(seconds);
+  const scales: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["year", 31_536_000],
+    ["month", 2_592_000],
+    ["week", 604_800],
+    ["day", 86_400],
+    ["hour", 3_600],
+    ["minute", 60],
+  ];
+  for (const [unit, size] of scales) {
+    if (abs >= size) {
+      return rtf.format(Math.round(seconds / size), unit);
+    }
+  }
+  return rtf.format(seconds > 0 ? 1 : -1, "minute");
+}

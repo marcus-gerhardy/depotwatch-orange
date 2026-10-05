@@ -11,6 +11,7 @@
 import { Decimal, dec, ZERO } from "./decimal";
 import { isLotTaxFree, type Disposal, type FifoResult, type OpenLot } from "./fifo";
 import type { LedgerEntry } from "./types";
+import { yearOfInstant } from "./dates";
 
 const DAY = 86_400_000;
 
@@ -82,8 +83,9 @@ export function realizedInYear(disposals: Disposal[], year: number): RealizedYea
   let unresolvedOriginBtc = ZERO;
   let disposalCount = 0;
   for (const d of disposals) {
-    const t = new Date(d.date);
-    if (Number.isNaN(t.getTime()) || t.getFullYear() !== year) continue;
+    // The tax year is cut in the reference zone (docs/dates.md) — the turn of
+    // the year is exactly where a local cut would put a sale in the wrong one.
+    if (yearOfInstant(d.date) !== year) continue;
     disposalCount += 1;
     taxableGainEur = taxableGainEur.plus(d.taxableGainEur);
     taxFreeGainEur = taxFreeGainEur.plus(d.taxFreeGainEur);

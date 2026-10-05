@@ -158,7 +158,9 @@ describe("normalizeDate", () => {
     expect(normalizeDate("2024-02-01T10:30:00.000Z")).toBe(
       "2024-02-01T10:30:00.000Z",
     );
-    expect(normalizeDate("2024-02-01")).toBe("2024-02-01T00:00:00.000Z");
+    // A date without a time is placed at noon in the reference zone
+    // (Europe/Berlin, CET in February), so the day survives every zone.
+    expect(normalizeDate("2024-02-01")).toBe("2024-02-01T11:00:00.000Z");
   });
 
   it("parses German dates", () => {
@@ -672,8 +674,9 @@ describe("date and time as two fields", () => {
       dateFormat: "de",
     });
     expect(built[0].values.time).toBe("");
+    // Noon in the reference zone, not local midnight (docs/dates.md).
     expect(rowToTransaction(built[0].values, { dateFormat: "de" }).date).toBe(
-      new Date(2024, 0, 5).toISOString(),
+      "2024-01-05T11:00:00.000Z",
     );
   });
 

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useI18n, intlLocale, formatDate } from "@/lib/i18n";
 import { Decimal, formatBtc, formatFiatPlain } from "@/lib/decimal";
-import { daysUntilTaxFree, isLotTaxFree, taxFreeDateOf } from "@/lib/fifo";
+import { daysUntilTaxFree, isLotTaxFree, taxFreeDayOf } from "@/lib/fifo";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import {
   indexLedger,
@@ -164,7 +164,7 @@ function OriginRow({
   onJump?: (txId: string) => void;
 }) {
   const { t } = useI18n();
-  const lot = { taxFreeDate: taxFreeDateOf(origin.acquiredDate, holdingPeriodDays) };
+  const lot = { taxFreeDay: taxFreeDayOf(origin.acquiredDate, holdingPeriodDays) };
   const free = isLotTaxFree(lot);
 
   return (

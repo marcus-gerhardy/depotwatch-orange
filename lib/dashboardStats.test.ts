@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { dec } from "./decimal";
-import { computeFifo, taxFreeDateOf, type OpenLot } from "./fifo";
+import { computeFifo, taxFreeDateOf, taxFreeDayOf, type OpenLot } from "./fifo";
 import type { LedgerEntry, Transaction } from "./types";
 import {
   bucketStart,
@@ -32,6 +32,7 @@ function lot(over: Partial<OpenLot> & { txId: string; acquiredDate: string }): O
     originalAmountBtc: dec("1"),
     remainingBtc: dec("1"),
     costPerBtcEur: dec("20000"),
+    taxFreeDay: taxFreeDayOf(over.acquiredDate, HOLDING_DAYS),
     taxFreeDate: taxFreeDateOf(over.acquiredDate, HOLDING_DAYS),
     note: "",
     ...over,

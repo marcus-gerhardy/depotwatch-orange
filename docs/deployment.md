@@ -2,9 +2,25 @@
 
 The app is a **static export** (`output: "export"` in `next.config.ts`): `npm run build` writes `out/`, which is plain HTML, JS, CSS and assets. There is no server component, no API route and no runtime — any static host works, and Vercel is only one of them.
 
+That is the default and it stays the default: a deployment with nothing running behind it cannot receive anybody's data, whatever its code says.
+
+## The second target: `npm run build:server`
+
+There is exactly one feature that a static export cannot carry: the news widget (`docs/news.md`). RSS and Atom feeds send no CORS headers, so a browser is not allowed to read them, and the widget needs a proxy in between.
+
+`npm run build:server` (`DEPOTWATCH_TARGET=server`) produces the same app with `/api/news` mounted, and needs a host that runs Next.js (`next start`, or Vercel without the `out` directory override). Nothing else differs, and nothing else about the app gains a server: the route reads feed URLs, fetches them, and returns parsed headlines. No portfolio data ever reaches it, because none is ever sent.
+
+The switch is `pageExtensions`, not a second copy of the code: the handler is written as `app/api/news/route.server.ts`, which Next only treats as a route when `server.ts` is among the page extensions. In the export build it is an ordinary colocated file — type-checked and linted, never mounted, never shipped. So the export build cannot accidentally contain a route it has no runtime for.
+
+**`npm run dev` serves the route.** Development is not a deployment, and a local server that answers 404 for a route the app ships makes the news widget impossible to build, demo or debug. `npm run dev:export` is the other side of it: the dev server configured exactly like the static export, for checking that nothing has crept in which the export could not carry. `npm run build` remains the gate either way, and neither dev command changes what is shipped.
+
+If you deploy the static export, the news widget still works for feeds that do send CORS headers, and says plainly in the settings and under its list that this installation has no proxy. Every other feature is unaffected either way.
+
 ## Vercel
 
 Framework preset **Next.js**; build command `npm run build`, output directory `out`. Nothing else is required — no environment variables, because the app has no secrets and no back end to talk to.
+
+For the server target instead: build command `npm run build:server` and no output directory override, so Vercel deploys the Next.js app rather than a folder of files. The headers below then belong in `next.config.ts` as well as in `vercel.json`, since a server build does run `headers()`.
 
 `vercel.json` carries what a static export cannot express in `next.config.ts`: response headers. Next's `headers()` option is ignored under `output: "export"` (there is no server to run it), so the headers live in the host's config.
 

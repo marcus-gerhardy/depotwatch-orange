@@ -14,6 +14,12 @@
 //     transactions must not turn a preview into a freeze, so the comparison
 //     keys are built once and every candidate is an O(1) lookup.
 
+import {
+  calendarDateOfInstant,
+  instantAt,
+  localTimeZone,
+  startOfCalendarDate,
+} from "./dates";
 import { dec } from "./decimal";
 import type { Transaction } from "./types";
 
@@ -146,6 +152,37 @@ export function buildDuplicateIndex(
  * seen through two exports that disagree about time zones or rounding.
  */
 export function findDuplicate(
+  candidate: Candidate,
+  index: DuplicateIndex,
+  toleranceMinutes: number,
+): DuplicateMatch | null {
+  const direct = findDuplicateAt(candidate, index, toleranceMinutes);
+  if (direct !== null) return direct;
+  // A date-only row is now stored at noon in the reference zone; files
+  // imported before that change hold the same row at local or UTC midnight
+  // (docs/dates.md). Re-importing such a file must still be recognised.
+  for (const time of legacyDateOnlyTimes(candidate.time)) {
+    const hit = findDuplicateAt({ ...candidate, time }, index, toleranceMinutes);
+    if (hit !== null) return hit;
+  }
+  return null;
+}
+
+/**
+ * Where an older import put a date-only value: local midnight (the CSV path)
+ * or UTC midnight (an ISO "YYYY-MM-DD" parsed by `new Date`). Empty unless
+ * `time` is itself a date-only instant (noon in the reference zone).
+ */
+function legacyDateOnlyTimes(time: number): number[] {
+  if (Number.isNaN(time)) return [];
+  const day = calendarDateOfInstant(time);
+  if (day === null || instantAt(day, { h: 12, m: 0, s: 0 }).getTime() !== time) return [];
+  const local = startOfCalendarDate(day, localTimeZone()).getTime();
+  const utc = startOfCalendarDate(day, "UTC").getTime();
+  return local === utc ? [local] : [local, utc];
+}
+
+function findDuplicateAt(
   candidate: Candidate,
   index: DuplicateIndex,
   toleranceMinutes: number,

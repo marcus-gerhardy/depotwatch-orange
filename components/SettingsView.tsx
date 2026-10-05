@@ -1,5 +1,7 @@
 "use client";
 
+import CalendarDateRepairDialog from "./CalendarDateRepairDialog";
+import { isCalendarDate, readStoredCalendarDate } from "@/lib/dates";
 import { useState } from "react";
 import HelpButton from "./help/HelpButton";
 import { useI18n } from "@/lib/i18n";
@@ -9,6 +11,7 @@ import { opensReadOnly, rememberReadOnly } from "@/lib/readOnlyFiles";
 import ImportBatches from "./ImportBatches";
 import ImportPresetsView from "./ImportPresetsView";
 import BackupsView from "./BackupsView";
+import NewsSourcesView from "./NewsSourcesView";
 import {
   DEFAULT_DUPLICATE_TOLERANCE_MINUTES,
   DEFAULT_TAX_EXEMPTION_LIMIT_EUR,
@@ -45,6 +48,7 @@ export type SettingsSection =
   | "backups"
   | "history"
   | "import"
+  | "news"
   | "tax"
   | "explorer";
 
@@ -60,6 +64,7 @@ const SECTIONS: { id: SettingsSection; taxOnly?: boolean }[] = [
   { id: "backups" },
   { id: "history" },
   { id: "import" },
+  { id: "news" },
   { id: "tax", taxOnly: true },
   { id: "explorer" },
 ];
@@ -142,9 +147,14 @@ export default function SettingsView({
    */
   const [goalUnit, setGoalUnit] = useState<"btc" | "sats">("btc");
   const [goalAmount, setGoalAmount] = useState(() => s.savingsGoal?.targetBtc ?? "");
+  // A calendar date (docs/dates.md): the date input's "YYYY-MM-DD" is stored
+  // exactly as it is, never through a Date — the round trip via toISOString()
+  // is what used to turn 31.12. into 30.12.
   const [goalDate, setGoalDate] = useState(
-    () => s.savingsGoal?.targetDate?.slice(0, 10) ?? "",
+    () => readStoredCalendarDate(s.savingsGoal?.targetDate) ?? "",
   );
+
+  const [repairingDates, setRepairingDates] = useState(false);
 
   const saveGoal = () => {
     const amount = dec(goalAmount);
@@ -157,7 +167,7 @@ export default function SettingsView({
     patchSettings({
       savingsGoal: {
         targetBtc: btcString(btc),
-        ...(goalDate ? { targetDate: new Date(`${goalDate}T00:00:00`).toISOString() } : {}),
+        ...(isCalendarDate(goalDate) ? { targetDate: goalDate } : {}),
       },
     });
   };
@@ -280,6 +290,22 @@ export default function SettingsView({
                     />
                   </Field>
                 </div>
+                {s.savingsGoal?.targetDate !== undefined &&
+                  !isCalendarDate(s.savingsGoal.targetDate) && (
+                    <p className="rounded-lg border border-warning/40 bg-warning/10 p-2 text-xs leading-relaxed text-warning">
+                      <WarnIcon /> {t("calendarRepair.goalHint")}{" "}
+                      <button
+                        type="button"
+                        className="font-medium text-accent hover:underline"
+                        onClick={() => setRepairingDates(true)}
+                      >
+                        {t("calendarRepair.open")} →
+                      </button>
+                    </p>
+                  )}
+                {repairingDates && (
+                  <CalendarDateRepairDialog onClose={() => setRepairingDates(false)} />
+                )}
                 <div className="flex flex-wrap gap-2">
                   <Button variant="primary" onClick={saveGoal}>
                     {t("common.save")}
@@ -736,6 +762,12 @@ export default function SettingsView({
               </Card>
               <ImportPresetsView />
               <ImportBatches />
+            </Locked>
+          )}
+
+          {section === "news" && (
+            <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
+              <NewsSourcesView />
             </Locked>
           )}
 

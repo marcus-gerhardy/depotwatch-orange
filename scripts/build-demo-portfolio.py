@@ -650,7 +650,8 @@ BANDS = [
     (7, [("taxFreeProceeds", 6), ("exemptionLimit", 6)]),
     (6, [("utxoOverview", 6), ("watchlistStatus", 6)]),
     (6, [("milestones", 4), ("yearInReview", 4), ("timeInMarket", 4)]),
-    (6, [("networkFees", 4), ("halving", 4), ("blockClock", 4)]),
+    (7, [("news", 6), ("halving", 6)]),
+    (5, [("networkFees", 6), ("blockClock", 6)]),
 ]
 
 WIDGETS = []

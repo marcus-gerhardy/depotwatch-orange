@@ -23,6 +23,13 @@ describe("the service worker", () => {
     expect(SW).toMatch(/url\.origin !== self\.location\.origin\)\s*return;/);
   });
 
+  it("leaves the feed proxy alone as well", () => {
+    // Same-origin, but not the app shell: news is somebody else's content with
+    // its own caching on both sides. In the shell cache it would be pinned
+    // across app versions.
+    expect(SW).toMatch(/url\.pathname\.startsWith\("\/api\/"\)\)\s*return;/);
+  });
+
   it("only ever handles GET", () => {
     expect(SW).toMatch(/request\.method !== "GET"\)\s*return;/);
   });

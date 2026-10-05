@@ -591,6 +591,10 @@ export default function AppShell() {
               setSettingsSection("backups");
               setTab("settings");
             }}
+            onOpenSettings={(section) => {
+              setSettingsSection(section);
+              setTab("settings");
+            }}
             onOpenYearInReview={(year) => {
               setReviewYear(year);
               setTab("yearInReview");

@@ -55,7 +55,7 @@ describe("a target with a date", () => {
     // days, i.e. 6.05 average months — so the rate is 0.0827, not the 0.0833
     // that assuming 30-day months would give.
     const p = goalProgress(
-      { targetBtc: "1", targetDate: "2027-01-01T00:00:00.000Z" },
+      { targetBtc: "1", targetDate: "2027-01-01" },
       dec("0.5"),
       entries("2026-01-01T00:00:00.000Z"),
       NOW,
@@ -68,7 +68,7 @@ describe("a target with a date", () => {
     // "Save the rest in zero months" is a division by zero dressed up as
     // advice. The date is simply reported as past.
     const p = goalProgress(
-      { targetBtc: "1", targetDate: "2026-01-01T00:00:00.000Z" },
+      { targetBtc: "1", targetDate: "2026-01-01" },
       dec("0.5"),
       entries("2025-01-01T00:00:00.000Z"),
       NOW,
@@ -79,7 +79,7 @@ describe("a target with a date", () => {
 
   it("is not overdue when the target was reached in time", () => {
     const p = goalProgress(
-      { targetBtc: "1", targetDate: "2026-01-01T00:00:00.000Z" },
+      { targetBtc: "1", targetDate: "2026-01-01" },
       dec("1"),
       entries("2025-01-01T00:00:00.000Z"),
       NOW,

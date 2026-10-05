@@ -12,6 +12,12 @@
 
 import { Decimal, dec, ZERO } from "./decimal";
 import type { LedgerEntry, SavingsGoal } from "./types";
+import {
+  calendarDaysBetween,
+  readStoredCalendarDate,
+  todayCalendarDate,
+  type CalendarDate,
+} from "./dates";
 
 const MS_PER_DAY = 86_400_000;
 
@@ -35,7 +41,9 @@ export interface GoalProgress {
 }
 
 export interface DateBoundGoal {
-  date: Date;
+  /** The target day, a calendar date (docs/dates.md). */
+  day: CalendarDate;
+  /** Calendar days from today (reference zone) to the target day. */
   daysLeft: number;
   /** What is left, spread over the months left. Null once the date has passed. */
   requiredBtcPerMonth: Decimal | null;
@@ -92,22 +100,22 @@ export function goalProgress(
         );
 
   let byDate: DateBoundGoal | null = null;
-  if (goal.targetDate) {
-    const date = new Date(goal.targetDate);
-    if (!Number.isNaN(date.getTime())) {
-      const daysLeft = Math.ceil((date.getTime() - now.getTime()) / MS_PER_DAY);
-      const monthsLeft = monthsBetween(now.getTime(), date.getTime());
-      byDate = {
-        date,
-        daysLeft,
-        // Past the date there is no rate to state: what is left would have to
-        // be saved in no time at all, which is a division by zero dressed up
-        // as advice.
-        requiredBtcPerMonth:
-          daysLeft <= 0 || reached ? null : remaining.div(monthsLeft),
-        overdue: daysLeft < 0 && !reached,
-      };
-    }
+  // A calendar date, counted in calendar days: no instant, no zone, so the
+  // 31 December stays the 31 December wherever the file is opened.
+  const targetDay = readStoredCalendarDate(goal.targetDate);
+  if (targetDay !== null) {
+    const daysLeft = calendarDaysBetween(todayCalendarDate(now), targetDay);
+    const monthsLeft = dec(Math.max(daysLeft, 1 / 24)).div(dec(365.25).div(12));
+    byDate = {
+      day: targetDay,
+      daysLeft,
+      // Past the date there is no rate to state: what is left would have to
+      // be saved in no time at all, which is a division by zero dressed up
+      // as advice.
+      requiredBtcPerMonth:
+        daysLeft <= 0 || reached ? null : remaining.div(monthsLeft),
+      overdue: daysLeft < 0 && !reached,
+    };
   }
 
   return {

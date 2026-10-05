@@ -797,8 +797,11 @@ describe("computeFifo", () => {
     const lot = r.openLots[0];
     expect(isLotTaxFree(lot, new Date("2024-06-01T00:00:00Z"))).toBe(false);
     expect(isLotTaxFree(lot, new Date("2025-01-02T00:00:00Z"))).toBe(true);
-    // 2024 is a leap year: tax-free from 2025-01-01 (366 days > 365).
-    expect(daysUntilTaxFree(lot, new Date("2024-12-31T00:00:00Z"))).toBe(1);
+    // Counted in calendar years (§§ 187, 188 BGB), not in 365 days: the
+    // period ends on 2025-01-01, so the lot is tax-free from 2025-01-02 —
+    // even though 2024 has 366 days.
+    expect(daysUntilTaxFree(lot, new Date("2024-12-31T00:00:00Z"))).toBe(2);
+    expect(isLotTaxFree(lot, new Date("2025-01-01T12:00:00Z"))).toBe(false);
     expect(daysUntilTaxFree(lot, new Date("2025-02-01T00:00:00Z"))).toBe(0);
   });
 });

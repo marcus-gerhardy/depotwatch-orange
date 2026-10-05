@@ -14,9 +14,15 @@
 // archive section says so, and archiving one that still holds coins asks
 // first.
 
+import {
+  formatCalendarDate,
+  localTimeZone,
+  readStoredCalendarDate,
+  todayCalendarDate,
+} from "@/lib/dates";
 import { useEffect, useMemo, useRef, useState } from "react";
 import HelpButton from "./help/HelpButton";
-import { formatDate, intlLocale, useI18n } from "@/lib/i18n";
+import { intlLocale, useI18n } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { useReadOnly } from "@/lib/readOnly";
 import { computeFifo } from "@/lib/fifo";
@@ -875,12 +881,12 @@ function WalletBadges({ wallet, holding, now }: { wallet: Wallet; holding: Holdi
       {backup.kind === "never" && <Chip>{t("wallets.backup.never")}</Chip>}
       {backup.kind === "ok" && (
         <Chip>
-          <CheckIcon /> {t("wallets.backup.ok", { date: formatDate(backup.checkedAt, loc) })}
+          <CheckIcon /> {t("wallets.backup.ok", { date: formatCalendarDate(backup.checkedAt, loc) })}
         </Chip>
       )}
       {backup.kind === "due" && (
         <Chip tone="warning">
-          <WarnIcon /> {t("wallets.backup.due", { date: formatDate(backup.checkedAt, loc) })}
+          <WarnIcon /> {t("wallets.backup.due", { date: formatCalendarDate(backup.checkedAt, loc) })}
         </Chip>
       )}
     </>
@@ -1449,9 +1455,12 @@ function EditWalletDialog({
   const [color, setColor] = useState<WalletColorId>(walletColorOf(wallet, index));
   const [kyc, setKyc] = useState<KycStatus>(wallet.kyc ?? "unknown");
   const [note, setNote] = useState(wallet.note ?? "");
-  const [backupDate, setBackupDate] = useState(wallet.backupCheckedAt ?? "");
+  const [backupDate, setBackupDate] = useState(
+    () => readStoredCalendarDate(wallet.backupCheckedAt) ?? "",
+  );
   const [reminder, setReminder] = useState(wallet.backupReminder ?? false);
-  const today = now.toISOString().slice(0, 10);
+  // Today on the user's own calendar; toISOString() would give the UTC date.
+  const today = todayCalendarDate(now, localTimeZone());
   const nameRef = useRef<HTMLInputElement>(null);
 
   function save() {

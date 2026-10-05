@@ -24,8 +24,14 @@
 import { Decimal, dec, ZERO } from "./decimal";
 import { totalCredit, totalDebit } from "./portfolio";
 import type { LedgerEntry, LotAllocation } from "./types";
-
-const MS_PER_DAY = 86_400_000;
+import {
+  calendarDateOfInstant,
+  calendarDaysBetween,
+  firstTaxFreeDay,
+  startOfCalendarDate,
+  todayCalendarDate,
+  type CalendarDate,
+} from "./dates";
 
 /**
  * What a buy contributes as a lot: the BTC actually credited (amount net of a
@@ -55,11 +61,24 @@ export function buyLotBasis(e: {
   };
 }
 
-/** First day a lot acquired on `acquiredDate` is tax-free (exclusive bound). */
+/**
+ * First calendar day a lot acquired at the instant `acquiredDate` is tax-free.
+ *
+ * The acquisition instant is read as a day in the reference zone
+ * (`REFERENCE_TIME_ZONE`), and the period is counted in calendar years by
+ * `firstTaxFreeDay` (§§ 187, 188 BGB; docs/dates.md) — so the answer is the
+ * same wherever the user is, and right across leap years.
+ */
+export function taxFreeDayOf(acquiredDate: string, holdingPeriodDays: number): CalendarDate {
+  const day = calendarDateOfInstant(acquiredDate);
+  // An unreadable date never becomes tax-free rather than always.
+  if (day === null) return "9999-12-31";
+  return firstTaxFreeDay(day, holdingPeriodDays);
+}
+
+/** The instant the first tax-free day begins, in the reference zone. */
 export function taxFreeDateOf(acquiredDate: string, holdingPeriodDays: number): Date {
-  return new Date(
-    new Date(acquiredDate).getTime() + (holdingPeriodDays + 1) * MS_PER_DAY,
-  );
+  return startOfCalendarDate(taxFreeDayOf(acquiredDate, holdingPeriodDays));
 }
 
 export interface OpenLot {
@@ -74,7 +93,9 @@ export interface OpenLot {
   remainingBtc: Decimal;
   /** Cost per BTC in EUR; null when the basis is unknown (external transfer in). */
   costPerBtcEur: Decimal | null;
-  /** First day the lot is tax-free (acquisition + holding period, exclusive). */
+  /** First calendar day the lot is tax-free (reference zone). */
+  taxFreeDay: CalendarDate;
+  /** The instant that day begins — for sorting and comparing with instants. */
   taxFreeDate: Date;
   /** Note of the lot-creating transaction. */
   note: string;
@@ -216,10 +237,11 @@ export interface FifoResult {
   fullyTransferredLots: Map<string, FullyTransferredLot>;
 }
 
+/** Calendar days between acquisition and disposal, in the reference zone. */
 function holdingDaysBetween(acquired: string, disposed: string): number {
-  return Math.floor(
-    (new Date(disposed).getTime() - new Date(acquired).getTime()) / MS_PER_DAY,
-  );
+  const from = calendarDateOfInstant(acquired);
+  const to = calendarDateOfInstant(disposed);
+  return from === null || to === null ? 0 : calendarDaysBetween(from, to);
 }
 
 /** A lot slice consumed by a transfer_out, waiting for its in-leg(s). */
@@ -268,10 +290,14 @@ export function computeFifo(
     }
   }
 
-  const taxFreeDateFor = (acquired: string) => taxFreeDateOf(acquired, holdingPeriodDays);
+  const taxFreeFor = (acquired: string) => ({
+    taxFreeDay: taxFreeDayOf(acquired, holdingPeriodDays),
+    taxFreeDate: taxFreeDateOf(acquired, holdingPeriodDays),
+  });
 
   function takePart(lot: OpenLot, take: Decimal, disposedDate: string): DisposalPart {
     const days = holdingDaysBetween(lot.acquiredDate, disposedDate);
+    const disposedDay = calendarDateOfInstant(disposedDate);
     lot.remainingBtc = lot.remainingBtc.minus(take);
     return {
       lotTxId: lot.txId,
@@ -280,7 +306,9 @@ export function computeFifo(
       costBasisEur:
         lot.costPerBtcEur === null ? null : lot.costPerBtcEur.mul(take),
       holdingDays: days,
-      taxFree: days > holdingPeriodDays,
+      // Judged on calendar days in the reference zone, the same rule as
+      // `isLotTaxFree` — never on a millisecond difference.
+      taxFree: disposedDay !== null && disposedDay >= lot.taxFreeDay,
       originUnresolved: lot.originUnresolved === true,
     };
   }
@@ -397,7 +425,7 @@ export function computeFifo(
           originalAmountBtc: net,
           remainingBtc: net,
           costPerBtcEur,
-          taxFreeDate: taxFreeDateFor(e.date),
+          ...taxFreeFor(e.date),
           note: e.note,
         });
         break;
@@ -428,7 +456,7 @@ export function computeFifo(
           // The giver's cost basis carries over with the coins; without it the
           // basis is unknown, exactly like an external arrival.
           costPerBtcEur: cost === null ? null : cost.div(amount),
-          taxFreeDate: taxFreeDateFor(acquiredDate),
+          ...taxFreeFor(acquiredDate),
           note: e.note,
           ...(known ? {} : { originUnresolved: true }),
         });
@@ -462,7 +490,7 @@ export function computeFifo(
           originalAmountBtc: net,
           remainingBtc: net,
           costPerBtcEur: gross === null ? null : gross.div(net),
-          taxFreeDate: taxFreeDateFor(e.date),
+          ...taxFreeFor(e.date),
           note: e.note,
         });
         break;
@@ -509,7 +537,7 @@ export function computeFifo(
               originalAmountBtc: amount,
               remainingBtc: amount,
               costPerBtcEur: null,
-              taxFreeDate: taxFreeDateFor(e.date),
+              ...taxFreeFor(e.date),
               note: e.note,
               originUnresolved: true,
             });
@@ -534,7 +562,7 @@ export function computeFifo(
               originalAmountBtc: take,
               remainingBtc: take,
               costPerBtcEur: part.costPerBtcEur,
-              taxFreeDate: taxFreeDateFor(part.acquiredDate),
+              ...taxFreeFor(part.acquiredDate),
               note: e.note,
             });
           }
@@ -552,7 +580,7 @@ export function computeFifo(
               originalAmountBtc: remaining,
               remainingBtc: remaining,
               costPerBtcEur: null,
-              taxFreeDate: taxFreeDateFor(e.date),
+              ...taxFreeFor(e.date),
               note: e.note,
               originUnresolved: true,
             });
@@ -569,7 +597,7 @@ export function computeFifo(
           originalAmountBtc: amount,
           remainingBtc: amount,
           costPerBtcEur: price,
-          taxFreeDate: taxFreeDateFor(e.date),
+          ...taxFreeFor(e.date),
           note: e.note,
         });
         break;
@@ -730,18 +758,20 @@ export function computeFifo(
   };
 }
 
-// Both take anything carrying a taxFreeDate, so a provenance row (whose date
-// comes from `taxFreeDateOf`) is judged by exactly the same rule as an open lot.
+// Both take anything carrying a taxFreeDay, so a provenance row (whose day
+// comes from `taxFreeDayOf`) is judged by exactly the same rule as an open lot.
+// "Today" is the calendar day in the reference zone, so whether a period has
+// run out does not depend on where the user is (docs/dates.md).
 export function daysUntilTaxFree(
-  lot: { taxFreeDate: Date },
+  lot: { taxFreeDay: CalendarDate },
   now: Date = new Date(),
 ): number {
-  return Math.max(0, Math.ceil((lot.taxFreeDate.getTime() - now.getTime()) / MS_PER_DAY));
+  return Math.max(0, calendarDaysBetween(todayCalendarDate(now), lot.taxFreeDay));
 }
 
 export function isLotTaxFree(
-  lot: { taxFreeDate: Date },
+  lot: { taxFreeDay: CalendarDate },
   now: Date = new Date(),
 ): boolean {
-  return now.getTime() >= lot.taxFreeDate.getTime();
+  return todayCalendarDate(now) >= lot.taxFreeDay;
 }

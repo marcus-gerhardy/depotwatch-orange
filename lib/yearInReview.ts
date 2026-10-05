@@ -17,6 +17,16 @@
 // this year can actually fill, and a year without a single transaction says so
 // instead of showing twelve zeroes.
 
+import {
+  calendarDateOfInstant,
+  calendarDaysBetween,
+  parseCalendarDate,
+  startOfCalendarDate,
+  startOfYear,
+  weekdayOf,
+  yearOfInstant,
+  type CalendarDate,
+} from "./dates";
 import { Decimal, dec, ZERO } from "./decimal";
 import { feeTotals, type FeeTotals } from "./dashboardStats";
 import { type FifoResult } from "./fifo";
@@ -183,14 +193,17 @@ export interface YearReviewInput {
   now: Date;
 }
 
-const DAY = 86_400_000;
 
-/** Local start of a year — the user's year, like every other day-of feature. */
+/**
+ * Start and end of a year, cut in the reference zone (docs/dates.md) — the
+ * same cut as the tax year, so the review and the tax view never disagree
+ * about which year a sale at midnight on 31 December belongs to.
+ */
 export function yearStart(year: number): number {
-  return new Date(year, 0, 1).getTime();
+  return startOfCalendarDate(startOfYear(year)).getTime();
 }
 export function yearEnd(year: number): number {
-  return new Date(year + 1, 0, 1).getTime() - 1;
+  return startOfCalendarDate(startOfYear(year + 1)).getTime() - 1;
 }
 
 const timeOf = (iso: string): number => new Date(iso).getTime();
@@ -210,12 +223,10 @@ function executedPriceEur(e: LedgerEntry): Decimal | null {
   return null;
 }
 
-/** Monday-based week key of a local timestamp, for the buying streak. */
-function weekIndex(ms: number): number {
-  const d = new Date(ms);
-  const local = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+/** Monday-based week key of a calendar day, for the buying streak. */
+function weekIndex(day: CalendarDate): number {
   // 1970-01-01 was a Thursday, hence the shift to a Monday-based week.
-  return Math.floor((Math.floor(local / DAY) + 3) / 7);
+  return Math.floor((calendarDaysBetween("1970-01-01", day) + 3) / 7);
 }
 
 /** Longest run of consecutive values in a set of period indices. */
@@ -244,12 +255,11 @@ export function reviewableYears(
   entries: LedgerEntry[],
   now: Date = new Date(),
 ): number[] {
-  const lastYear = now.getFullYear() - 1;
+  const lastYear = yearOfInstant(now)! - 1;
   let first: number | null = null;
   for (const e of entries) {
-    const t = timeOf(e.date);
-    if (Number.isNaN(t)) continue;
-    const year = new Date(t).getFullYear();
+    const year = yearOfInstant(e.date);
+    if (year === null) continue;
     if (first === null || year < first) first = year;
   }
   if (first === null || first > lastYear) return [];
@@ -377,14 +387,16 @@ export function computeYearReview(input: YearReviewInput): YearReview {
   const weekIndices = new Set<number>();
   const monthIndices = new Set<number>();
   for (const e of buys) {
-    const t = timeOf(e.date);
-    if (Number.isNaN(t)) continue;
-    const d = new Date(t);
-    monthBuys[d.getMonth()] += 1;
-    monthBtc[d.getMonth()] = monthBtc[d.getMonth()].plus(balanceDelta(e));
-    weekdayBuys[d.getDay()] += 1;
-    weekIndices.add(weekIndex(t));
-    monthIndices.add(d.getFullYear() * 12 + d.getMonth());
+    // The buy's calendar day in the reference zone, the zone the year itself
+    // is cut in — a buy cannot be in this year's review and in last December.
+    const day = calendarDateOfInstant(e.date);
+    if (day === null) continue;
+    const { year, month } = parseCalendarDate(day)!;
+    monthBuys[month - 1] += 1;
+    monthBtc[month - 1] = monthBtc[month - 1].plus(balanceDelta(e));
+    weekdayBuys[(weekdayOf(day) + 1) % 7] += 1; // Sunday = 0, like getDay()
+    weekIndices.add(weekIndex(day));
+    monthIndices.add(year * 12 + month - 1);
   }
   let busiestMonth = -1;
   for (let m = 0; m < 12; m++) {
