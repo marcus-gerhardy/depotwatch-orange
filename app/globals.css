@@ -534,3 +534,24 @@ textarea {
     cursor: pointer;
   }
 }
+
+/* A new spot price (lib/priceFeed.ts): the figure lights up once in the
+   direction it moved and fades back. Applied through `motion-safe:`; the
+   direction is also written out as an arrow, so neither the colour nor the
+   movement carries it alone. */
+@keyframes price-flash-up {
+  from {
+    background-color: color-mix(in srgb, var(--gain) 28%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@keyframes price-flash-down {
+  from {
+    background-color: color-mix(in srgb, var(--loss) 28%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}

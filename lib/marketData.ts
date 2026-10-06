@@ -1,7 +1,7 @@
 "use client";
 
 // Cached, de-duplicated access to the external data the dashboard widgets
-// need: BTC prices (Binance) and on-chain figures (the *configured* explorer,
+// need: historical BTC prices (Binance) and on-chain figures (the *configured* explorer,
 // never a hard-wired third party — see CLAUDE.md §3.3).
 //
 // Every widget mounts independently, several want the same figure, and a
@@ -11,7 +11,8 @@
 // unreachable explorer must not turn into a request storm).
 
 import { useCallback, useEffect, useState } from "react";
-import { fetchDailyCloses, fetchSpotPrice, type DailyClose } from "./binance";
+import { fetchDailyCloses, type DailyClose } from "./binance";
+import { resetPriceFeed } from "./priceFeed";
 import {
   fetchFeeEstimates,
   fetchTipHeight,
@@ -79,9 +80,10 @@ export function pendingRequestCount(): number {
   return n;
 }
 
-/** Drop every cached figure — used by the tests and by a manual refresh. */
+/** Drop every cached figure, the spot price feed included — used by the tests. */
 export function clearMarketDataCache(): void {
   cache.clear();
+  resetPriceFeed();
 }
 
 export interface Resource<T> {
@@ -175,88 +177,11 @@ function useResource<T>(
   };
 }
 
-const PRICE_TTL_MS = 60_000;
 const HISTORY_TTL_MS = 10 * 60_000;
 const CHAIN_TTL_MS = 60_000;
 
-export interface SpotPrices {
-  eur: number;
-  usd: number;
-}
-
-/**
- * Live BTC price in both currencies. EUR is always needed (the ledger's
- * valuation currency), USD only for the display conversion — one shared
- * resource keeps that to a single pair of requests for the whole dashboard.
- */
-async function loadSpotPrices(): Promise<SpotPrices> {
-  const [eur, usd] = await Promise.all([
-    fetchSpotPrice("EUR"),
-    fetchSpotPrice("USD"),
-  ]);
-  return { eur, usd };
-}
-
-/**
- * The last spot price this browser saw, with the time it saw it (§7.2).
- *
- * Kept in `localStorage` so it survives a reload — which is the only reason it
- * exists: offline, the app should say "54 830 €, as of yesterday 18:20" rather
- * than a dash, and after a restart an in-memory cache has nothing to say.
- *
- * A price is not somebody's data — it is the same number for everyone, and it
- * carries no trace of what they hold. Nothing else is persisted this way.
- */
-const LAST_PRICE_KEY = "depotwatch.lastPrice.v1";
-
-export interface LastKnownPrices extends SpotPrices {
-  /** Epoch ms of the reading, so the UI can say how old it is. */
-  at: number;
-}
-
-function readLastPrices(): LastKnownPrices | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(LAST_PRICE_KEY);
-    if (raw === null) return null;
-    const p = JSON.parse(raw) as Partial<LastKnownPrices>;
-    return typeof p.eur === "number" && typeof p.usd === "number" && typeof p.at === "number"
-      ? { eur: p.eur, usd: p.usd, at: p.at }
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeLastPrices(prices: SpotPrices): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(
-      LAST_PRICE_KEY,
-      JSON.stringify({ ...prices, at: Date.now() } satisfies LastKnownPrices),
-    );
-  } catch {
-    // Storage full or unavailable: a stale price is a nicety, not a feature
-    // worth an error message.
-  }
-}
-
-/** What was last seen, for the UI to fall back to while offline. */
-export function lastKnownPrices(): LastKnownPrices | null {
-  return readLastPrices();
-}
-
-export function useSpotPrices(): Resource<SpotPrices> {
-  const load = useCallback(
-    () =>
-      loadSpotPrices().then((prices) => {
-        writeLastPrices(prices);
-        return prices;
-      }),
-    [],
-  );
-  return useResource<SpotPrices>("binance:spot", PRICE_TTL_MS, load, PRICE_TTL_MS);
-}
+// The live spot price is not here: it has its own feed with an interval,
+// pausing and backoff (lib/priceFeed.ts), which this cache does not need.
 
 /**
  * Daily BTC closes from `startTime` (ms epoch) to today. Several widgets chart

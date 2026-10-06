@@ -38,3 +38,21 @@ export function useNowDate(): Date | null {
   const ms = useNow();
   return useMemo(() => (ms === 0 ? null : new Date(ms)), [ms]);
 }
+
+function subscribeToSeconds(onChange: () => void): () => void {
+  const id = setInterval(onChange, 1_000);
+  return () => clearInterval(id);
+}
+
+/**
+ * The same clock to the second, for the one thing that has to tick that
+ * often: how old the price on screen is. Subscribe to it from a component as
+ * small as possible — everything that reads it re-renders every second.
+ */
+export function useNowSeconds(): number {
+  return useSyncExternalStore(
+    subscribeToSeconds,
+    () => Math.floor(Date.now() / 1_000) * 1_000,
+    () => 0,
+  );
+}

@@ -12,7 +12,6 @@ import {
   formatPercent,
   parseNumberInput,
 } from "@/lib/decimal";
-import { formatDateTime } from "@/lib/i18n";
 import { whatIf } from "@/lib/dashboardStats";
 import { dailyValueSeries } from "@/lib/portfolio";
 import { useDailyCloses } from "@/lib/marketData";
@@ -21,6 +20,8 @@ import { formatPizzas, isPizzaDay, pizzasFor, useEasterEggs } from "@/lib/easter
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { Amount, PnlValue, inputCls } from "../ui";
 import { useDashboardData } from "./context";
+import { PriceFlash, PriceStatus } from "./PriceStatus";
+import { usePriceFeed } from "@/lib/priceFeed";
 import { PizzaIcon, StarIcon, WarnIcon } from "../icons";
 import {
   Meter,
@@ -264,9 +265,9 @@ export function BtcPriceWidget() {
     priceUsd,
     priceError,
     priceLoading,
-    priceStaleAt,
     fmtValue,
   } = useDashboardData();
+  const { direction, changeSeq } = usePriceFeed();
   // Moscow time is a dollar figure by convention — sats per US dollar, wherever
   // one reads it — so it stays on the USD price no matter what the file
   // displays. A "moscow time" that meant something else per user would not be
@@ -306,23 +307,23 @@ export function BtcPriceWidget() {
               <span className="w-8 shrink-0 text-[0.6rem] font-semibold tracking-[0.12em] text-muted uppercase">
                 {code}
               </span>
-              <span
-                className={`truncate font-mono text-xl leading-tight font-semibold tabular-nums ${
+              {/* Tabular figures with fixed decimals, and an arrow slot that
+                  is always there: a new price never moves the layout. */}
+              <PriceFlash
+                direction={i === 0 && currency !== "BTC" ? direction : null}
+                seq={i === 0 && currency !== "BTC" ? changeSeq : 0}
+                className={`font-mono text-xl leading-tight font-semibold tabular-nums ${
                   i === 0 ? "text-accent" : "text-muted"
                 }`}
               >
                 {value}
-              </span>
+              </PriceFlash>
             </div>
           ))}
         </div>
-        <StatLabel>
-          {/* A price that could not be refreshed is shown with the time it was
-              read, never as if it were current (§7.2). */}
-          {priceStaleAt === null
-            ? t("dashboard.widgets.spotPriceSource")
-            : t("offline.priceAsOf", { time: formatDateTime(priceStaleAt, loc) })}
-        </StatLabel>
+        {/* A price that could not be refreshed is shown with the time it was
+            read, never as if it were current (§7.2). */}
+        <PriceStatus source={t("dashboard.widgets.spotPriceSource")} />
       </div>
       <div
         className="mt-auto flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/5 px-2.5 py-1.5"

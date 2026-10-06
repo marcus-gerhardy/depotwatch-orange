@@ -314,6 +314,16 @@ export function OfflineIcon({ className = "" }: { className?: string }) {
   );
 }
 
+/** Fetch again: a circular arrow. */
+export function RefreshIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <path d="M20 12a8 8 0 1 1-2.3-5.6" />
+      <path d="M20 4v4.5h-4.5" />
+    </InlineIcon>
+  );
+}
+
 /** The file is encrypted, or the preset cannot be changed. */
 export function LockIcon({ className = "" }: { className?: string }) {
   return <InlineIcon className={className}>{PADLOCK}</InlineIcon>;

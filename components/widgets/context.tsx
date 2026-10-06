@@ -4,9 +4,9 @@
 //
 // Widgets are registry entries without props (see registry.tsx) so a new one
 // can be added by a single entry. They read their data from this context
-// instead, which also means the expensive parts (flattenLedger, computeFifo,
-// the spot price request) happen once for the whole dashboard rather than once
-// per widget.
+// instead, which also means the expensive parts (flattenLedger, computeFifo)
+// happen once for the whole dashboard rather than once
+// per widget. The spot price comes from the app-wide feed in lib/priceFeed.ts.
 
 import { createContext, useContext, useMemo } from "react";
 import { useI18n, intlLocale, type TranslateFn } from "@/lib/i18n";
@@ -29,7 +29,7 @@ import {
   type AccountBalance,
   type BalanceBreakdown,
 } from "@/lib/portfolio";
-import { lastKnownPrices, useSpotPrices } from "@/lib/marketData";
+import { usePriceFeed } from "@/lib/priceFeed";
 import { Decimal, formatBtc, formatFiat, formatInt } from "@/lib/decimal";
 import type { DataIssue } from "@/lib/dataQuality";
 import type { SettingsSection } from "../SettingsView";
@@ -68,14 +68,6 @@ export interface DashboardData {
   displayPrice: number | null;
   priceLoading: boolean;
   priceError: boolean;
-  /**
-   * The price is the last one this browser saw rather than a fresh one, and
-   * when that was (§7.2). Set only when the live request failed — offline, a
-   * blocked request, an unreachable exchange — so a widget can say "as of …"
-   * instead of a dash. Never a substitute for a fresh price: it is labelled
-   * wherever it is shown.
-   */
-  priceStaleAt: number | null;
   /** EUR → display-currency factor via the BTC cross rate; null if unknown. */
   eurToDisplay: number | null;
   /**
@@ -138,15 +130,14 @@ export function DashboardDataProvider({
   const portfolio = useAppStore((s) => s.portfolio)!;
   const currency = portfolio.settings.currencyDisplay;
 
-  const prices = useSpotPrices();
-  // Offline, the last known price beats a dash: the holding is still worth
-  // roughly that, and the timestamp says how much to trust it (§7.2).
-  const stale = useMemo(
-    () => (prices.error && !prices.data ? lastKnownPrices() : null),
-    [prices.error, prices.data],
-  );
-  const priceEur = prices.data?.eur ?? stale?.eur ?? null;
-  const priceUsd = prices.data?.usd ?? stale?.usd ?? null;
+  // The one shared feed (lib/priceFeed.ts). A failed refresh keeps the last
+  // good price: the holding is still worth roughly that, and the timestamp
+  // says how much to trust it (§7.2).
+  const feed = usePriceFeed();
+  const priceEur = feed.prices?.eur ?? null;
+  const priceUsd = feed.prices?.usd ?? null;
+  const priceLoading = feed.prices === null && feed.failure === null;
+  const priceError = feed.prices === null && feed.failure !== null;
 
   const entries = useMemo(() => flattenLedger(portfolio.wallets), [portfolio]);
   const fifo = useMemo(
@@ -197,11 +188,10 @@ export function DashboardDataProvider({
       priceEur,
       priceUsd,
       displayPrice,
-      priceLoading: prices.loading,
+      priceLoading,
       // A stale price is not an error state: something *is* shown, it is just
       // labelled as old.
-      priceError: prices.error && stale === null,
-      priceStaleAt: stale?.at ?? null,
+      priceError,
       eurToDisplay,
       fmtValue,
       fmtDisplay: (eur, signed = false) =>
@@ -232,9 +222,8 @@ export function DashboardDataProvider({
     balanceBtc,
     priceEur,
     priceUsd,
-    prices.loading,
-    prices.error,
-    stale,
+    priceLoading,
+    priceError,
     openTransactions,
     openWatchlist,
     openMilestones,

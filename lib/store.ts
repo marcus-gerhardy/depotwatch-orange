@@ -6,6 +6,7 @@ import type {
   DashboardWidgetPlacement,
   Locale,
   PortfolioFile,
+  PriceRefresh,
   Transaction,
   UtxoLabel,
   Wallet,
@@ -353,6 +354,8 @@ interface AppState {
    */
   reorderWallets: (orderedIds: string[]) => void;
   saveWalletsView: (view: "cards" | "table") => void;
+  /** Spot price refresh interval (uiSettings.priceRefresh). */
+  savePriceRefresh: (choice: PriceRefresh) => void;
   addTransaction: (accountId: string, tx: Transaction) => void;
   updateTransaction: (txId: string, tx: Transaction, accountId: string) => void;
   /**
@@ -1400,6 +1403,13 @@ export const useAppStore = create<AppState>((set, get) => {
         (p.uiSettings?.walletsView ?? "cards") === view
           ? p
           : { ...p, uiSettings: { ...p.uiSettings, walletsView: view } },
+      ),
+
+    savePriceRefresh: (choice) =>
+      mutateDisplay((p) =>
+        p.uiSettings?.priceRefresh === choice
+          ? p
+          : { ...p, uiSettings: { ...p.uiSettings, priceRefresh: choice } },
       ),
 
     addTransaction: (accountId, tx) =>

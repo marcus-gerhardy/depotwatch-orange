@@ -449,7 +449,16 @@ export interface UiSettings {
    * state: with none, nothing is ever requested.
    */
   news?: NewsSettings;
+  /**
+   * How often the spot price is refreshed, in seconds, or only on request
+   * (lib/priceRefresh.ts). Absent means the default of 60 seconds. The price
+   * itself is never stored in the file.
+   */
+  priceRefresh?: PriceRefresh;
 }
+
+/** Spot price refresh interval in seconds, or "manual". */
+export type PriceRefresh = 15 | 30 | 60 | 300 | "manual";
 
 export interface PortfolioFile {
   version: "1.0";

@@ -18,6 +18,7 @@ import {
   type Currency,
   type ExplorerProvider,
   type Locale,
+  type PriceRefresh,
 } from "@/lib/types";
 import {
   THEME_IDS,
@@ -34,6 +35,7 @@ import { btcString, dec } from "@/lib/decimal";
 import { SATS_PER_BTC } from "@/lib/displayUnit";
 import NumberInput from "./NumberInput";
 import { AUTO_LOCK_CHOICES } from "@/lib/autoLock";
+import { DEFAULT_PRICE_REFRESH, PRICE_REFRESH_CHOICES } from "@/lib/priceRefresh";
 import { DEFAULT_BACKUP_SETTINGS, type BackupTrigger } from "@/lib/backup";
 import { isUndoable, type ChangeLogEntry } from "@/lib/changeLog";
 import { formatDateTime, intlLocale } from "@/lib/i18n";
@@ -121,6 +123,9 @@ export default function SettingsView({
   const laserEyes = useAppStore((s) => s.portfolio?.uiSettings?.laserEyes) === true;
   const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
   const fileMode = useAppStore((s) => s.fileMode);
+  const priceRefresh =
+    useAppStore((s) => s.portfolio?.uiSettings?.priceRefresh) ?? DEFAULT_PRICE_REFRESH;
+  const savePriceRefresh = useAppStore((s) => s.savePriceRefresh);
   const lockSettings = useAppStore((s) => s.lockSettings);
   const setLockSettings = useAppStore((s) => s.setLockSettings);
   const setBackupSettings = useAppStore((s) => s.setBackupSettings);
@@ -255,6 +260,33 @@ export default function SettingsView({
                     </select>
                   </Field>
                 </div>
+              </Card>
+              {/* Not under Locked: like the dashboard layout it is a display
+                  preference, which read-only mode still lets one change. */}
+              <Card className="space-y-3">
+                <SectionTitle level={2}>{t("settings.priceRefresh")}</SectionTitle>
+                <Field label={t("settings.priceRefreshInterval")}>
+                  <select
+                    className={inputCls}
+                    value={String(priceRefresh)}
+                    onChange={(e) =>
+                      savePriceRefresh(
+                        e.target.value === "manual" ? "manual" : (Number(e.target.value) as PriceRefresh),
+                      )
+                    }
+                  >
+                    {PRICE_REFRESH_CHOICES.map((c) => (
+                      <option key={c} value={String(c)}>
+                        {c === "manual"
+                          ? t("settings.priceRefreshManual")
+                          : c <= 60
+                            ? t("settings.priceRefreshSeconds", { count: c })
+                            : t("settings.priceRefreshMinutes", { count: c / 60 })}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="text-xs leading-relaxed text-muted">{t("settings.priceRefreshHint")}</p>
               </Card>
               {/* A target, and nothing that nags about it (§4.4). */}
               <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>

@@ -108,7 +108,7 @@ describe("TransactionsView: on-chain columns", () => {
     expect(screen.queryByText("tx.onChainSection")).toBeNull();
   });
 
-  it("links to the configured explorer without fetching anything", () => {
+  it("links to the configured explorer without asking it for anything", () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -121,7 +121,12 @@ describe("TransactionsView: on-chain columns", () => {
       `https://mempool.space/address/${ADDRESS}`,
     ]);
     expect(links[0].getAttribute("rel")).toContain("noopener");
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // The spot price feed may run (it serves the fiat column); what must not
+    // happen is a request to the explorer for showing a link.
+    const explorerCalls = fetchSpy.mock.calls.filter(
+      ([url]) => !String(url).startsWith("https://api.binance.com/"),
+    );
+    expect(explorerCalls).toEqual([]);
   });
 });
 

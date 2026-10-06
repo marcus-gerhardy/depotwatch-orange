@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import { useI18n, intlLocale } from "./i18n";
 import { useAppStore } from "./store";
 import { Decimal, dec, formatBtc, formatFiat, formatInt } from "./decimal";
-import { lastKnownPrices, useSpotPrices } from "./marketData";
+import { usePriceFeed } from "./priceFeed";
 import type { Currency } from "./types";
 
 export const SATS_PER_BTC = 100_000_000;
@@ -123,12 +123,12 @@ export function useValueFormat(): {
 } {
   const { locale } = useI18n();
   const currency = useAppStore((s) => s.portfolio?.settings.currencyDisplay) ?? "EUR";
-  const prices = useSpotPrices();
-  // Offline the last price this browser saw beats a dash (§7.2) — the same
-  // fallback the dashboard makes.
-  const stale = prices.error && !prices.data ? lastKnownPrices() : null;
-  const priceEur = prices.data?.eur ?? stale?.eur ?? null;
-  const priceUsd = prices.data?.usd ?? stale?.usd ?? null;
+  // The same shared feed the dashboard reads; a failed refresh keeps the last
+  // good price rather than a dash (§7.2).
+  const feed = usePriceFeed();
+  const priceEur = feed.prices?.eur ?? null;
+  const priceUsd = feed.prices?.usd ?? null;
+  const priceLoading = feed.prices === null && feed.failure === null;
 
   return useMemo(() => {
     const loc = intlLocale(locale);
@@ -146,7 +146,7 @@ export function useValueFormat(): {
       currency,
       unit: amountUnit(currency),
       priceEur,
-      priceLoading: prices.loading,
+      priceLoading,
       amount: (v: Decimal | string, signed = false) =>
         currency === "BTC" ? formatSats(v, loc, signed) : formatBtc(v, loc, signed),
       amountWithUnit: (v: Decimal | string) => formatAmount(v, loc, currency),
@@ -158,5 +158,5 @@ export function useValueFormat(): {
           : formatFiat(value, currency, loc);
       },
     };
-  }, [currency, locale, priceEur, priceUsd, prices.loading]);
+  }, [currency, locale, priceEur, priceUsd, priceLoading]);
 }

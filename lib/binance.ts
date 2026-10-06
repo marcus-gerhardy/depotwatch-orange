@@ -9,11 +9,42 @@ const SYMBOLS: Record<FiatCurrency, string> = {
   USD: "BTCUSDT",
 };
 
-export async function fetchSpotPrice(currency: FiatCurrency): Promise<number> {
-  const res = await fetch(`${BASE}/ticker/price?symbol=${SYMBOLS[currency]}`);
-  if (!res.ok) throw new Error(`Binance ticker failed: ${res.status}`);
+/**
+ * A request Binance answered with an error status. Kept apart from a network
+ * failure because a 429 (or 418, Binance's "you ignored the 429") means *slow
+ * down*, and the price feed backs off harder for it than for a lost packet.
+ */
+export class PriceHttpError extends Error {
+  constructor(
+    readonly status: number,
+    /** From a `Retry-After` header in seconds, when the server sent one. */
+    readonly retryAfterMs: number | null,
+  ) {
+    super(`Binance ticker failed: ${status}`);
+  }
+
+  get rateLimited(): boolean {
+    return this.status === 429 || this.status === 418;
+  }
+}
+
+export async function fetchSpotPrice(
+  currency: FiatCurrency,
+  signal?: AbortSignal,
+): Promise<number> {
+  const res = await fetch(`${BASE}/ticker/price?symbol=${SYMBOLS[currency]}`, { signal });
+  if (!res.ok) {
+    const retryAfter = Number(res.headers?.get?.("Retry-After"));
+    throw new PriceHttpError(
+      res.status,
+      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : null,
+    );
+  }
   const data = (await res.json()) as { price: string };
-  return Number(data.price);
+  const price = Number(data.price);
+  // A malformed answer is a failed reading, never a price of 0 or NaN.
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Binance ticker: no price");
+  return price;
 }
 
 export interface DailyClose {
