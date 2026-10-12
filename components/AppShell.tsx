@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n, intlLocale, formatDateTime } from "@/lib/i18n";
 import { useAppStore } from "@/lib/store";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
@@ -23,9 +23,23 @@ import WalletDetailView, { type WalletDetailTarget } from "./WalletDetailView";
 import TaxView from "./TaxView";
 import PointInTimeView from "./PointInTimeView";
 import WatchlistView from "./WatchlistView";
+import WalletsArea from "./WalletsArea";
 import SettingsView, { type SettingsSection } from "./SettingsView";
 import DcaView from "./dca/DcaView";
 import NewFileWizard from "./NewFileWizard";
+import { MainNav, UtilityNav, type NavHandlers } from "./nav/AppNav";
+import {
+  MAIN_NAV,
+  UTILITY_NAV,
+  openItemCount,
+  visibleNav,
+  type NavContext,
+  type ViewId,
+  type WalletsTab,
+} from "@/lib/navigation";
+import { flattenLedger } from "@/lib/types";
+import { DEFAULT_BACKUP_SETTINGS, backupReminderDue } from "@/lib/backup";
+import { useNowDate } from "@/lib/clock";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
 import {
@@ -51,18 +65,8 @@ import FileConflictDialog from "./FileConflictDialog";
  */
 const HelpPanel = dynamic(() => import("./help/HelpPanel"), { ssr: false });
 
-type Tab =
-  | "dashboard"
-  | "transactions"
-  | "wallets"
-  | "walletDetail"
-  | "tax"
-  | "pointInTime"
-  | "watchlist"
-  | "milestones"
-  | "yearInReview"
-  | "dca"
-  | "settings";
+/** Where the main area is; the list of places lives in lib/navigation.ts. */
+type Tab = ViewId;
 
 function FileIndicator() {
   const { t, locale } = useI18n();
@@ -107,35 +111,6 @@ function FileIndicator() {
       />
       <span className="hidden text-muted lg:inline">{statusText}</span>
     </div>
-  );
-}
-
-/** The question mark in the header: opens the help at the beginning (§8). */
-function HelpHeaderButton() {
-  const { t } = useI18n();
-  const openHelp = useAppStore((s) => s.openHelp);
-  return (
-    <button
-      onClick={() => openHelp("")}
-      title={t("help.title")}
-      aria-label={t("help.title")}
-      className="rounded-lg p-2 text-muted transition-colors hover:text-foreground"
-    >
-      <svg
-        aria-hidden
-        viewBox="0 0 24 24"
-        className="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4" />
-        <path d="M12 17.4h.01" />
-      </svg>
-    </button>
   );
 }
 
@@ -296,6 +271,8 @@ export default function AppShell() {
   const [txFilter, setTxFilter] = useState<TxJumpFilter | null>(null);
   /** A widget asked for the watchlist's add form, not just the tab. */
   const [watchlistAdd, setWatchlistAdd] = useState(false);
+  /** Which tab "Wallets & accounts" shows: the wallets or the watched addresses. */
+  const [walletsTab, setWalletsTab] = useState<WalletsTab>("overview");
   /**
    * Which wallet (and optionally which of its accounts) the detail view shows.
    * Like the year in review and the as-of view it has no navigation entry of
@@ -319,6 +296,7 @@ export default function AppShell() {
   const readOnly = useAppStore((s) => s.readOnly);
   const portfolio = useAppStore((s) => s.portfolio);
   const fileName = useAppStore((s) => s.fileName);
+  const lastSavedAt = useAppStore((s) => s.lastSavedAt);
 
   // Demo data has no real destination yet — offer the location+password step
   // the first time an edit would otherwise trigger a save. Derived (not an
@@ -378,18 +356,58 @@ export default function AppShell() {
     setTab("walletDetail");
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "dashboard", label: t("nav.dashboard") },
-    { id: "transactions", label: t("nav.transactions") },
-    { id: "wallets", label: t("wallets.title") },
-    ...(TAX_FEATURES_ENABLED
-      ? [{ id: "tax" as const, label: t("nav.tax") }]
-      : []),
-    { id: "watchlist", label: t("nav.watchlist") },
-    { id: "milestones", label: t("nav.milestones") },
-    { id: "dca", label: t("nav.dca") },
-    { id: "settings", label: t("nav.settings") },
-  ];
+  const openHelp = useAppStore((s) => s.openHelp);
+  const now = useNowDate();
+  const ledger = useMemo(() => (portfolio ? flattenLedger(portfolio.wallets) : []), [portfolio]);
+  const openItems = useMemo(() => openItemCount(ledger), [ledger]);
+  const navCtx: NavContext = {
+    hasFile: true,
+    taxEnabled: TAX_FEATURES_ENABLED,
+    openItems,
+    backupDue:
+      portfolio !== null &&
+      now !== null &&
+      backupReminderDue(
+        portfolio.backupState,
+        portfolio.settings.backup ?? DEFAULT_BACKUP_SETTINGS,
+        fileName !== null || lastSavedAt !== null,
+        now,
+      ),
+  };
+  const mainNav = visibleNav(MAIN_NAV, navCtx);
+  const utilityNav = visibleNav(UTILITY_NAV, navCtx);
+
+  /**
+   * The one way to change the view. Going somewhere from the navigation
+   * drops the intents a widget expressed once (a filter, the add form, a
+   * year, a settings group), so they do not fire again on the next visit.
+   */
+  function navigate(view: Tab) {
+    setTxFilter(null);
+    setWatchlistAdd(false);
+    setReviewYear(undefined);
+    setSettingsSection(undefined);
+    setWalletTarget(null);
+    if (view === "wallets") setWalletsTab("overview");
+    setTab(view);
+    setMenuOpen(false);
+  }
+
+  /** The watched addresses, now a tab of "Wallets & accounts". */
+  function openAddresses(add = false) {
+    setWatchlistAdd(add);
+    setWalletsTab("addresses");
+    setWalletTarget(null);
+    setTab("wallets");
+  }
+
+  const navHandlers: NavHandlers = {
+    onNavigate: navigate,
+    onAction: () => {
+      setMenuOpen(false);
+      openHelp("");
+    },
+  };
 
   return (
     <div className="flex flex-1 flex-col">
@@ -401,7 +419,7 @@ export default function AppShell() {
       <ReadOnlyToast />
       <FileWatch />
       <FileConflictDialog />
-      <MilestoneToast />
+      <MilestoneToast onOpen={() => navigate("milestones")} />
       <header className="sticky top-0 z-40 border-b border-border-c bg-background/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-3 sm:px-4">
           {/* Row 1: logo left, file indicator + actions right. It has to fit a
@@ -414,6 +432,7 @@ export default function AppShell() {
               onClick={() => setMenuOpen((o) => !o)}
               aria-label={t("nav.menu")}
               aria-expanded={menuOpen}
+              aria-controls="app-menu"
             >
               <MenuIcon />
             </button>
@@ -441,10 +460,16 @@ export default function AppShell() {
               </span>
             </div>
             <div className="ml-auto flex min-w-0 items-center gap-0.5 sm:gap-2">
-              {/* Every view heading carries its own question mark, so this one
-                  is the first thing to go where there is no room for it. */}
-              <span className="hidden sm:inline">
-                <HelpHeaderButton />
+              {/* Settings and help (lib/navigation.ts). On a phone they move
+                  into the menu, where they have room for their labels. */}
+              <span className="hidden items-center sm:flex sm:gap-2">
+                <UtilityNav
+                  entries={utilityNav}
+                  ctx={navCtx}
+                  view={tab}
+                  t={t}
+                  handlers={navHandlers}
+                />
               </span>
               <LockButton onLock={lockManually} />
               <ReadOnlyControl />
@@ -544,40 +569,51 @@ export default function AppShell() {
             </div>
           </div>
 
-          {/* Row 2: main navigation (a panel on mobile, a row from md up) */}
+          {/* Row 2: main navigation — a row from md up, a panel on mobile
+              with the same entries plus settings and help. */}
           <nav
+            id="app-menu"
+            aria-label={t("nav.main")}
             className={`${
-              menuOpen ? "flex" : "hidden"
-            } w-full flex-col gap-1 border-t border-border-c/60 py-2 md:flex md:flex-row md:items-center md:overflow-x-auto`}
+              menuOpen ? "block" : "hidden"
+            } w-full border-t border-border-c/60 py-2 md:block md:overflow-x-auto`}
           >
             {/* The file name the header itself has no room for on a phone. */}
             <p className="truncate px-3 pb-1 font-mono text-xs text-muted md:hidden">
               {fileName}
             </p>
-            {tabs.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setTxFilter(null);
-                  // Both of these are intents a widget expressed once. Opening
-                  // a tab from the navigation is not that intent, so they are
-                  // cleared here rather than firing again on the next visit.
-                  setWatchlistAdd(false);
-                  setReviewYear(undefined);
-                  setSettingsSection(undefined);
-                  setWalletTarget(null);
-                  setTab(item.id);
-                  setMenuOpen(false);
-                }}
-                className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm transition-colors md:py-1.5 md:text-center ${
-                  tab === item.id
-                    ? "bg-accent/15 text-accent"
-                    : "text-muted hover:text-foreground"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+            <div className="hidden md:block">
+              <MainNav
+                entries={mainNav}
+                ctx={navCtx}
+                view={tab}
+                t={t}
+                handlers={navHandlers}
+                label={t("nav.main")}
+              />
+            </div>
+            <div className="space-y-1 md:hidden">
+              <MainNav
+                entries={mainNav}
+                ctx={navCtx}
+                view={tab}
+                t={t}
+                handlers={navHandlers}
+                label={t("nav.main")}
+                panel
+              />
+              <div className="border-t border-border-c/60 pt-1">
+                <MainNav
+                  entries={utilityNav}
+                  ctx={navCtx}
+                  view={tab}
+                  t={t}
+                  handlers={navHandlers}
+                  label={t("nav.utility")}
+                  panel
+                />
+              </div>
+            </div>
           </nav>
         </div>
       </header>
@@ -589,7 +625,7 @@ export default function AppShell() {
               setTxFilter(filter);
               setTab("transactions");
             }}
-            onOpenMilestones={() => setTab("milestones")}
+            onOpenMilestones={() => navigate("milestones")}
             onOpenBackups={() => {
               setSettingsSection("backups");
               setTab("settings");
@@ -602,22 +638,30 @@ export default function AppShell() {
               setReviewYear(year);
               setTab("yearInReview");
             }}
-            onOpenWatchlist={(options) => {
-              setWatchlistAdd(options?.add === true);
-              setTab("watchlist");
-            }}
+            onOpenWatchlist={(options) => openAddresses(options?.add === true)}
           />
         )}
         {tab === "transactions" && (
           <TransactionsView initialFilter={txFilter} onOpenWallet={openWalletDetail} />
         )}
         {tab === "wallets" && (
-          <WalletsView
-            onOpenWallet={openWalletDetail}
-            onOpenTransactions={(filter) => {
-              setTxFilter(filter);
-              setTab("transactions");
+          <WalletsArea
+            tab={walletsTab}
+            onTabChange={(next) => {
+              setWatchlistAdd(false);
+              setWalletsTab(next);
             }}
+            overview={
+              <WalletsView
+                embedded
+                onOpenWallet={openWalletDetail}
+                onOpenTransactions={(filter) => {
+                  setTxFilter(filter);
+                  setTab("transactions");
+                }}
+              />
+            }
+            addresses={<WatchlistView embedded initialAdd={watchlistAdd} />}
           />
         )}
         {tab === "walletDetail" && walletTarget && (
@@ -625,6 +669,7 @@ export default function AppShell() {
             target={walletTarget}
             onBack={() => {
               setWalletTarget(null);
+              setWalletsTab("overview");
               setTab("wallets");
             }}
             onOpenTarget={setWalletTarget}
@@ -632,10 +677,7 @@ export default function AppShell() {
               setTxFilter(filter);
               setTab("transactions");
             }}
-            onOpenWatchlist={() => {
-              setWatchlistAdd(false);
-              setTab("watchlist");
-            }}
+            onOpenWatchlist={() => openAddresses()}
           />
         )}
         {TAX_FEATURES_ENABLED && tab === "tax" && (
@@ -647,7 +689,6 @@ export default function AppShell() {
         {tab === "pointInTime" && (
           <PointInTimeView onBack={() => setTab("tax")} />
         )}
-        {tab === "watchlist" && <WatchlistView initialAdd={watchlistAdd} />}
         {/* Reached from the milestones page and from the dashboard, not from
             the navigation: it is one page per year, not a place to work in. */}
         {tab === "milestones" && (
@@ -655,7 +696,12 @@ export default function AppShell() {
         )}
         {tab === "yearInReview" && <YearInReview initialYear={reviewYear} />}
         {tab === "dca" && <DcaView />}
-        {tab === "settings" && <SettingsView initialSection={settingsSection} />}
+        {tab === "settings" && (
+          <SettingsView
+            initialSection={settingsSection}
+            onOpenMilestones={() => navigate("milestones")}
+          />
+        )}
       </main>
 
       {showFileSetup && portfolio && (

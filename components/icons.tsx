@@ -56,6 +56,27 @@ export function LineIcon({
   );
 }
 
+/** The settings: a gear. */
+export function GearIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <LineIcon className={className}>
+      <path d="M19.08 9.84 L21.42 10.17 L21.42 13.83 L19.08 14.16 L18.53 15.47 L19.96 17.37 L17.37 19.96 L15.47 18.53 L14.16 19.08 L13.83 21.42 L10.17 21.42 L9.84 19.08 L8.53 18.53 L6.63 19.96 L4.04 17.37 L5.47 15.47 L4.92 14.16 L2.58 13.83 L2.58 10.17 L4.92 9.84 L5.47 8.53 L4.04 6.63 L6.63 4.04 L8.53 5.47 L9.84 4.92 L10.17 2.58 L13.83 2.58 L14.16 4.92 L15.47 5.47 L17.37 4.04 L19.96 6.63 L18.53 8.53Z" />
+      <circle cx="12" cy="12" r="3" />
+    </LineIcon>
+  );
+}
+
+/** The help: a question mark in a circle. */
+export function HelpIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <LineIcon className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.2 9.3a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4" />
+      <path d="M12 17.4h.01" />
+    </LineIcon>
+  );
+}
+
 // ---------------------------------------------------------------- motifs
 // Shared between the two sets, because they say the same thing in both.
 

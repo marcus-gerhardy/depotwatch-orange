@@ -7,7 +7,7 @@ Wie du abbildest, wo deine Bitcoin tatsächlich liegen.
 Wallets haben einen Typ: **Börse**, **Hardware**, **Software** oder **Paper**. Der Typ ist nicht nur Deko — die App rechnet daraus den Anteil in Eigenverwahrung aus und warnt, wenn viel auf Börsen liegt.
 
 ## Anlegen und umbenennen {#wallets-manage}
-Unter **Wallets** legst du Wallets und darin Konten an. Umbenennen ist jederzeit möglich und ändert nichts an den Transaktionen.
+Unter **Wallets & Konten → Übersicht** legst du Wallets und darin Konten an. Umbenennen ist jederzeit möglich und ändert nichts an den Transaktionen.
 
 Beim Löschen eines Wallets oder Kontos werden **alle enthaltenen Transaktionen mitgelöscht**. Die App sagt vorher, wie viele es sind, und gibt frei, was auf sie verwiesen hat: Lot-Zuordnungen, die ins Leere zeigen würden, und Transfer-Verknüpfungen, deren Gegenstück fehlt.
 

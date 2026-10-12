@@ -4,6 +4,8 @@ Zwei Rückblicke auf das, was du entschieden hast.
 ## Meilensteine {#ms-what}
 Der Meilenstein-Katalog hält kleine Wegmarken fest: die erste Transaktion, 100.000 Sats, der erste Abzug von der Börse auf eigene Verwahrung, die erste Position über der Haltefrist, ein sauber geführter Übertragsbestand.
 
+Die Übersicht erreichst du über das Meilenstein-Widget im Dashboard, über **Einstellungen → Meilensteine** und direkt aus der Meldung, die beim Erreichen eines Meilensteins erscheint.
+
 Eine Regel entscheidet, was aufgenommen wird: **Belohnt wird eine Entscheidung, nie der Kurs.** Für einen steigenden Preis gibt es nichts, denn das ist keine Leistung, sondern Wetter. Serien, die man verlieren kann, gibt es ebenfalls nicht, und verglichen wird mit niemandem — die App hat nie jemand anderen gesehen.
 
 Fünf Kategorien: Stapeln, Souveränität, Geduld, Sorgfalt, Kultur.

@@ -19,7 +19,12 @@ import MilestoneIcon from "./MilestoneIcon";
 
 const VISIBLE_MS = 6000;
 
-export default function MilestoneToast() {
+export default function MilestoneToast({
+  /** Open the milestones page; the toast links straight to it. */
+  onOpen,
+}: {
+  onOpen?: () => void;
+} = {}) {
   const { t } = useI18n();
   const queue = useAppStore((s) => s.milestoneQueue);
   const clear = useAppStore((s) => s.clearMilestoneQueue);
@@ -68,6 +73,20 @@ export default function MilestoneToast() {
           <p className="mt-2 border-t border-border-c/60 pt-2 text-xs text-muted">
             {t("milestones.andMore", { count: rest.length })}
           </p>
+        )}
+        {onOpen && (
+          // The one clickable part of a toast that otherwise lets clicks
+          // through to the page underneath.
+          <button
+            type="button"
+            onClick={() => {
+              clear();
+              onOpen();
+            }}
+            className="pointer-events-auto mt-2 text-xs text-accent underline decoration-dotted underline-offset-2 hover:text-accent-dim"
+          >
+            {t("milestones.openPage")}
+          </button>
         )}
       </div>
     </div>

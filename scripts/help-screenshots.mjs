@@ -223,10 +223,13 @@ async function main() {
   await page.getByRole("button", { name: "Steuer", exact: true }).click();
   await shot("tax");
 
-  await page.getByRole("button", { name: "Watchlist", exact: true }).click();
+  // The watchlist is the "Adressen" tab of "Wallets & Konten".
+  await page.getByRole("button", { name: "Wallets & Konten", exact: true }).click();
+  await page.getByRole("tab", { name: "Adressen", exact: true }).click();
   await shot("watchlist");
 
-  await page.getByRole("button", { name: "Einstellungen", exact: true }).click();
+  // The settings are the gear in the header; a due backup adds to its name.
+  await page.getByRole("button", { name: /^Einstellungen/ }).first().click();
   await shot("settings");
   await page.getByRole("button", { name: "Backups", exact: true }).click();
   await shot("settings-backups");

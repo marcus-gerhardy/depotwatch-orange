@@ -213,8 +213,11 @@ const en: typeof de = {
     transactions: "Transactions",
     pointInTime: "As of date",
     tax: "Tax",
-    watchlist: "Watchlist",
-    milestones: "Milestones",
+    main: "Main navigation",
+    utility: "More",
+    start: "Start page",
+    openItems: "{count} open items",
+    backupDue: "Backup due",
     dca: "Savings plan",
     settings: "Settings",
     menu: "Menu",
@@ -594,6 +597,10 @@ const en: typeof de = {
   },
   wallets: {
     title: "Wallets & accounts",
+    tabs: {
+      overview: "Overview",
+      addresses: "Addresses",
+    },
     addWallet: "Add wallet",
     addAccount: "Add account",
     walletName: "Wallet name",
@@ -891,6 +898,7 @@ const en: typeof de = {
   },
   milestones: {
     title: "Milestones",
+    openPage: "Go to milestones",
     intro:
       "Milestones record decisions you made: stacked, self-custodied, held, kept in order. Never the price, because a rising price is not an achievement, it is weather. There are no streaks to lose and no comparison with anyone else, because this app has never seen anyone else.",
     reached: "Milestone reached",
@@ -2206,8 +2214,12 @@ const en: typeof de = {
 
   settings: {
     title: "Settings",
+    withoutFile:
+      "Without an open file, only this device's settings are available. Everything else belongs to a portfolio file and appears once one is open.",
     nav: {
       general: "General",
+      goal: "Savings goal",
+      milestones: "Milestones",
       appearance: "Appearance",
       security: "Security",
       backups: "Backups",

@@ -209,8 +209,11 @@ const de = {
     transactions: "Transaktionen",
     pointInTime: "Stichtag",
     tax: "Steuer",
-    watchlist: "Watchlist",
-    milestones: "Meilensteine",
+    main: "Hauptnavigation",
+    utility: "Weitere",
+    start: "Startseite",
+    openItems: "{count} offene Punkte",
+    backupDue: "Backup fällig",
     dca: "Sparplanrechner",
     settings: "Einstellungen",
     menu: "Menü",
@@ -596,6 +599,10 @@ const de = {
   },
   wallets: {
     title: "Wallets & Konten",
+    tabs: {
+      overview: "Übersicht",
+      addresses: "Adressen",
+    },
     addWallet: "Wallet hinzufügen",
     addAccount: "Konto hinzufügen",
     walletName: "Wallet-Name",
@@ -895,6 +902,7 @@ const de = {
   },
   milestones: {
     title: "Meilensteine",
+    openPage: "Zu den Meilensteinen",
     intro:
       "Meilensteine halten Entscheidungen fest, die du getroffen hast: gestapelt, selbst verwahrt, durchgehalten, sauber geführt. Nie den Kursverlauf, denn steigende Kurse sind keine Leistung, sondern Wetter. Es gibt keine Serien, die man verlieren kann, und keinen Vergleich mit anderen: Die App hat nie jemand anderen gesehen.",
     reached: "Meilenstein erreicht",
@@ -2221,8 +2229,12 @@ const de = {
 
   settings: {
     title: "Einstellungen",
+    withoutFile:
+      "Ohne geöffnete Datei gibt es nur die Einstellungen dieses Geräts. Alles Weitere gehört zu einer Portfolio-Datei und erscheint, sobald eine geöffnet ist.",
     nav: {
       general: "Allgemein",
+      goal: "Sparziel",
+      milestones: "Meilensteine",
       appearance: "Darstellung",
       security: "Sicherheit",
       backups: "Backups",

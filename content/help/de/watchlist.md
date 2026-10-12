@@ -7,7 +7,7 @@ Die Watchlist ist eine **eigene Liste** von Bitcoin-Adressen oder xpubs, die du 
 Der Grund: Buchhaltungspositionen und tatsächliche UTXOs lassen sich nicht zuverlässig 1:1 abbilden — mehrere Käufe landen oft in einem einzigen UTXO. Deshalb rechnet der Buchungsteil mit deinen Angaben und der Sicherheitsteil mit den Daten der Blockchain, ohne dass eines das andere verfälscht.
 
 ## Adresse hinzufügen {#watch-add}
-Unter **Watchlist** trägst du Adresse oder xpub ein, dazu ein Label und optional Tags wie `kyc` oder `hardware-wallet`.
+Unter **Wallets & Konten → Adressen** trägst du Adresse oder xpub ein, dazu ein Label und optional Tags wie `kyc` oder `hardware-wallet`.
 
 ![Die Adress-Watchlist mit beobachteten Adressen, Labels und Tags](/help/screenshots/watchlist.png)
 

@@ -344,14 +344,14 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "Unter **Wallets** legst du Wallets und darin Konten an. Umbenennen ist jederzeit möglich und ändert nichts an den Transaktionen."
+              "text": "Unter **Wallets & Konten → Übersicht** legst du Wallets und darin Konten an. Umbenennen ist jederzeit möglich und ändert nichts an den Transaktionen."
             },
             {
               "kind": "p",
               "text": "Beim Löschen eines Wallets oder Kontos werden **alle enthaltenen Transaktionen mitgelöscht**. Die App sagt vorher, wie viele es sind, und gibt frei, was auf sie verwiesen hat: Lot-Zuordnungen, die ins Leere zeigen würden, und Transfer-Verknüpfungen, deren Gegenstück fehlt."
             }
           ],
-          "text": "Unter Wallets legst du Wallets und darin Konten an. Umbenennen ist jederzeit möglich und ändert nichts an den Transaktionen. Beim Löschen eines Wallets oder Kontos werden alle enthaltenen Transaktionen mitgelöscht. Die App sagt vorher, wie viele es sind, und gibt frei, was auf sie verwiesen hat: Lot-Zuordnungen, die ins Leere zeigen würden, und Transfer-Verknüpfungen, deren Gegenstück fehlt."
+          "text": "Unter Wallets & Konten → Übersicht legst du Wallets und darin Konten an. Umbenennen ist jederzeit möglich und ändert nichts an den Transaktionen. Beim Löschen eines Wallets oder Kontos werden alle enthaltenen Transaktionen mitgelöscht. Die App sagt vorher, wie viele es sind, und gibt frei, was auf sie verwiesen hat: Lot-Zuordnungen, die ins Leere zeigen würden, und Transfer-Verknüpfungen, deren Gegenstück fehlt."
         },
         {
           "id": "wallets-howmany",
@@ -1005,7 +1005,7 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "Unter **Watchlist** trägst du Adresse oder xpub ein, dazu ein Label und optional Tags wie `kyc` oder `hardware-wallet`."
+              "text": "Unter **Wallets & Konten → Adressen** trägst du Adresse oder xpub ein, dazu ein Label und optional Tags wie `kyc` oder `hardware-wallet`."
             },
             {
               "kind": "image",
@@ -1017,7 +1017,7 @@ export const HELP_CONTENT: HelpContent = {
               "text": "Ein **xpub** gibt die gesamte Transaktionshistorie einer Wallet preis, nicht nur eine Adresse. Trage ihn nur ein, wenn dir das bewusst ist."
             }
           ],
-          "text": "Unter Watchlist trägst du Adresse oder xpub ein, dazu ein Label und optional Tags wie kyc oder hardware-wallet. Ein xpub gibt die gesamte Transaktionshistorie einer Wallet preis, nicht nur eine Adresse. Trage ihn nur ein, wenn dir das bewusst ist."
+          "text": "Unter Wallets & Konten → Adressen trägst du Adresse oder xpub ein, dazu ein Label und optional Tags wie kyc oder hardware-wallet. Ein xpub gibt die gesamte Transaktionshistorie einer Wallet preis, nicht nur eine Adresse. Trage ihn nur ein, wenn dir das bewusst ist."
         },
         {
           "id": "watch-checks",
@@ -1135,7 +1135,7 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "Die Einstellungen sind in Gruppen geteilt, links auswählbar: **Allgemein**, **Darstellung**, **Sicherheit**, **Backups**, **Änderungsverlauf**, **Import**, **Steuer** und **Explorer**."
+              "text": "Die Einstellungen öffnest du über das **Zahnrad** oben rechts; ein Punkt daran zeigt, dass ein Backup fällig ist. Sie sind in Gruppen geteilt, links auswählbar: **Allgemein**, **Sparziel**, **Darstellung**, **Sicherheit**, **Backups**, **Änderungsverlauf**, **Import**, **Nachrichten**, **Steuer** und **Explorer**. Von dort führt außerdem ein Eintrag zu den **Meilensteinen**."
             },
             {
               "kind": "image",
@@ -1144,10 +1144,10 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
-              "text": "Fast alles davon liegt **in der Portfolio-Datei** und wandert mit ihr. Sprache und Farbschema werden zusätzlich im Browser gemerkt, damit Startbildschirm und Rechtstexte auch ohne geöffnete Datei richtig aussehen."
+              "text": "Fast alles davon liegt **in der Portfolio-Datei** und wandert mit ihr. Sprache und Farbschema werden zusätzlich im Browser gemerkt, damit Startbildschirm und Rechtstexte auch ohne geöffnete Datei richtig aussehen. Ohne geöffnete Datei zeigt das Zahnrad deshalb nur diese beiden."
             }
           ],
-          "text": "Die Einstellungen sind in Gruppen geteilt, links auswählbar: Allgemein, Darstellung, Sicherheit, Backups, Änderungsverlauf, Import, Steuer und Explorer. Fast alles davon liegt in der Portfolio-Datei und wandert mit ihr. Sprache und Farbschema werden zusätzlich im Browser gemerkt, damit Startbildschirm und Rechtstexte auch ohne geöffnete Datei richtig aussehen."
+          "text": "Die Einstellungen öffnest du über das Zahnrad oben rechts; ein Punkt daran zeigt, dass ein Backup fällig ist. Sie sind in Gruppen geteilt, links auswählbar: Allgemein, Sparziel, Darstellung, Sicherheit, Backups, Änderungsverlauf, Import, Nachrichten, Steuer und Explorer. Von dort führt außerdem ein Eintrag zu den Meilensteinen. Fast alles davon liegt in der Portfolio-Datei und wandert mit ihr. Sprache und Farbschema werden zusätzlich im Browser gemerkt, damit Startbildschirm und Rechtstexte auch ohne geöffnete Datei richtig aussehen. Ohne geöffnete Datei zeigt das Zahnrad deshalb nur diese beiden."
         },
         {
           "id": "settings-language",
@@ -1241,6 +1241,10 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
+              "text": "Die Übersicht erreichst du über das Meilenstein-Widget im Dashboard, über **Einstellungen → Meilensteine** und direkt aus der Meldung, die beim Erreichen eines Meilensteins erscheint."
+            },
+            {
+              "kind": "p",
               "text": "Eine Regel entscheidet, was aufgenommen wird: **Belohnt wird eine Entscheidung, nie der Kurs.** Für einen steigenden Preis gibt es nichts, denn das ist keine Leistung, sondern Wetter. Serien, die man verlieren kann, gibt es ebenfalls nicht, und verglichen wird mit niemandem — die App hat nie jemand anderen gesehen."
             },
             {
@@ -1248,7 +1252,7 @@ export const HELP_CONTENT: HelpContent = {
               "text": "Fünf Kategorien: Stapeln, Souveränität, Geduld, Sorgfalt, Kultur."
             }
           ],
-          "text": "Der Meilenstein-Katalog hält kleine Wegmarken fest: die erste Transaktion, 100.000 Sats, der erste Abzug von der Börse auf eigene Verwahrung, die erste Position über der Haltefrist, ein sauber geführter Übertragsbestand. Eine Regel entscheidet, was aufgenommen wird: Belohnt wird eine Entscheidung, nie der Kurs. Für einen steigenden Preis gibt es nichts, denn das ist keine Leistung, sondern Wetter. Serien, die man verlieren kann, gibt es ebenfalls nicht, und verglichen wird mit niemandem — die App hat nie jemand anderen gesehen. Fünf Kategorien: Stapeln, Souveränität, Geduld, Sorgfalt, Kultur."
+          "text": "Der Meilenstein-Katalog hält kleine Wegmarken fest: die erste Transaktion, 100.000 Sats, der erste Abzug von der Börse auf eigene Verwahrung, die erste Position über der Haltefrist, ein sauber geführter Übertragsbestand. Die Übersicht erreichst du über das Meilenstein-Widget im Dashboard, über Einstellungen → Meilensteine und direkt aus der Meldung, die beim Erreichen eines Meilensteins erscheint. Eine Regel entscheidet, was aufgenommen wird: Belohnt wird eine Entscheidung, nie der Kurs. Für einen steigenden Preis gibt es nichts, denn das ist keine Leistung, sondern Wetter. Serien, die man verlieren kann, gibt es ebenfalls nicht, und verglichen wird mit niemandem — die App hat nie jemand anderen gesehen. Fünf Kategorien: Stapeln, Souveränität, Geduld, Sorgfalt, Kultur."
         },
         {
           "id": "ms-whitepaper",
@@ -1882,14 +1886,14 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "Under **Wallets** you create wallets and accounts inside them. Renaming is possible at any time and changes nothing about the transactions."
+              "text": "Under **Wallets & accounts → Overview** you create wallets and accounts inside them. Renaming is possible at any time and changes nothing about the transactions."
             },
             {
               "kind": "p",
               "text": "Deleting a wallet or an account **deletes all the transactions in it**. The app says how many beforehand, and releases what pointed at them: lot allocations that would dangle, and transfer links whose counterpart is gone."
             }
           ],
-          "text": "Under Wallets you create wallets and accounts inside them. Renaming is possible at any time and changes nothing about the transactions. Deleting a wallet or an account deletes all the transactions in it. The app says how many beforehand, and releases what pointed at them: lot allocations that would dangle, and transfer links whose counterpart is gone."
+          "text": "Under Wallets & accounts → Overview you create wallets and accounts inside them. Renaming is possible at any time and changes nothing about the transactions. Deleting a wallet or an account deletes all the transactions in it. The app says how many beforehand, and releases what pointed at them: lot allocations that would dangle, and transfer links whose counterpart is gone."
         },
         {
           "id": "wallets-howmany",
@@ -2543,7 +2547,7 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "Under **Watchlist** you enter an address or xpub, a label and optionally tags such as `kyc` or `hardware-wallet`."
+              "text": "Under **Wallets & accounts → Addresses** you enter an address or xpub, a label and optionally tags such as `kyc` or `hardware-wallet`."
             },
             {
               "kind": "image",
@@ -2555,7 +2559,7 @@ export const HELP_CONTENT: HelpContent = {
               "text": "An **xpub** reveals a wallet's entire transaction history, not just one address. Only enter one if you are aware of that."
             }
           ],
-          "text": "Under Watchlist you enter an address or xpub, a label and optionally tags such as kyc or hardware-wallet. An xpub reveals a wallet's entire transaction history, not just one address. Only enter one if you are aware of that."
+          "text": "Under Wallets & accounts → Addresses you enter an address or xpub, a label and optionally tags such as kyc or hardware-wallet. An xpub reveals a wallet's entire transaction history, not just one address. Only enter one if you are aware of that."
         },
         {
           "id": "watch-checks",
@@ -2673,7 +2677,7 @@ export const HELP_CONTENT: HelpContent = {
           "blocks": [
             {
               "kind": "p",
-              "text": "The settings are split into groups, selectable on the left: **General**, **Appearance**, **Security**, **Backups**, **Change history**, **Import**, **Tax** and **Explorer**."
+              "text": "Open the settings with the **gear** at the top right; a dot on it means a backup is due. They are split into groups, selectable on the left: **General**, **Savings goal**, **Appearance**, **Security**, **Backups**, **Change history**, **Import**, **News**, **Tax** and **Explorer**. An entry there also leads to the **milestones**."
             },
             {
               "kind": "image",
@@ -2682,10 +2686,10 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
-              "text": "Almost all of it lives **in the portfolio file** and travels with it. Language and colour theme are additionally remembered in the browser, so the start screen and the legal pages look right without a file open."
+              "text": "Almost all of it lives **in the portfolio file** and travels with it. Language and colour theme are additionally remembered in the browser, so the start screen and the legal pages look right without a file open. Without an open file, the gear therefore shows only these two."
             }
           ],
-          "text": "The settings are split into groups, selectable on the left: General, Appearance, Security, Backups, Change history, Import, Tax and Explorer. Almost all of it lives in the portfolio file and travels with it. Language and colour theme are additionally remembered in the browser, so the start screen and the legal pages look right without a file open."
+          "text": "Open the settings with the gear at the top right; a dot on it means a backup is due. They are split into groups, selectable on the left: General, Savings goal, Appearance, Security, Backups, Change history, Import, News, Tax and Explorer. An entry there also leads to the milestones. Almost all of it lives in the portfolio file and travels with it. Language and colour theme are additionally remembered in the browser, so the start screen and the legal pages look right without a file open. Without an open file, the gear therefore shows only these two."
         },
         {
           "id": "settings-language",
@@ -2779,6 +2783,10 @@ export const HELP_CONTENT: HelpContent = {
             },
             {
               "kind": "p",
+              "text": "The overview is reached from the milestone widget on the dashboard, from **Settings → Milestones**, and straight from the notice shown when a milestone is reached."
+            },
+            {
+              "kind": "p",
               "text": "One rule decides what gets in: **a decision is rewarded, never the price.** There is nothing for the price going up, because that is not an achievement, it is weather. There are no streaks to lose either, and nothing is compared with anyone — the app has never seen another user."
             },
             {
@@ -2786,7 +2794,7 @@ export const HELP_CONTENT: HelpContent = {
               "text": "Five categories: stacking, sovereignty, patience, diligence, culture."
             }
           ],
-          "text": "The milestone catalogue records small markers: the first transaction, 100,000 sats, the first withdrawal from an exchange into your own custody, the first position past the holding period, a transfer history kept in order. One rule decides what gets in: a decision is rewarded, never the price. There is nothing for the price going up, because that is not an achievement, it is weather. There are no streaks to lose either, and nothing is compared with anyone — the app has never seen another user. Five categories: stacking, sovereignty, patience, diligence, culture."
+          "text": "The milestone catalogue records small markers: the first transaction, 100,000 sats, the first withdrawal from an exchange into your own custody, the first position past the holding period, a transfer history kept in order. The overview is reached from the milestone widget on the dashboard, from Settings → Milestones, and straight from the notice shown when a milestone is reached. One rule decides what gets in: a decision is rewarded, never the price. There is nothing for the price going up, because that is not an achievement, it is weather. There are no streaks to lose either, and nothing is compared with anyone — the app has never seen another user. Five categories: stacking, sovereignty, patience, diligence, culture."
         },
         {
           "id": "ms-whitepaper",

@@ -14,7 +14,8 @@ import SettingsView from "./SettingsView";
 const view = () =>
   render(
     <I18nProvider locale="de">
-      <SettingsView />
+      {/* The savings goal is a settings group of its own. */}
+      <SettingsView initialSection="goal" />
     </I18nProvider>,
   );
 

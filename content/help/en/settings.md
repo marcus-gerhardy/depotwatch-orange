@@ -2,11 +2,11 @@
 What can be configured, and where it is.
 
 ## How it is organised {#settings-groups}
-The settings are split into groups, selectable on the left: **General**, **Appearance**, **Security**, **Backups**, **Change history**, **Import**, **Tax** and **Explorer**.
+Open the settings with the **gear** at the top right; a dot on it means a backup is due. They are split into groups, selectable on the left: **General**, **Savings goal**, **Appearance**, **Security**, **Backups**, **Change history**, **Import**, **News**, **Tax** and **Explorer**. An entry there also leads to the **milestones**.
 
 ![The settings with the group list on the left and the selected group's cards on the right](/help/screenshots/settings.png)
 
-Almost all of it lives **in the portfolio file** and travels with it. Language and colour theme are additionally remembered in the browser, so the start screen and the legal pages look right without a file open.
+Almost all of it lives **in the portfolio file** and travels with it. Language and colour theme are additionally remembered in the browser, so the start screen and the legal pages look right without a file open. Without an open file, the gear therefore shows only these two.
 
 ## Language and display currency {#settings-language}
 German and English, switchable while you work.

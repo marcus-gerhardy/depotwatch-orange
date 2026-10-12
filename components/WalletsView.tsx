@@ -206,7 +206,13 @@ function DragHandle(props: ReturnType<Reorder["handleProps"]>) {
 export default function WalletsView({
   onOpenWallet,
   onOpenTransactions,
+  embedded = false,
 }: {
+  /**
+   * Shown as a tab of "Wallets & accounts", which carries the page title: the
+   * view then keeps its help and its actions but no heading of its own.
+   */
+  embedded?: boolean;
   /** Open the detail view of a wallet or one of its accounts (§2). */
   onOpenWallet: (target: WalletDetailTarget) => void;
   /** Open the transaction table filtered to a wallet, an account or an issue. */
@@ -412,8 +418,12 @@ export default function WalletsView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <SectionTitle level={1}>{t("wallets.title")}</SectionTitle>
-          <HelpButton anchor="wallets-structure" label={t("wallets.title")} className="mb-3" />
+          {!embedded && <SectionTitle level={1}>{t("wallets.title")}</SectionTitle>}
+          <HelpButton
+            anchor="wallets-structure"
+            label={t("wallets.title")}
+            className={embedded ? "" : "mb-3"}
+          />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {wallets.length > 0 && (

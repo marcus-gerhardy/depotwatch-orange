@@ -20,16 +20,7 @@ import {
   type Locale,
   type PriceRefresh,
 } from "@/lib/types";
-import {
-  THEME_IDS,
-  THEME_META,
-  themeColors,
-  type ThemeId,
-  type ThemeMode,
-} from "@/lib/theme";
-
-const LIGHT_THEMES = THEME_IDS.filter((id) => THEME_META[id].scheme === "light");
-const DARK_THEMES = THEME_IDS.filter((id) => THEME_META[id].scheme === "dark");
+import AppearanceFields from "./settings/AppearanceFields";
 import { TAX_FEATURES_ENABLED } from "@/lib/features";
 import { btcString, dec } from "@/lib/decimal";
 import { SATS_PER_BTC } from "@/lib/displayUnit";
@@ -45,6 +36,7 @@ import { CheckIcon, LockIcon, WarnIcon } from "./icons";
 /** The groups the settings are divided into, in the order they are shown. */
 export type SettingsSection =
   | "general"
+  | "goal"
   | "appearance"
   | "security"
   | "backups"
@@ -61,6 +53,7 @@ export type SettingsSection =
  */
 const SECTIONS: { id: SettingsSection; taxOnly?: boolean }[] = [
   { id: "general" },
+  { id: "goal" },
   { id: "appearance" },
   { id: "security" },
   { id: "backups" },
@@ -95,9 +88,15 @@ function Locked({
 
 export default function SettingsView({
   initialSection,
+  onOpenMilestones,
 }: {
   /** Which group to open at — the backup reminder points straight at its own. */
   initialSection?: SettingsSection;
+  /**
+   * The milestones are a page of their own, listed here as one of the
+   * settings' destinations: the menu entry opens that page.
+   */
+  onOpenMilestones?: () => void;
 } = {}) {
   const { t, locale } = useI18n();
   const [section, setSection] = useState<SettingsSection>(initialSection ?? "general");
@@ -117,8 +116,6 @@ export default function SettingsView({
   const update = useAppStore((s) => s.update);
   const setPassword = useAppStore((s) => s.setPassword);
   const setUiLocale = useAppStore((s) => s.setUiLocale);
-  const appearance = useAppStore((s) => s.appearance);
-  const setAppearance = useAppStore((s) => s.setAppearance);
   const setLaserEyes = useAppStore((s) => s.setLaserEyes);
   const laserEyes = useAppStore((s) => s.portfolio?.uiSettings?.laserEyes) === true;
   const encryptionEnabled = useAppStore((s) => s.encryptionEnabled);
@@ -224,6 +221,15 @@ export default function SettingsView({
               {t(`settings.nav.${entry.id}`)}
             </button>
           ))}
+          {onOpenMilestones && (
+            <button
+              type="button"
+              onClick={onOpenMilestones}
+              className="shrink-0 rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap text-muted transition-colors hover:bg-surface-2/60 hover:text-foreground md:py-1.5"
+            >
+              {t("settings.nav.milestones")} →
+            </button>
+          )}
         </nav>
 
         <div className="min-w-0 max-w-2xl flex-1 space-y-4">
@@ -288,6 +294,29 @@ export default function SettingsView({
                 </Field>
                 <p className="text-xs leading-relaxed text-muted">{t("settings.priceRefreshHint")}</p>
               </Card>
+              <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
+              <Card className="space-y-3">
+                <SectionTitle level={2}>{t("settings.autosave")}</SectionTitle>
+                <Field label={t("settings.autosaveDebounce")}>
+                  <input
+                    type="number"
+                    min={0}
+                    step={500}
+                    className={inputCls}
+                    value={s.autosaveDebounceMs}
+                    onChange={(e) =>
+                      patchSettings({ autosaveDebounceMs: Number(e.target.value) || 0 })
+                    }
+                  />
+                </Field>
+                <p className="text-xs text-muted">{t("settings.autosaveNote")}</p>
+              </Card>
+              </Locked>
+            </>
+          )}
+
+          {section === "goal" && (
+            <>
               {/* A target, and nothing that nags about it (§4.4). */}
               <Locked disabled={readOnly} reason={t("readOnly.disabledHint")}>
               <Card className="space-y-3">
@@ -356,22 +385,6 @@ export default function SettingsView({
                   )}
                 </div>
               </Card>
-              <Card className="space-y-3">
-                <SectionTitle level={2}>{t("settings.autosave")}</SectionTitle>
-                <Field label={t("settings.autosaveDebounce")}>
-                  <input
-                    type="number"
-                    min={0}
-                    step={500}
-                    className={inputCls}
-                    value={s.autosaveDebounceMs}
-                    onChange={(e) =>
-                      patchSettings({ autosaveDebounceMs: Number(e.target.value) || 0 })
-                    }
-                  />
-                </Field>
-                <p className="text-xs text-muted">{t("settings.autosaveNote")}</p>
-              </Card>
               </Locked>
             </>
           )}
@@ -403,74 +416,7 @@ export default function SettingsView({
                   </label>
                 )}
 
-                {/* Appearance (§5). Written to the file and to the device preference,
-                    like the language, so the pages without an open file follow it. */}
-                <fieldset className="space-y-2">
-                  <legend className="mb-1 block text-xs text-muted">
-                    {t("settings.theme")}
-                  </legend>
-
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    {(["fixed", "system"] as ThemeMode[]).map((mode) => (
-                      <label key={mode} className="flex cursor-pointer items-center gap-1.5">
-                        <input
-                          type="radio"
-                          name="themeMode"
-                          className="accent-accent"
-                          checked={appearance.mode === mode}
-                          onChange={() => setAppearance({ mode })}
-                        />
-                        {t(`settings.themeMode.${mode}`)}
-                      </label>
-                    ))}
-                  </div>
-
-                  {appearance.mode === "fixed" ? (
-                    <ThemePicker
-                      name="theme"
-                      ids={THEME_IDS}
-                      value={appearance.theme}
-                      onSelect={(theme) => setAppearance({ theme })}
-                    />
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-xs text-muted">{t("settings.themeSystemHint")}</p>
-                      <div>
-                        <p className="mb-1 text-xs text-muted">{t("settings.themeForLight")}</p>
-                        <ThemePicker
-                          name="themeLight"
-                          ids={LIGHT_THEMES}
-                          value={appearance.light}
-                          onSelect={(light) => setAppearance({ light })}
-                        />
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs text-muted">{t("settings.themeForDark")}</p>
-                        <ThemePicker
-                          name="themeDark"
-                          ids={DARK_THEMES}
-                          value={appearance.dark}
-                          onSelect={(dark) => setAppearance({ dark })}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </fieldset>
-
-                {/* Independent of the theme: every theme carries its own blue. */}
-                <label className="flex cursor-pointer items-start gap-3">
-                  <Switch
-                    checked={appearance.colorBlindSafe}
-                    onChange={(colorBlindSafe) => setAppearance({ colorBlindSafe })}
-                    label={t("settings.colorBlindSafe")}
-                  />
-                  <span className="text-sm">
-                    {t("settings.colorBlindSafe")}
-                    <span className="block text-xs text-muted">
-                      {t("settings.colorBlindSafeHint")}
-                    </span>
-                  </span>
-                </label>
+                <AppearanceFields />
 
             </Card>
           )}
@@ -958,108 +904,6 @@ export default function SettingsView({
           </form>
         </Modal>
       )}
-    </div>
-  );
-}
-
-/**
- * One theme to pick from, previewed with its own colours rather than described
- * in words — a swatch of background, surface, accent and text says more about
- * a theme than its name does.
- */
-function ThemeOption({
-  id,
-  selected,
-  name,
-  onSelect,
-}: {
-  id: ThemeId;
-  selected: boolean;
-  /** Radio group, so light and dark pickers do not fight over one name. */
-  name: string;
-  onSelect: () => void;
-}) {
-  const { t } = useI18n();
-  const colorBlindSafe = useAppStore((s) => s.appearance.colorBlindSafe);
-  const c = themeColors(id, colorBlindSafe);
-
-  return (
-    <label
-      className={`flex cursor-pointer flex-col gap-2 rounded-lg border p-2 transition-colors ${
-        selected ? "border-accent bg-accent/10" : "border-border-c hover:border-accent-dim"
-      }`}
-    >
-      {/* A miniature of the real thing — a card with a heading, a figure, a
-          gain and a loss — because that is what the theme has to look good as. */}
-      <span
-        aria-hidden
-        className="block rounded-md p-1.5"
-        style={{ background: c.background, border: `1px solid ${c.border}` }}
-      >
-        <span
-          className="block rounded p-1.5"
-          style={{ background: c.surface, border: `1px solid ${c.border}` }}
-        >
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: c.accent }}
-            />
-            <span
-              className="inline-block h-1 w-8 rounded-full"
-              style={{ background: c.muted }}
-            />
-          </span>
-          <span
-            className="mt-1 block text-[0.6rem] leading-none font-semibold"
-            style={{ color: c.foreground }}
-          >
-            0,61805 BTC
-          </span>
-          <span className="mt-1 flex items-center gap-1.5 text-[0.55rem] leading-none">
-            <span style={{ color: c.gain }}>▲ 2,1 %</span>
-            <span style={{ color: c.loss }}>▼ 0,8 %</span>
-            <span className="ml-auto inline-block h-1.5 w-4 rounded-sm" style={{ background: c.surface2 }} />
-          </span>
-        </span>
-      </span>
-      <span className="flex items-center gap-1.5 text-xs">
-        <input
-          type="radio"
-          name={name}
-          className="accent-accent"
-          checked={selected}
-          onChange={onSelect}
-        />
-        {t(`settings.themes.${id}`)}
-      </span>
-    </label>
-  );
-}
-
-/** A grid of theme previews; used for the fixed theme and for both system slots. */
-function ThemePicker({
-  name,
-  value,
-  ids,
-  onSelect,
-}: {
-  name: string;
-  value: ThemeId;
-  ids: ThemeId[];
-  onSelect: (id: ThemeId) => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {ids.map((id) => (
-        <ThemeOption
-          key={id}
-          id={id}
-          name={name}
-          selected={value === id}
-          onSelect={() => onSelect(id)}
-        />
-      ))}
     </div>
   );
 }

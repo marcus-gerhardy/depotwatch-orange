@@ -44,8 +44,11 @@ const SEVERITY_STYLE: Record<FindingSeverity, string> = {
 export default function WatchlistView({
   /** Open the add form right away (a dashboard widget asked for it). */
   initialAdd = false,
+  /** Shown as the "Addresses" tab, under the page title of its area. */
+  embedded = false,
 }: {
   initialAdd?: boolean;
+  embedded?: boolean;
 } = {}) {
   const { t } = useI18n();
   const portfolio = useAppStore((s) => s.portfolio)!;
@@ -92,8 +95,12 @@ export default function WatchlistView({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <SectionTitle level={1}>{t("watchlist.title")}</SectionTitle>
-          <HelpButton anchor="watch-concept" label={t("watchlist.title")} className="mb-3" />
+          {!embedded && <SectionTitle level={1}>{t("watchlist.title")}</SectionTitle>}
+          <HelpButton
+            anchor="watch-concept"
+            label={t("watchlist.title")}
+            className={embedded ? "" : "mb-3"}
+          />
         </div>
         <Button variant="primary" {...locked.props} onClick={() => setShowAdd(true)}>
           + {t("watchlist.add")}

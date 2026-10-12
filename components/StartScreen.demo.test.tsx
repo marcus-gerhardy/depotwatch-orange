@@ -6,6 +6,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
 import { useAppStore } from "@/lib/store";
 import { I18nProvider } from "@/lib/i18n";
 import StartScreen from "./StartScreen";
+import StartShell from "./StartShell";
 
 const demoJson = readFileSync(
   path.resolve(__dirname, "../public/demo-portfolio.json"),
@@ -119,7 +120,8 @@ describe("StartScreen: layout", () => {
   });
 
   it("shows both languages in the header, with the active one marked", () => {
-    render(<StartScreen />);
+    // The header belongs to the shell around the start screen.
+    render(<StartShell />);
 
     const de = screen.getByRole("button", { name: "Deutsch" });
     const en = screen.getByRole("button", { name: "English" });

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useAppStore, deserializePortfolio } from "@/lib/store";
@@ -14,10 +13,6 @@ import { staticPagePath } from "@/lib/routes";
 import { Button, Card, Switch, inputCls } from "./ui";
 import HelpButton from "./help/HelpButton";
 import NewFileWizard from "./NewFileWizard";
-// The help panel lives in the app shell, which is not mounted here — so the
-// start screen brings its own, or its question marks would open nothing.
-const HelpPanel = dynamic(() => import("./help/HelpPanel"), { ssr: false });
-import LanguageSwitch from "./LanguageSwitch";
 import { WarnIcon } from "./icons";
 import BrandMark from "./BrandMark";
 
@@ -236,14 +231,6 @@ export default function StartScreen() {
 
   return (
     <>
-      <HelpPanel />
-      {/* Slim header, same as on the static pages: the language choice stays
-          visible at the top instead of floating above the centered card. */}
-      <header className="sticky top-0 z-40 border-b border-border-c/60 bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-end px-4 py-2">
-          <LanguageSwitch />
-        </div>
-      </header>
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">

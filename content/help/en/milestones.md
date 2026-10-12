@@ -4,6 +4,8 @@ Two ways of looking back at what you decided.
 ## Milestones {#ms-what}
 The milestone catalogue records small markers: the first transaction, 100,000 sats, the first withdrawal from an exchange into your own custody, the first position past the holding period, a transfer history kept in order.
 
+The overview is reached from the milestone widget on the dashboard, from **Settings → Milestones**, and straight from the notice shown when a milestone is reached.
+
 One rule decides what gets in: **a decision is rewarded, never the price.** There is nothing for the price going up, because that is not an achievement, it is weather. There are no streaks to lose either, and nothing is compared with anyone — the app has never seen another user.
 
 Five categories: stacking, sovereignty, patience, diligence, culture.

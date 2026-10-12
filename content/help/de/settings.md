@@ -2,11 +2,11 @@
 Was sich einstellen lässt und wo es steht.
 
 ## Aufbau {#settings-groups}
-Die Einstellungen sind in Gruppen geteilt, links auswählbar: **Allgemein**, **Darstellung**, **Sicherheit**, **Backups**, **Änderungsverlauf**, **Import**, **Steuer** und **Explorer**.
+Die Einstellungen öffnest du über das **Zahnrad** oben rechts; ein Punkt daran zeigt, dass ein Backup fällig ist. Sie sind in Gruppen geteilt, links auswählbar: **Allgemein**, **Sparziel**, **Darstellung**, **Sicherheit**, **Backups**, **Änderungsverlauf**, **Import**, **Nachrichten**, **Steuer** und **Explorer**. Von dort führt außerdem ein Eintrag zu den **Meilensteinen**.
 
 ![Die Einstellungen mit der Gruppenliste links und den Karten der gewählten Gruppe rechts](/help/screenshots/settings.png)
 
-Fast alles davon liegt **in der Portfolio-Datei** und wandert mit ihr. Sprache und Farbschema werden zusätzlich im Browser gemerkt, damit Startbildschirm und Rechtstexte auch ohne geöffnete Datei richtig aussehen.
+Fast alles davon liegt **in der Portfolio-Datei** und wandert mit ihr. Sprache und Farbschema werden zusätzlich im Browser gemerkt, damit Startbildschirm und Rechtstexte auch ohne geöffnete Datei richtig aussehen. Ohne geöffnete Datei zeigt das Zahnrad deshalb nur diese beiden.
 
 ## Sprache und Anzeigewährung {#settings-language}
 Deutsch und Englisch, umschaltbar im laufenden Betrieb.
