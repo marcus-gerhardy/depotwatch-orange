@@ -24,6 +24,7 @@ import TaxView from "./TaxView";
 import PointInTimeView from "./PointInTimeView";
 import WatchlistView from "./WatchlistView";
 import SettingsView, { type SettingsSection } from "./SettingsView";
+import DcaView from "./dca/DcaView";
 import NewFileWizard from "./NewFileWizard";
 import type { TxJumpFilter } from "./widgets/context";
 import { Button } from "./ui";
@@ -60,6 +61,7 @@ type Tab =
   | "watchlist"
   | "milestones"
   | "yearInReview"
+  | "dca"
   | "settings";
 
 function FileIndicator() {
@@ -385,6 +387,7 @@ export default function AppShell() {
       : []),
     { id: "watchlist", label: t("nav.watchlist") },
     { id: "milestones", label: t("nav.milestones") },
+    { id: "dca", label: t("nav.dca") },
     { id: "settings", label: t("nav.settings") },
   ];
 
@@ -651,6 +654,7 @@ export default function AppShell() {
           <MilestonesView onOpenYearInReview={() => setTab("yearInReview")} />
         )}
         {tab === "yearInReview" && <YearInReview initialYear={reviewYear} />}
+        {tab === "dca" && <DcaView />}
         {tab === "settings" && <SettingsView initialSection={settingsSection} />}
       </main>
 

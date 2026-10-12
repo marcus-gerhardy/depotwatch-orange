@@ -1321,6 +1321,101 @@ export const HELP_CONTENT: HelpContent = {
       ]
     },
     {
+      "id": "dca",
+      "title": "Sparplanrechner",
+      "summary": "Was ein regelmäßiger Bitcoin-Sparplan gebracht hätte oder bringen könnte.",
+      "sections": [
+        {
+          "id": "dca-overview",
+          "title": "Überblick",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Gib links ein, wie viel du wie oft kaufst und in welchem Zeitraum. Optional kommen ein Einmalbetrag am Starttag und eine Gebühr pro Kauf dazu. Nach **Berechnen** stehen rechts die Ergebnisse, darunter der Verlauf als Diagramm."
+            },
+            {
+              "kind": "p",
+              "text": "Der Rechner liest und verändert deine Portfolio-Datei nicht. Deine Eingaben merkt sich nur dieser Browser."
+            },
+            {
+              "kind": "note",
+              "text": "Die Ergebnisse sind keine Finanzberatung."
+            }
+          ],
+          "text": "Gib links ein, wie viel du wie oft kaufst und in welchem Zeitraum. Optional kommen ein Einmalbetrag am Starttag und eine Gebühr pro Kauf dazu. Nach Berechnen stehen rechts die Ergebnisse, darunter der Verlauf als Diagramm. Der Rechner liest und verändert deine Portfolio-Datei nicht. Deine Eingaben merkt sich nur dieser Browser. Die Ergebnisse sind keine Finanzberatung."
+        },
+        {
+          "id": "dca-prices",
+          "title": "Kurse",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Die Kurse stammen von der Kryptobörse Binance. Für jeden Tag zählt der letzte Preis vor Mitternacht (Weltzeit, UTC)."
+            },
+            {
+              "kind": "ul",
+              "items": [
+                "Ab Anfang 2020: Bitcoin in Euro.",
+                "Von August 2017 bis Ende 2019: Bitcoin in US-Dollar, umgerechnet mit dem offiziellen Euro-Kurs der Europäischen Zentralbank.",
+                "Vor August 2017 gibt es keine Kurse."
+              ]
+            },
+            {
+              "kind": "p",
+              "text": "Fehlt der Kurs für einen Tag, zählt der des nächsten Tages. Die Kurse werden erst beim Berechnen geladen. Alles Weitere steht hinter dem Link **Kursquellen** oben rechts im Rechner."
+            }
+          ],
+          "text": "Die Kurse stammen von der Kryptobörse Binance. Für jeden Tag zählt der letzte Preis vor Mitternacht (Weltzeit, UTC). Ab Anfang 2020: Bitcoin in Euro. Von August 2017 bis Ende 2019: Bitcoin in US-Dollar, umgerechnet mit dem offiziellen Euro-Kurs der Europäischen Zentralbank. Vor August 2017 gibt es keine Kurse. Fehlt der Kurs für einen Tag, zählt der des nächsten Tages. Die Kurse werden erst beim Berechnen geladen. Alles Weitere steht hinter dem Link Kursquellen oben rechts im Rechner."
+        },
+        {
+          "id": "dca-schedule",
+          "title": "Kauftage",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Monatliche und vierteljährliche Pläne kaufen immer am Tag des Starts. Hat ein Monat diesen Tag nicht, wird am letzten Tag des Monats gekauft und im nächsten Monat wieder am ursprünglichen Tag."
+            },
+            {
+              "kind": "p",
+              "text": "Beispiel Start am 31.01.: Käufe am 31.01., 29.02. (bzw. 28.02.), 31.03., 30.04."
+            }
+          ],
+          "text": "Monatliche und vierteljährliche Pläne kaufen immer am Tag des Starts. Hat ein Monat diesen Tag nicht, wird am letzten Tag des Monats gekauft und im nächsten Monat wieder am ursprünglichen Tag. Beispiel Start am 31.01.: Käufe am 31.01., 29.02. (bzw. 28.02.), 31.03., 30.04."
+        },
+        {
+          "id": "dca-projection",
+          "title": "Schätzung für die Zukunft",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Für die Zeit nach dem letzten bekannten Kurs schätzt der Rechner. Er setzt dafür fort, wie stark der Kurs bisher über die Jahre gestiegen ist. Im Diagramm beginnt die Schätzung an der senkrechten Linie; sie ist gestrichelt, die Spanne von vorsichtig bis optimistisch gepunktet. Die Ergebnisse nennen dieselbe Spanne."
+            },
+            {
+              "kind": "note",
+              "text": "Niemand weiß, ob sich der bisherige Verlauf fortsetzt. Die Schätzung ist keine Prognose."
+            }
+          ],
+          "text": "Für die Zeit nach dem letzten bekannten Kurs schätzt der Rechner. Er setzt dafür fort, wie stark der Kurs bisher über die Jahre gestiegen ist. Im Diagramm beginnt die Schätzung an der senkrechten Linie; sie ist gestrichelt, die Spanne von vorsichtig bis optimistisch gepunktet. Die Ergebnisse nennen dieselbe Spanne. Niemand weiß, ob sich der bisherige Verlauf fortsetzt. Die Schätzung ist keine Prognose."
+        },
+        {
+          "id": "dca-figures",
+          "title": "Ergebnisse",
+          "blocks": [
+            {
+              "kind": "ul",
+              "items": [
+                "**Endwert**: was deine Bitcoin am Ende wert sind.",
+                "**Durchschnittlicher Kaufpreis**: was ein Bitcoin dich im Schnitt gekostet hat, ohne Gebühren.",
+                "**Rendite gesamt**: Endwert im Vergleich zu allem, was du eingezahlt hast.",
+                "**Rendite pro Jahr**: auf ein Jahr umgerechnet und danach gewichtet, wie lange jeder Euro angelegt war."
+              ]
+            }
+          ],
+          "text": "Endwert: was deine Bitcoin am Ende wert sind. Durchschnittlicher Kaufpreis: was ein Bitcoin dich im Schnitt gekostet hat, ohne Gebühren. Rendite gesamt: Endwert im Vergleich zu allem, was du eingezahlt hast. Rendite pro Jahr: auf ein Jahr umgerechnet und danach gewichtet, wie lange jeder Euro angelegt war."
+        }
+      ]
+    },
+    {
       "id": "faq",
       "title": "Häufige Fragen",
       "summary": "Was schiefgehen kann und was dann zu tun ist.",
@@ -2760,6 +2855,101 @@ export const HELP_CONTENT: HelpContent = {
             }
           ],
           "text": "The review can be saved as a PNG. The image is created entirely in your browser; nothing is uploaded. Absolute amounts are hidden by default — holding, sums invested, sats. What remains is relative: counts, percentages, average price. Anyone who does want to show them switches that on explicitly; the app says that this makes the real size of your holding public, and that this is a security risk for you personally. In privacy mode, absolute amounts cannot be written into an image at all."
+        }
+      ]
+    },
+    {
+      "id": "dca",
+      "title": "Savings plan calculator",
+      "summary": "What a regular bitcoin savings plan would have returned, or might return.",
+      "sections": [
+        {
+          "id": "dca-overview",
+          "title": "Overview",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "On the left, enter how much you buy, how often and over which period. Optionally add a one-off amount on the start day and a fee per purchase. After **Calculate**, the results appear on the right, with the chart below."
+            },
+            {
+              "kind": "p",
+              "text": "The calculator neither reads nor changes your portfolio file. Only this browser remembers your inputs."
+            },
+            {
+              "kind": "note",
+              "text": "The results are not financial advice."
+            }
+          ],
+          "text": "On the left, enter how much you buy, how often and over which period. Optionally add a one-off amount on the start day and a fee per purchase. After Calculate, the results appear on the right, with the chart below. The calculator neither reads nor changes your portfolio file. Only this browser remembers your inputs. The results are not financial advice."
+        },
+        {
+          "id": "dca-prices",
+          "title": "Prices",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "The prices come from the crypto exchange Binance. For each day, the last price before midnight (universal time, UTC) counts."
+            },
+            {
+              "kind": "ul",
+              "items": [
+                "From early 2020: bitcoin in euros.",
+                "From August 2017 to the end of 2019: bitcoin in US dollars, converted with the official euro rate of the European Central Bank.",
+                "There are no prices before August 2017."
+              ]
+            },
+            {
+              "kind": "p",
+              "text": "If a day has no price, the next day's price counts. Prices are only loaded when you calculate. More is behind the **Price sources** link at the top right of the calculator."
+            }
+          ],
+          "text": "The prices come from the crypto exchange Binance. For each day, the last price before midnight (universal time, UTC) counts. From early 2020: bitcoin in euros. From August 2017 to the end of 2019: bitcoin in US dollars, converted with the official euro rate of the European Central Bank. There are no prices before August 2017. If a day has no price, the next day's price counts. Prices are only loaded when you calculate. More is behind the Price sources link at the top right of the calculator."
+        },
+        {
+          "id": "dca-schedule",
+          "title": "Purchase days",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Monthly and quarterly plans always buy on the day of the month you started. If a month does not have that day, the purchase happens on its last day, and on the original day again the month after."
+            },
+            {
+              "kind": "p",
+              "text": "Example, start on 31 January: purchases on 31 Jan, 29 (or 28) Feb, 31 Mar, 30 Apr."
+            }
+          ],
+          "text": "Monthly and quarterly plans always buy on the day of the month you started. If a month does not have that day, the purchase happens on its last day, and on the original day again the month after. Example, start on 31 January: purchases on 31 Jan, 29 (or 28) Feb, 31 Mar, 30 Apr."
+        },
+        {
+          "id": "dca-projection",
+          "title": "Estimate for the future",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "For the time after the last known price, the calculator estimates. It continues how strongly the price has risen over the years so far. In the chart the estimate starts at the vertical line; it is dashed, and the range from cautious to optimistic is dotted. The results give the same range."
+            },
+            {
+              "kind": "note",
+              "text": "Nobody knows whether the past trend continues. The estimate is no forecast."
+            }
+          ],
+          "text": "For the time after the last known price, the calculator estimates. It continues how strongly the price has risen over the years so far. In the chart the estimate starts at the vertical line; it is dashed, and the range from cautious to optimistic is dotted. The results give the same range. Nobody knows whether the past trend continues. The estimate is no forecast."
+        },
+        {
+          "id": "dca-figures",
+          "title": "Results",
+          "blocks": [
+            {
+              "kind": "ul",
+              "items": [
+                "**Final value**: what your bitcoin are worth at the end.",
+                "**Average purchase price**: what one bitcoin cost you on average, without fees.",
+                "**Total return**: final value compared with everything you paid in.",
+                "**Return per year**: converted to one year and weighted by how long each euro was invested."
+              ]
+            }
+          ],
+          "text": "Final value: what your bitcoin are worth at the end. Average purchase price: what one bitcoin cost you on average, without fees. Total return: final value compared with everything you paid in. Return per year: converted to one year and weighted by how long each euro was invested."
         }
       ]
     },

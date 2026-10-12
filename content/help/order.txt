@@ -12,4 +12,5 @@ watchlist
 utxo
 settings
 milestones
+dca
 faq

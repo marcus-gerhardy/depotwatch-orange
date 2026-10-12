@@ -124,6 +124,20 @@ export function addCalendarYears(date: CalendarDate, years: number): CalendarDat
   return serializeCalendarDate({ year: y, month, day: Math.min(day, daysInMonth(y, month)) });
 }
 
+/**
+ * The same day `months` months later, clamped to the end of a shorter month:
+ * 31 January + 1 month is 28 (or 29) February. Always count from the original
+ * date rather than chaining — 31 January + 2 months is 31 March, not the 28th
+ * a step through February would leave behind.
+ */
+export function addCalendarMonths(date: CalendarDate, months: number): CalendarDate {
+  const { year, month, day } = mustParse(date);
+  const index = year * 12 + (month - 1) + months;
+  const y = Math.floor(index / 12);
+  const m = index - y * 12 + 1;
+  return serializeCalendarDate({ year: y, month: m, day: Math.min(day, daysInMonth(y, m)) });
+}
+
 /** `to − from` in whole days (negative when `to` is earlier). */
 export function calendarDaysBetween(from: CalendarDate, to: CalendarDate): number {
   return toDayNumber(mustParse(to)) - toDayNumber(mustParse(from));

@@ -26,6 +26,7 @@ export default function NumberInput({
   placeholder,
   disabled = false,
   ariaLabel,
+  id,
 }: {
   /** Canonical decimal string, or free text the user is still editing. */
   value: string;
@@ -38,6 +39,8 @@ export default function NumberInput({
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
+  /** For a <label htmlFor> outside the input. */
+  id?: string;
 }) {
   const { locale } = useI18n();
   const loc = intlLocale(locale);
@@ -69,6 +72,7 @@ export default function NumberInput({
       inputMode="decimal"
       placeholder={placeholder}
       disabled={disabled}
+      id={id}
       aria-label={ariaLabel}
       value={text}
       onChange={(e) => {

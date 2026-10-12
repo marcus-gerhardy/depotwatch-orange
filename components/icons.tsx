@@ -232,6 +232,17 @@ export function WarnIcon({ className = "" }: { className?: string }) {
   );
 }
 
+/** More about this, behind a click: an "i" in a circle. */
+export function InfoIcon({ className = "" }: { className?: string }) {
+  return (
+    <InlineIcon className={className}>
+      <circle cx="12" cy="12" r="8.6" />
+      <path d="M12 11v5.4" />
+      {iconDot(12, 7.9, 1.1)}
+    </InlineIcon>
+  );
+}
+
 /** Done, complete, verified. */
 export function CheckIcon({ className = "" }: { className?: string }) {
   return (

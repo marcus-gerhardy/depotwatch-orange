@@ -111,3 +111,36 @@ export async function fetchDailyCloses(
   }
   return out;
 }
+
+/** One closed or running daily candle, as the savings-plan calculator reads it. */
+export interface DailyKline {
+  /** UTC day start, ms epoch. */
+  openTime: number;
+  /** Last millisecond of the day; in the future while the day is running. */
+  closeTime: number;
+  /** As Binance sends it, a decimal string. */
+  close: string;
+}
+
+/**
+ * One page (≤ 1000) of daily candles for any symbol, oldest first. The caller
+ * pages forward itself so it can report progress and stop when told to.
+ */
+export async function fetchDailyKlinePage(
+  symbol: string,
+  startTime: number,
+  endTime: number | null,
+  signal?: AbortSignal,
+): Promise<DailyKline[]> {
+  const params = new URLSearchParams({
+    symbol,
+    interval: "1d",
+    limit: "1000",
+    startTime: String(startTime),
+  });
+  if (endTime !== null) params.set("endTime", String(endTime));
+  const res = await fetch(`${BASE}/klines?${params}`, { signal });
+  if (!res.ok) throw new Error(`Binance klines failed: ${res.status}`);
+  const rows = (await res.json()) as [number, string, string, string, string, string, number][];
+  return rows.map((r) => ({ openTime: r[0], closeTime: r[6], close: r[4] }));
+}
