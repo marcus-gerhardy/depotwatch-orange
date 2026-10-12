@@ -37,3 +37,6 @@ Alles, was aus deiner Datei kommt — Bestand, Zuordnungen, Haltefristen —, fu
 
 ## Funktioniert die App offline? {#faq-offline}
 Ja. Öffnen, Erfassen, Auswerten und Speichern brauchen kein Netz. Ohne Netz fehlen nur Kurse und On-Chain-Daten, und die Hilfe hier funktioniert ebenfalls vollständig offline.
+
+## Wie entsteht ein privater Schlüssel? {#faq-private-key}
+Ein privater Schlüssel ist eine 256-Bit-Zufallszahl; aus ihr werden öffentlicher Schlüssel und Adresse berechnet. Die Lernseite [Vom Zufall zur Adresse](/privater-schluessel) erklärt jeden Schritt und hat einen Schlüsselgenerator zum Ausprobieren — nur zum Lernen, nie für echte Guthaben.

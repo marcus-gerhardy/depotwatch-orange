@@ -37,3 +37,6 @@ Everything that comes from your file — holding, assignments, holding periods �
 
 ## Does the app work offline? {#faq-offline}
 Yes. Opening, recording, analysing and saving need no network. Without one, only prices and on-chain data are missing, and this help works fully offline as well.
+
+## How does a private key come about? {#faq-private-key}
+A private key is a 256-bit random number; the public key and the address are computed from it. The learning page [From randomness to address](/private-key) explains every step and has a key generator to try — for learning only, never for real funds.

@@ -2337,6 +2337,201 @@ const en: typeof de = {
     fileModeFsa: "Direct file access (automatic saving)",
     fileModeFallback: "Upload/download (manual saving)",
   },
+  keyLab: {
+    metaTitle: "From Randomness to Address | DepotWatch Orange",
+    title: "From randomness to address",
+    intro:
+      "How a random number becomes a private key, a public key and finally a Bitcoin address: explained step by step, with a generator to try it out.",
+    warning:
+      "For learning only. Keys created here must never hold real funds: a key generated in a browser on an everyday computer is not fit for that. Nothing is stored; leaving the page discards everything.",
+    privacy: "Blur values",
+    helpLink: "Learning page: from randomness to address",
+    helpLinkHint:
+      "How a private key comes into being and why nobody can guess it, with a key generator to try.",
+    contents: "Contents",
+    learnHeading: "Basics",
+    learn: {
+      number: {
+        title: "A private key is a number",
+        p1: "A private key is nothing more than a 256-bit number, a number with up to 78 decimal digits. Whoever knows it can spend the funds that belong to it; nobody else can.",
+        p2: "Not every 256-bit number is valid. Allowed are the values from 1 up to just below the group order n of the elliptic curve secp256k1. n lies only marginally below 2²⁵⁶, so practically every random number is valid. It is checked anyway, and an invalid value is discarded and drawn again.",
+      },
+      entropy: {
+        title: "Entropy: where the randomness comes from",
+        p1: "A key is secure only because nobody can predict it. It therefore has to come from true, uniformly distributed randomness: entropy. An operating system collects it from hard-to-predict events (hardware noise, interrupt timings) and provides it through a cryptographically secure random number generator; in a browser, through crypto.getRandomValues().",
+        p2: "The quality of that randomness decides everything. Self-chosen numbers, phrases (“brain wallets”), too few dice rolls or flawed random generators have all produced keys that attackers enumerated systematically and emptied. 256 bits only help when all 256 bits are truly random.",
+      },
+      bip39: {
+        title: "BIP39: entropy becomes words",
+        p1: "A long hex number is hard to write down. BIP39 therefore turns entropy into words: a checksum (the first ENT/32 bits of its SHA-256 hash) is appended to the entropy (128 or 256 bits). The result is split into 11-bit groups, and each group picks one of 2,048 words from a fixed list.",
+        p2: "128 bits + 4 checksum bits = 132 bits = 12 words; 256 bits + 8 checksum bits = 264 bits = 24 words. The checksum catches most typos, which is why not every sequence of 12 words is valid, and why the last word cannot be chosen freely.",
+        p3: "The words are turned into the 512-bit seed by PBKDF2 with 2,048 rounds of HMAC-SHA512. An optional passphrase enters at this point and yields an entirely different wallet from the same words.",
+      },
+      bip32: {
+        title: "BIP32: from one seed to any number of keys",
+        p1: "HMAC-SHA512 over the seed yields the master key: a 256-bit private key plus a 256-bit chain code. Any number of child keys can be derived from it deterministically, and children from those: a tree that can be restored completely from the words.",
+        p2: "A derivation path describes the way through that tree, e.g. m/84'/0'/0'/0/0: purpose / coin / account / external-or-change / index. An apostrophe marks a hardened derivation, which requires the private key. The first level (purpose) determines the address type:",
+        bip44: "BIP44 (m/44'/…): legacy addresses (P2PKH), starting with 1.",
+        bip49: "BIP49 (m/49'/…): SegWit wrapped in P2SH (P2SH-P2WPKH), starting with 3.",
+        bip84: "BIP84 (m/84'/…): native SegWit (P2WPKH), starting with bc1q.",
+        bip86: "BIP86 (m/86'/…): key-path-only Taproot (P2TR), starting with bc1p.",
+      },
+      curve: {
+        title: "From private to public key",
+        p1: "The public key is a point on the curve y² = x³ + 7 over a finite field. It is the result of point multiplication: the fixed generator point G is added to itself k times, where k is the private key. Repeated doubling makes that about 256 steps rather than k additions.",
+        p2: "There is no such shortcut backwards. Getting from the point k·G back to k is the discrete logarithm problem; the best known methods need around 2¹²⁸ operations. That is why the public key may be public.",
+        p3: "A point has two coordinates. Uncompressed, both are stored (prefix 04, 65 bytes). Compressed, only x and a prefix 02 or 03 stating whether y is even or odd (33 bytes); y can be computed from that.",
+      },
+      address: {
+        title: "From public key to address",
+        p1: "An address is a compact, checksummed encoding of the condition under which bitcoin may be spent. Depending on the type it contains a hash of the key or the key itself:",
+        legacy:
+          "Legacy (P2PKH): HASH160 = RIPEMD-160(SHA-256(public key)), 20 bytes, encoded in Base58Check with version byte 0x00. Starts with 1.",
+        segwit:
+          "Native SegWit (P2WPKH): the same 20-byte hash as a version 0 witness program, encoded in Bech32. Starts with bc1q, is valid in lowercase only and is cheaper in fees.",
+        taproot:
+          "Taproot (P2TR): no hash, but a 32-byte key (x coordinate only). The public key is first “tweaked” with a hash of itself, so the address commits to there being no hidden script path. Witness version 1, encoded in Bech32m, starts with bc1p.",
+      },
+      encodings: {
+        title: "Encodings compared",
+        p1: "The same bytes can be written in different ways. An encoding never changes the key, only how it is spelled, and usually adds a checksum.",
+        hex: "Hex: two characters per byte, 0 to 9 and a to f. Exact, but without a checksum: a typo simply yields another, valid key.",
+        wif: "WIF (Wallet Import Format): version byte 0x80, the key, optionally 0x01 as a “compressed public key” flag, then Base58Check. Starts with 5 (uncompressed) or K/L (compressed).",
+        base58:
+          "Base58Check: an alphabet without easily confused characters (0, O, I, l) plus a 4-byte checksum from double SHA-256. A typo is detected with very high probability.",
+        bech32:
+          "Bech32 / Bech32m: lowercase letters and digits only, a readable prefix (bc) and a BCH checksum that is guaranteed to detect up to four wrong characters. Bech32m fixes a weakness of Bech32 and is used from witness version 1 (Taproot) on.",
+        checksum:
+          "Checksums protect against mistakes, not against attacks: they stop a typo from sending bitcoin to an address that belongs to nobody.",
+      },
+      keyspace: {
+        title: "How large is 2²⁵⁶?",
+        p1: "There are about {keys} possible private keys. For comparison, each a rough estimate:",
+        sand: "Grains of sand on Earth: about 10¹⁹",
+        stars: "Stars in the observable universe: about 10²³",
+        earthAtoms: "Atoms making up the Earth: about 10⁵⁰",
+        universeAtoms: "Atoms in the observable universe: about 10⁸⁰",
+        p2: "Whoever wants to find one specific key by guessing has to search half the space on average. This is how long it would take:",
+        rate: "Guesses per second",
+        years: "Years (on average)",
+        universes: "× age of the universe",
+        rateLaptop: "A laptop",
+        rateGpu: "A very fast graphics card",
+        rateNetwork: "All Bitcoin miners combined, if every hash were a key",
+        rateFantasy: "A billion such networks",
+        p3: "The universe is about 1.38 × 10¹⁰ years old. A key's security therefore does not depend on nobody searching, but on the randomness having been good.",
+      },
+    },
+    generatorHeading: "Key generator",
+    generatorIntro:
+      "Creates a private key using crypto.getRandomValues() only, and shows every step up to the address. There is deliberately no input field: a page that derives keys from arbitrary input and checks their balances would be a tool for finding other people's funds.",
+    generate: "Generate key",
+    regenerate: "Generate a new key",
+    discard: "Discard",
+    attempts: "Drawn after {count} attempt(s); invalid values are discarded.",
+    copy: "Copy",
+    copied: "Copied",
+    copyLabel: "Copy {what}",
+    steps: {
+      privateKey: {
+        title: "1 · Private key",
+        body: "32 random bytes, checked for 1 ≤ k < n. Below, the same number in decimal and in Wallet Import Format.",
+        hex: "Hex (32 bytes)",
+        decimal: "Decimal",
+        wifCompressed: "WIF, compressed",
+        wifUncompressed: "WIF, uncompressed",
+      },
+      publicKey: {
+        title: "2 · Public key",
+        body: "k · G on the curve secp256k1. Uncompressed it holds x and y; compressed only x and the parity of y.",
+        uncompressed: "Uncompressed (65 bytes, prefix 04)",
+        compressed: "Compressed (33 bytes, prefix 02/03)",
+      },
+      hash: {
+        title: "3 · Hash of the public key",
+        body: "RIPEMD-160(SHA-256(compressed key)). These 20 bytes are what legacy and native SegWit addresses contain. Taproot does not hash the key, it tweaks it.",
+        hash160: "HASH160 (20 bytes)",
+        internalKey: "Taproot: internal key (x-only)",
+        tweak: "Taproot: tweak = TaggedHash(“TapTweak”, internal key)",
+        outputKey: "Taproot: output key Q = P + t·G (x-only)",
+      },
+      address: {
+        title: "4 · Addresses",
+        body: "The same key, three address types. Each one is an address of its own; funds on one are invisible on the others.",
+        legacy: "Legacy (P2PKH, Base58Check)",
+        segwit: "Native SegWit (P2WPKH, Bech32)",
+        taproot: "Taproot (P2TR, Bech32m)",
+      },
+    },
+    mnemonic: {
+      heading: "Optional: a mnemonic (BIP39) up to the first address",
+      intro:
+        "Draws fresh entropy, turns it into words and derives the seed, the master key and the first receive address of each standard path from it, without a passphrase.",
+      generate12: "Generate 12 words",
+      generate24: "Generate 24 words",
+      entropy: {
+        title: "1 · Entropy",
+        body: "{bits} bits from crypto.getRandomValues().",
+        hex: "Entropy (hex)",
+      },
+      checksum: {
+        title: "2 · Checksum and words",
+        body: "The first {bits} bits of SHA-256(entropy) are appended. Every 11 bits pick one word from the list of 2,048 entries.",
+        bits: "Checksum bits",
+        words: "Words (index · bits)",
+        phrase: "Mnemonic",
+      },
+      seed: {
+        title: "3 · Seed",
+        body: "PBKDF2-HMAC-SHA512 with 2,048 rounds over the words; the salt is “mnemonic” plus the passphrase (empty here). Result: 64 bytes.",
+        hex: "Seed (64 bytes)",
+      },
+      master: {
+        title: "4 · Master key (BIP32)",
+        body: "HMAC-SHA512 keyed with “Bitcoin seed” over the seed. The left half is the master private key, the right half the chain code.",
+        privateKey: "Master private key",
+        chainCode: "Chain code",
+        xprv: "Extended private key (xprv)",
+      },
+      derived: {
+        title: "5 · First derived addresses",
+        body: "For each standard path, the first external key (account 0, index 0) and the address computed from it.",
+        privateKey: "Private key",
+        publicKey: "Public key",
+        address: "Address",
+      },
+    },
+    query: {
+      heading: "Blockchain lookup",
+      intro:
+        "The balance and transaction count of any generated address can be looked up: only at the press of a button, one address at a time and at most every {seconds} seconds.",
+      button: "Look up balance",
+      wait: "{seconds} s left",
+      loading: "Looking up …",
+      source: "Source: {source}",
+      sourceDefault: "{source} (default, as no portfolio file is open)",
+      sourceMissing:
+        "The explorer source is set to an own server, but without an endpoint URL. A lookup is impossible without it.",
+      privacy:
+        "A lookup sends the address (and your IP address) to the configured source. Keys and intermediate values never leave the device. To keep the address to yourself as well, use an instance of your own (Settings → explorer source).",
+      balance: "Balance",
+      txCount: "Transactions",
+      empty: "Empty, as expected.",
+      notEmpty:
+        "This address already has transactions. For a random key that is practically impossible; an error at the source is far more likely.",
+      error: "Lookup failed: {message}",
+      sessionHeading: "This session",
+      sessionKeys: "{keys} key(s) checked ({queries} lookups)",
+      sessionNone: "No lookup yet.",
+      share: "Share of the key space: {fraction}",
+      odds:
+        "Chance of a hit so far: at most 1 in {odds}, even if a billion addresses held funds (in reality far fewer do).",
+      oddsExplain:
+        "Legacy and SegWit addresses distinguish 2¹⁶⁰ values. Someone running one lookup per second would have checked fewer than 3 × 10⁹ keys after a lifetime.",
+    },
+    separation:
+      "This page is a learning aid with no connection to your portfolio: generated keys and addresses are never added to the watchlist, the file or any wallet.",
+  },
 };
 
 export default en;

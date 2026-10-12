@@ -6,13 +6,14 @@ import type { Locale } from "./types";
  * render the same client component, and the page syncs the URL to the active
  * language (see components/StaticPage.tsx).
  */
-export type StaticPageKey = "howItWorks" | "imprint" | "privacy" | "help";
+export type StaticPageKey = "howItWorks" | "imprint" | "privacy" | "help" | "keyLab";
 
 export const STATIC_PAGE_PATHS: Record<StaticPageKey, Record<Locale, string>> = {
   howItWorks: { de: "/so-funktionierts", en: "/how-it-works" },
   imprint: { de: "/impressum", en: "/legal-notice" },
   privacy: { de: "/datenschutz", en: "/privacy" },
   help: { de: "/hilfe", en: "/help" },
+  keyLab: { de: "/privater-schluessel", en: "/private-key" },
 };
 
 /**

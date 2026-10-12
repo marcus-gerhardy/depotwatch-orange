@@ -2352,6 +2352,201 @@ const de = {
     fileModeFsa: "Direkter Dateizugriff (automatisches Speichern)",
     fileModeFallback: "Upload/Download (manuelles Speichern)",
   },
+  keyLab: {
+    metaTitle: "Vom Zufall zur Adresse | DepotWatch Orange",
+    title: "Vom Zufall zur Adresse",
+    intro:
+      "Wie aus einer Zufallszahl ein privater Schlüssel, ein öffentlicher Schlüssel und schließlich eine Bitcoin-Adresse wird: Schritt für Schritt erklärt und zum Ausprobieren.",
+    warning:
+      "Nur zum Lernen. Die hier erzeugten Schlüssel dürfen niemals echte Guthaben verwahren: Ein im Browser auf einem Alltagsrechner erzeugter Schlüssel ist dafür nicht geeignet. Nichts davon wird gespeichert; beim Verlassen der Seite ist alles weg.",
+    privacy: "Werte verwischen",
+    helpLink: "Lernseite: Vom Zufall zur Adresse",
+    helpLinkHint:
+      "Wie ein privater Schlüssel entsteht und warum niemand ihn erraten kann, mit einem Schlüsselgenerator zum Ausprobieren.",
+    contents: "Inhalt",
+    learnHeading: "Grundlagen",
+    learn: {
+      number: {
+        title: "Der private Schlüssel ist eine Zahl",
+        p1: "Ein privater Schlüssel ist nichts weiter als eine 256-Bit-Zahl, also eine Zahl mit bis zu 78 Dezimalstellen. Wer sie kennt, kann über das zugehörige Guthaben verfügen, sonst niemand.",
+        p2: "Nicht jede 256-Bit-Zahl ist gültig. Erlaubt sind die Werte von 1 bis knapp unter die Gruppenordnung n der elliptischen Kurve secp256k1. n liegt nur minimal unter 2²⁵⁶, deshalb ist praktisch jede Zufallszahl gültig. Geprüft wird trotzdem, und ein ungültiger Wert wird verworfen und neu gezogen.",
+      },
+      entropy: {
+        title: "Entropie: woher der Zufall kommt",
+        p1: "Die Sicherheit eines Schlüssels besteht allein darin, dass niemand ihn vorhersagen kann. Er muss deshalb aus echtem, gleichmäßig verteiltem Zufall stammen, der Entropie. Ein Betriebssystem sammelt sie aus schwer vorhersagbaren Ereignissen (Hardware-Rauschen, Zeitabständen von Interrupts) und stellt sie über einen kryptografisch sicheren Zufallsgenerator bereit, im Browser über crypto.getRandomValues().",
+        p2: "Die Qualität des Zufalls entscheidet alles. Selbst gewählte Zahlen, Sätze („Brainwallets“), Würfel mit wenigen Würfen oder fehlerhafte Zufallsgeneratoren haben in der Vergangenheit zu Schlüsseln geführt, die Angreifer systematisch durchprobiert und geleert haben. 256 Bit nutzen nur, wenn alle 256 Bit wirklich zufällig sind.",
+      },
+      bip39: {
+        title: "BIP39: Entropie wird zu Wörtern",
+        p1: "Eine lange Hex-Zahl lässt sich schlecht abschreiben. BIP39 übersetzt deshalb Entropie in Wörter: Zur Entropie (128 oder 256 Bit) kommt eine Prüfsumme: die ersten ENT/32 Bit ihres SHA-256-Hashes. Das Ganze wird in Blöcke zu 11 Bit zerlegt, und jeder Block wählt eines von 2.048 Wörtern einer festen Liste.",
+        p2: "128 Bit + 4 Bit Prüfsumme = 132 Bit = 12 Wörter; 256 Bit + 8 Bit Prüfsumme = 264 Bit = 24 Wörter. Die Prüfsumme erkennt die meisten Tippfehler. Darum ist nicht jede Folge von 12 Wörtern gültig, und das letzte Wort lässt sich nicht frei wählen.",
+        p3: "Aus den Wörtern entsteht über PBKDF2 mit 2.048 Runden HMAC-SHA512 der 512 Bit lange Seed. Eine optionale Passphrase fließt dort ein und ergibt bei gleichen Wörtern ein völlig anderes Wallet.",
+      },
+      bip32: {
+        title: "BIP32: vom Seed zu beliebig vielen Schlüsseln",
+        p1: "Aus dem Seed berechnet HMAC-SHA512 den Master-Key: 256 Bit privater Schlüssel plus 256 Bit Chain Code. Aus ihm lassen sich deterministisch beliebig viele Kindschlüssel ableiten, und aus denen wieder Kinder: ein Baum, der vollständig aus den Wörtern wiederherstellbar ist.",
+        p2: "Ein Ableitungspfad beschreibt den Weg durch diesen Baum, etwa m/84'/0'/0'/0/0: Zweck / Coin / Konto / extern-oder-Wechselgeld / Index. Ein Apostroph kennzeichnet eine gehärtete Ableitung, die nur mit dem privaten Schlüssel möglich ist. Die erste Pfadstufe (Purpose) legt fest, welcher Adresstyp verwendet wird:",
+        bip44: "BIP44 (m/44'/…): Legacy-Adressen (P2PKH), beginnen mit 1.",
+        bip49: "BIP49 (m/49'/…): SegWit, verpackt in P2SH (P2SH-P2WPKH), beginnen mit 3.",
+        bip84: "BIP84 (m/84'/…): Native SegWit (P2WPKH), beginnen mit bc1q.",
+        bip86: "BIP86 (m/86'/…): Taproot mit reinem Key-Path (P2TR), beginnen mit bc1p.",
+      },
+      curve: {
+        title: "Vom privaten zum öffentlichen Schlüssel",
+        p1: "Der öffentliche Schlüssel ist ein Punkt auf der Kurve y² = x³ + 7 über einem endlichen Körper. Er entsteht durch Punktmultiplikation: Der feste Startpunkt G wird k-mal zu sich selbst addiert, wobei k der private Schlüssel ist. Dank wiederholtem Verdoppeln braucht das nur rund 256 Schritte statt k Additionen.",
+        p2: "Rückwärts gibt es keine solche Abkürzung. Aus dem Punkt k·G auf k zu schließen, ist das Problem des diskreten Logarithmus; die besten bekannten Verfahren brauchen rund 2¹²⁸ Operationen. Deshalb darf der öffentliche Schlüssel öffentlich sein.",
+        p3: "Ein Punkt hat zwei Koordinaten. Unkomprimiert werden beide gespeichert (Präfix 04, 65 Byte). Komprimiert nur x und ein Präfix 02 oder 03, das angibt, ob y gerade oder ungerade ist (33 Byte); y lässt sich daraus berechnen.",
+      },
+      address: {
+        title: "Vom öffentlichen Schlüssel zur Adresse",
+        p1: "Eine Adresse ist eine kompakte, mit Prüfsumme versehene Kodierung der Bedingung, unter der Bitcoin ausgegeben werden dürfen. Je nach Typ steckt darin ein Hash des Schlüssels oder der Schlüssel selbst:",
+        legacy:
+          "Legacy (P2PKH): HASH160 = RIPEMD-160(SHA-256(öffentlicher Schlüssel)), 20 Byte, mit Versionsbyte 0x00 in Base58Check kodiert. Beginnt mit 1.",
+        segwit:
+          "Native SegWit (P2WPKH): derselbe 20-Byte-Hash als Witness-Programm der Version 0, in Bech32 kodiert. Beginnt mit bc1q, ist nur in Kleinbuchstaben gültig und günstiger in den Gebühren.",
+        taproot:
+          "Taproot (P2TR): kein Hash, sondern ein 32-Byte-Schlüssel (nur x-Koordinate). Der öffentliche Schlüssel wird vorher mit einem Hash von sich selbst „getweakt“, damit die Adresse festlegt, dass es keinen versteckten Skriptpfad gibt. Witness-Version 1, kodiert in Bech32m, beginnt mit bc1p.",
+      },
+      encodings: {
+        title: "Kodierungen im Vergleich",
+        p1: "Dieselben Bytes lassen sich verschieden darstellen. Die Kodierung ändert nie den Schlüssel, nur seine Schreibweise, und fügt meist eine Prüfsumme hinzu.",
+        hex: "Hex: zwei Zeichen pro Byte, 0 bis 9 und a bis f. Exakt, aber ohne Prüfsumme: Ein Tippfehler ergibt einfach einen anderen, gültigen Schlüssel.",
+        wif: "WIF (Wallet Import Format): Versionsbyte 0x80, der Schlüssel, optional 0x01 als Markierung „komprimierter öffentlicher Schlüssel“, dann Base58Check. Beginnt mit 5 (unkomprimiert) oder K/L (komprimiert).",
+        base58:
+          "Base58Check: ein Alphabet ohne leicht verwechselbare Zeichen (0, O, I, l) plus 4 Byte Prüfsumme aus doppeltem SHA-256. Ein Tippfehler wird mit sehr hoher Wahrscheinlichkeit erkannt.",
+        bech32:
+          "Bech32 / Bech32m: nur Kleinbuchstaben und Ziffern, ein lesbares Präfix (bc) und eine BCH-Prüfsumme, die bis zu vier falsche Zeichen garantiert erkennt. Bech32m behebt eine Schwäche von Bech32 und wird ab Witness-Version 1 (Taproot) verwendet.",
+        checksum:
+          "Prüfsummen schützen vor Versehen, nicht vor Angriffen: Sie verhindern, dass ein Tippfehler Bitcoin an eine Adresse schickt, die niemandem gehört.",
+      },
+      keyspace: {
+        title: "Wie groß ist 2²⁵⁶?",
+        p1: "Es gibt rund {keys} mögliche private Schlüssel. Zum Vergleich, jeweils grob geschätzt:",
+        sand: "Sandkörner auf der Erde: rund 10¹⁹",
+        stars: "Sterne im beobachtbaren Universum: rund 10²³",
+        earthAtoms: "Atome, aus denen die Erde besteht: rund 10⁵⁰",
+        universeAtoms: "Atome im beobachtbaren Universum: rund 10⁸⁰",
+        p2: "Wer einen bestimmten Schlüssel durch Raten finden will, muss im Mittel die Hälfte des Raums durchsuchen. So lange dauerte das:",
+        rate: "Versuche pro Sekunde",
+        years: "Jahre (im Mittel)",
+        universes: "× Alter des Universums",
+        rateLaptop: "Ein Laptop",
+        rateGpu: "Eine sehr schnelle Grafikkarte",
+        rateNetwork: "Alle Bitcoin-Miner zusammen, wäre jeder Hash ein Schlüssel",
+        rateFantasy: "Eine Milliarde solcher Netze",
+        p3: "Das Alter des Universums beträgt rund 1,38 × 10¹⁰ Jahre. Die Sicherheit eines Schlüssels hängt daher nicht davon ab, dass niemand sucht, sondern davon, dass der Zufall gut war.",
+      },
+    },
+    generatorHeading: "Schlüsselgenerator",
+    generatorIntro:
+      "Erzeugt einen privaten Schlüssel ausschließlich mit crypto.getRandomValues() und zeigt jeden Schritt bis zur Adresse. Es gibt bewusst kein Eingabefeld: Eine Seite, die aus beliebigen Eingaben Schlüssel ableitet und Guthaben prüft, wäre ein Werkzeug zum Auffinden fremder Guthaben.",
+    generate: "Schlüssel erzeugen",
+    regenerate: "Neuen Schlüssel erzeugen",
+    discard: "Verwerfen",
+    attempts: "Gezogen nach {count} Versuch(en); ungültige Werte werden verworfen.",
+    copy: "Kopieren",
+    copied: "Kopiert",
+    copyLabel: "{what} kopieren",
+    steps: {
+      privateKey: {
+        title: "1 · Privater Schlüssel",
+        body: "32 zufällige Bytes, geprüft auf 1 ≤ k < n. Darunter dieselbe Zahl dezimal und im Wallet Import Format.",
+        hex: "Hex (32 Byte)",
+        decimal: "Dezimal",
+        wifCompressed: "WIF, komprimiert",
+        wifUncompressed: "WIF, unkomprimiert",
+      },
+      publicKey: {
+        title: "2 · Öffentlicher Schlüssel",
+        body: "k · G auf der Kurve secp256k1. Unkomprimiert enthält er x und y, komprimiert nur x und die Parität von y.",
+        uncompressed: "Unkomprimiert (65 Byte, Präfix 04)",
+        compressed: "Komprimiert (33 Byte, Präfix 02/03)",
+      },
+      hash: {
+        title: "3 · Hash des öffentlichen Schlüssels",
+        body: "RIPEMD-160(SHA-256(komprimierter Schlüssel)). Diese 20 Byte stecken in Legacy- und Native-SegWit-Adressen. Taproot hasht den Schlüssel nicht, sondern tweakt ihn.",
+        hash160: "HASH160 (20 Byte)",
+        internalKey: "Taproot: interner Schlüssel (x-only)",
+        tweak: "Taproot: Tweak = TaggedHash(„TapTweak“, interner Schlüssel)",
+        outputKey: "Taproot: Ausgabeschlüssel Q = P + t·G (x-only)",
+      },
+      address: {
+        title: "4 · Adressen",
+        body: "Derselbe Schlüssel, drei Adresstypen. Jede ist eine eigene Adresse; Guthaben auf der einen ist auf den anderen nicht sichtbar.",
+        legacy: "Legacy (P2PKH, Base58Check)",
+        segwit: "Native SegWit (P2WPKH, Bech32)",
+        taproot: "Taproot (P2TR, Bech32m)",
+      },
+    },
+    mnemonic: {
+      heading: "Optional: Mnemonic (BIP39) bis zur ersten Adresse",
+      intro:
+        "Zieht frische Entropie, übersetzt sie in Wörter und leitet daraus Seed, Master-Key und die erste Empfangsadresse jedes Standardpfads ab, ohne Passphrase.",
+      generate12: "12 Wörter erzeugen",
+      generate24: "24 Wörter erzeugen",
+      entropy: {
+        title: "1 · Entropie",
+        body: "{bits} Bit aus crypto.getRandomValues().",
+        hex: "Entropie (Hex)",
+      },
+      checksum: {
+        title: "2 · Prüfsumme und Wörter",
+        body: "Die ersten {bits} Bit von SHA-256(Entropie) werden angehängt. Jeweils 11 Bit wählen ein Wort aus der Liste mit 2.048 Einträgen.",
+        bits: "Prüfsummen-Bits",
+        words: "Wörter (Index · Bits)",
+        phrase: "Mnemonic",
+      },
+      seed: {
+        title: "3 · Seed",
+        body: "PBKDF2-HMAC-SHA512 mit 2.048 Runden über die Wörter; Salz ist „mnemonic“ plus Passphrase (hier leer). Ergebnis: 64 Byte.",
+        hex: "Seed (64 Byte)",
+      },
+      master: {
+        title: "4 · Master-Key (BIP32)",
+        body: "HMAC-SHA512 mit dem Schlüssel „Bitcoin seed“ über den Seed. Die linke Hälfte ist der private Master-Schlüssel, die rechte der Chain Code.",
+        privateKey: "Privater Master-Schlüssel",
+        chainCode: "Chain Code",
+        xprv: "Erweiterter privater Schlüssel (xprv)",
+      },
+      derived: {
+        title: "5 · Erste abgeleitete Adressen",
+        body: "Je Standardpfad der erste externe Schlüssel (Konto 0, Index 0) und die daraus berechnete Adresse.",
+        privateKey: "Privater Schlüssel",
+        publicKey: "Öffentlicher Schlüssel",
+        address: "Adresse",
+      },
+    },
+    query: {
+      heading: "Blockchain-Abfrage",
+      intro:
+        "Zu jeder erzeugten Adresse lassen sich Guthaben und Transaktionszahl abfragen: nur auf Knopfdruck, immer nur eine Adresse und höchstens alle {seconds} Sekunden.",
+      button: "Guthaben abfragen",
+      wait: "Noch {seconds} s",
+      loading: "Frage ab …",
+      source: "Quelle: {source}",
+      sourceDefault: "{source} (Standard, weil keine Portfolio-Datei geöffnet ist)",
+      sourceMissing:
+        "Als Explorer-Quelle ist ein eigener Server eingestellt, aber keine Endpoint-URL. Ohne sie ist keine Abfrage möglich.",
+      privacy:
+        "Die Abfrage übermittelt die Adresse (und deine IP-Adresse) an die konfigurierte Quelle. Schlüssel und Zwischenwerte verlassen das Gerät nie. Wer auch die Adresse für sich behalten will, nutzt eine eigene Instanz (Einstellungen → Explorer-Quelle).",
+      balance: "Guthaben",
+      txCount: "Transaktionen",
+      empty: "Leer, wie erwartet.",
+      notEmpty:
+        "Diese Adresse hat bereits Transaktionen. Das ist bei einem zufälligen Schlüssel praktisch ausgeschlossen, wahrscheinlicher ist ein Fehler der Quelle.",
+      error: "Abfrage fehlgeschlagen: {message}",
+      sessionHeading: "In dieser Sitzung",
+      sessionKeys: "{keys} Schlüssel geprüft ({queries} Abfragen)",
+      sessionNone: "Noch keine Abfrage.",
+      share: "Anteil am Schlüsselraum: {fraction}",
+      odds:
+        "Chance auf einen Treffer bisher: höchstens 1 zu {odds}, selbst wenn eine Milliarde Adressen Guthaben hätten (tatsächlich sind es weit weniger).",
+      oddsExplain:
+        "Legacy- und SegWit-Adressen unterscheiden 2¹⁶⁰ Werte. Wer jede Sekunde eine Abfrage stellt, hätte nach einem Menschenleben weniger als 3 × 10⁹ Schlüssel geprüft.",
+    },
+    separation:
+      "Diese Seite ist ein Lernangebot und hat keine Verbindung zu deinem Portfolio: Erzeugte Schlüssel und Adressen werden weder in die Watchlist noch in die Datei oder in Wallets übernommen.",
+  },
 };
 
 export default de;

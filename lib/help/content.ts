@@ -1433,6 +1433,17 @@ export const HELP_CONTENT: HelpContent = {
             }
           ],
           "text": "Ja. Öffnen, Erfassen, Auswerten und Speichern brauchen kein Netz. Ohne Netz fehlen nur Kurse und On-Chain-Daten, und die Hilfe hier funktioniert ebenfalls vollständig offline."
+        },
+        {
+          "id": "faq-private-key",
+          "title": "Wie entsteht ein privater Schlüssel?",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "Ein privater Schlüssel ist eine 256-Bit-Zufallszahl; aus ihr werden öffentlicher Schlüssel und Adresse berechnet. Die Lernseite [Vom Zufall zur Adresse](/privater-schluessel) erklärt jeden Schritt und hat einen Schlüsselgenerator zum Ausprobieren — nur zum Lernen, nie für echte Guthaben."
+            }
+          ],
+          "text": "Ein privater Schlüssel ist eine 256-Bit-Zufallszahl; aus ihr werden öffentlicher Schlüssel und Adresse berechnet. Die Lernseite Vom Zufall zur Adresse erklärt jeden Schritt und hat einen Schlüsselgenerator zum Ausprobieren — nur zum Lernen, nie für echte Guthaben."
         }
       ]
     }
@@ -2865,6 +2876,17 @@ export const HELP_CONTENT: HelpContent = {
             }
           ],
           "text": "Yes. Opening, recording, analysing and saving need no network. Without one, only prices and on-chain data are missing, and this help works fully offline as well."
+        },
+        {
+          "id": "faq-private-key",
+          "title": "How does a private key come about?",
+          "blocks": [
+            {
+              "kind": "p",
+              "text": "A private key is a 256-bit random number; the public key and the address are computed from it. The learning page [From randomness to address](/private-key) explains every step and has a key generator to try — for learning only, never for real funds."
+            }
+          ],
+          "text": "A private key is a 256-bit random number; the public key and the address are computed from it. The learning page From randomness to address explains every step and has a key generator to try — for learning only, never for real funds."
         }
       ]
     }
